@@ -193,17 +193,14 @@ export default function Home() {
     return 1; // > 20h
   };
 
-  // Buscar Ranking do Mês Atual
+  // Buscar Ranking (sem filtro de mês — votos acumulados)
   const fetchRanking = async () => {
     setRankingLoading(true);
     try {
-      const month = getCurrentMonth();
-      
-      // Buscar todos os votos do mês corrente
+      // Buscar todos os votos sem filtrar por mês
       const { data: votes, error: votesError } = await supabase
         .from('votes')
-        .select('game_id, user_id')
-        .eq('vote_month', month);
+        .select('game_id, user_id');
 
       if (votesError) throw votesError;
 
@@ -342,7 +339,6 @@ export default function Home() {
 
   // Votar / Remover Voto de um Jogo
   const toggleVote = async (gameId: string, currentlyVoted: boolean) => {
-    const month = getCurrentMonth();
     try {
       if (currentlyVoted) {
         // Remover voto
@@ -350,18 +346,16 @@ export default function Home() {
           .from('votes')
           .delete()
           .eq('user_id', user.id)
-          .eq('game_id', gameId)
-          .eq('vote_month', month);
+          .eq('game_id', gameId);
 
         if (error) throw error;
       } else {
-        // Adicionar voto (a constraint impede voto duplicado no mesmo jogo no mês)
+        // Adicionar voto (constraint impede voto duplicado no mesmo jogo)
         const { error } = await supabase
           .from('votes')
           .insert({
             user_id: user.id,
             game_id: gameId,
-            vote_month: month
           });
 
         if (error) throw error;
