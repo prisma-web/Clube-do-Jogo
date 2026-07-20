@@ -43,8 +43,8 @@ export function GameGallery({ title, images }: { title: string; images: string[]
       </div>
 
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[90] bg-black/90 backdrop-blur-md data-[state=open]:animate-fade-in" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-[91] flex max-h-[96dvh] w-[calc(100%-1rem)] max-w-6xl -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-3 outline-none data-[state=closed]:animate-modal-out data-[state=open]:animate-modal-in">
+        <Dialog.Overlay className="animated-overlay fixed inset-0 z-[90] bg-black/90 backdrop-blur-md" />
+        <Dialog.Content className="animated-modal fixed left-1/2 top-1/2 z-[91] flex max-h-[96dvh] w-[calc(100%-1rem)] max-w-6xl -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-3 outline-none">
           <Dialog.Title className="sr-only">Galeria de {title}</Dialog.Title>
           <Dialog.Description className="sr-only">Imagem {activeIndex + 1} de {images.length}. Use as setas para navegar.</Dialog.Description>
           <div

@@ -106,7 +106,7 @@ export function Timeline({ game }: { game: Game }) {
     return (
       <Popover.Root>
         <Popover.Trigger aria-label="Adicionar reação" className="grid size-7 place-items-center rounded-full text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300"><SmilePlus className="size-3.5" /></Popover.Trigger>
-        <Popover.Portal><Popover.Content side="top" align="start" sideOffset={8} className="z-[90] overflow-hidden rounded-2xl border border-white/10 shadow-2xl data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in"><EmojiPicker theme={Theme.DARK} emojiStyle={EmojiStyle.NATIVE} width={Math.min(340, typeof window === 'undefined' ? 320 : window.innerWidth - 24)} height={380} previewConfig={{ showPreview: false }} searchPlaceHolder="Buscar emoji" onEmojiClick={(data: EmojiClickData) => void toggleReaction(comment, data.emoji, rootId)} /></Popover.Content></Popover.Portal>
+        <Popover.Portal><Popover.Content side="top" align="start" sideOffset={8} className="animated-popup z-[90] overflow-hidden rounded-2xl border border-white/10 shadow-2xl"><EmojiPicker theme={Theme.DARK} emojiStyle={EmojiStyle.NATIVE} width={Math.min(340, typeof window === 'undefined' ? 320 : window.innerWidth - 24)} height={380} previewConfig={{ showPreview: false }} searchPlaceHolder="Buscar emoji" onEmojiClick={(data: EmojiClickData) => void toggleReaction(comment, data.emoji, rootId)} /></Popover.Content></Popover.Portal>
       </Popover.Root>
     );
   }

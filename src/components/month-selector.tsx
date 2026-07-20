@@ -16,7 +16,7 @@ export function MonthSelector() {
         <ChevronDown className="size-3.5 text-zinc-500" />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content align="end" sideOffset={8} className="z-[100] min-w-56 rounded-2xl border border-white/10 bg-zinc-900 p-1.5 shadow-2xl outline-none data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in">
+        <DropdownMenu.Content align="end" sideOffset={8} className="animated-popup z-[100] min-w-56 rounded-2xl border border-white/10 bg-zinc-900 p-1.5 shadow-2xl outline-none">
           <div className="px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">Mês da atividade</div>
           {availableMonths.map(month => (
             <DropdownMenu.Item key={month} onSelect={() => setSelectedMonth(month)} className="flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 text-sm text-zinc-300 outline-none transition data-[highlighted]:bg-white/8 data-[highlighted]:text-white">
