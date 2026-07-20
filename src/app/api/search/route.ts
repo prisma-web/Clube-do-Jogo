@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { searchGamesWithGrok } from '@/lib/grok';
+import { searchGamesWithGemini } from '@/lib/gemini';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -31,17 +31,17 @@ export async function GET(request: Request) {
     }
 
     // Se encontramos resultados locais suficientes (ex: 2 ou mais), podemos retorná-los para ser mais rápido.
-    // Mas para garantir uma busca fresca e completa, se o cache estiver vazio ou quisermos mais, chamamos o Grok.
+    // Mas para garantir uma busca fresca e completa, se o cache estiver vazio ou quisermos mais, chamamos o Gemini.
     if (cachedGames && cachedGames.length >= 2) {
       return NextResponse.json(cachedGames);
     }
 
-    // 3. Caso contrário, fazemos a chamada ao Grok para buscar e estruturar
-    const grokResults = await searchGamesWithGrok(query);
+    // 3. Caso contrário, fazemos a chamada ao Gemini para buscar e estruturar
+    const geminiResults = await searchGamesWithGemini(query);
 
-    // 4. Salvar os novos jogos retornados pelo Grok no Supabase (ignorando duplicados pelo título)
+    // 4. Salvar os novos jogos retornados pelo Gemini no Supabase (ignorando duplicados pelo título)
     const savedGames: any[] = [];
-    for (const game of grokResults) {
+    for (const game of geminiResults) {
       // Tentar inserir o jogo
       const { data: inserted, error: insertError } = await supabase
         .from('games')
