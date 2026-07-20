@@ -79,8 +79,6 @@ export default function Home() {
   // Ranking state
   const [ranking, setRanking] = useState<RankingItem[]>([]);
   const [rankingLoading, setRankingLoading] = useState(false);
-  const [backfillLoading, setBackfillLoading] = useState(false);
-  const [backfillMessage, setBackfillMessage] = useState('');
   const [votedGameIds, setVotedGameIds] = useState<Set<string>>(new Set());
   const [completedGameIds, setCompletedGameIds] = useState<Set<string>>(new Set());
 
@@ -481,45 +479,6 @@ export default function Home() {
     }
   };
 
-  const handleBackfillRatings = async () => {
-    if (!confirm('Atualizar notas dos jogos sem nota agora? Esse botao e temporario e pode demorar um pouco.')) return;
-
-    setBackfillLoading(true);
-    setBackfillMessage('');
-
-    try {
-      let totalChecked = 0;
-      let totalUpdated = 0;
-      let remaining = 0;
-      const checkedIds: string[] = [];
-
-      for (let attempt = 0; attempt < 8; attempt += 1) {
-        const res = await fetch('/api/admin/backfill-ratings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ excludeIds: checkedIds }),
-        });
-        const data = await res.json();
-
-        if (!res.ok) throw new Error(data.error || 'Erro ao atualizar notas.');
-
-        totalChecked += data.checkedCount || 0;
-        totalUpdated += data.updatedCount || 0;
-        remaining = data.remainingCount || 0;
-        checkedIds.push(...(data.checkedIds || []));
-
-        if (!data.checkedCount || remaining === 0) break;
-      }
-
-      setBackfillMessage(`Notas atualizadas: ${totalUpdated}. Verificados: ${totalChecked}. Sem nota restante: ${remaining}.`);
-      await fetchRanking();
-    } catch (error: unknown) {
-      setBackfillMessage(error instanceof Error ? error.message : 'Erro ao atualizar notas.');
-    } finally {
-      setBackfillLoading(false);
-    }
-  };
-
   const addVoteForGame = async (gameId: string) => {
     const { error } = await supabase
       .from('votes')
@@ -533,37 +492,29 @@ export default function Home() {
     setVotedGameIds(prev => new Set(prev).add(gameId));
   };
 
+  const ensureGameInBacklog = async (game: Game) => {
+    const { error } = await supabase
+      .from('backlogs')
+      .insert({
+        user_id: user.id,
+        game_id: game.id,
+      });
+
+    if (error && error.code !== '23505') throw error;
+
+    setBacklog(prev => prev.some(item => item.id === game.id) ? prev : [...prev, game]);
+  };
+
   // Adicionar jogo ao backlog pessoal e ao ranking automaticamente
   const addToBacklog = async (game: Game) => {
     try {
-      const { error } = await supabase
-        .from('backlogs')
-        .insert({
-          user_id: user.id,
-          game_id: game.id
-        });
-
-      if (error) {
-        if (error.code === '23505') {
-          await addVoteForGame(game.id);
-          await fetchRanking();
-          alert('Este jogo já está no seu backlog e já entrou no ranking!');
-          setShowSearchModal(false);
-          setSearchQuery('');
-          setSearchResults([]);
-        } else {
-          throw error;
-        }
-      } else {
-        await addVoteForGame(game.id);
-        // Atualizar lista local
-        setBacklog(prev => [...prev, game]);
-        await fetchRanking();
-        alert('Jogo adicionado ao backlog e ao ranking com sucesso!');
-        setShowSearchModal(false);
-        setSearchQuery('');
-        setSearchResults([]);
-      }
+      await ensureGameInBacklog(game);
+      await addVoteForGame(game.id);
+      await fetchRanking();
+      alert('Jogo adicionado ao backlog e ao ranking com sucesso!');
+      setShowSearchModal(false);
+      setSearchQuery('');
+      setSearchResults([]);
     } catch (error) {
       console.error('Erro ao adicionar ao backlog:', error);
     }
@@ -603,7 +554,7 @@ export default function Home() {
   };
 
   // Votar / Remover Voto de um Jogo
-  const toggleVote = async (gameId: string, currentlyVoted: boolean) => {
+  const toggleVote = async (gameId: string, currentlyVoted: boolean, game?: Game) => {
     try {
       if (currentlyVoted) {
         // Remover voto
@@ -620,6 +571,9 @@ export default function Home() {
           return next;
         });
       } else {
+        if (game) {
+          await ensureGameInBacklog(game);
+        }
         await addVoteForGame(gameId);
       }
 
@@ -841,23 +795,6 @@ export default function Home() {
                 </span>
               </div>
 
-              <div className="mb-4 px-1 flex flex-col gap-2">
-                <button
-                  onClick={handleBackfillRatings}
-                  disabled={backfillLoading}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-50"
-                  title="Ferramenta temporaria: preencher notas antigas pela IGDB"
-                >
-                  {backfillLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Star className="w-3.5 h-3.5" />}
-                  Atualizar notas antigas
-                </button>
-                {backfillMessage && (
-                  <p className="text-[10px] text-neutral-500 text-center">
-                    {backfillMessage}
-                  </p>
-                )}
-              </div>
-
               {rankingLoading ? (
                 <div className="py-12 flex flex-col items-center justify-center">
                   <Loader2 className="w-8 h-8 animate-spin text-violet-500 mb-2" />
@@ -957,7 +894,7 @@ export default function Home() {
                               </button>
 
                               <button
-                                onClick={() => toggleVote(item.game.id, item.votedByMe)}
+                                onClick={() => toggleVote(item.game.id, item.votedByMe, item.game)}
                                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition active:scale-95 ${
                                   item.votedByMe 
                                     ? 'bg-violet-600 text-white hover:bg-violet-700' 
@@ -1062,8 +999,19 @@ export default function Home() {
                           </button>
                         </div>
 
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-neutral-900/60">
-                          
+                        <div className="flex items-center justify-end gap-2 mt-2 pt-2 border-t border-neutral-900/60">
+                          <button
+                            onClick={() => toggleCompleted(game, isCompleted)}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-extrabold transition active:scale-95 ${
+                              isCompleted
+                                ? 'bg-pink-600 text-white hover:bg-pink-700'
+                                : 'bg-pink-950/40 text-pink-300 border border-pink-500/20 hover:bg-pink-600 hover:text-white'
+                            }`}
+                          >
+                            <Flag className={`w-3 h-3 ${isCompleted ? 'fill-current' : ''}`} />
+                            Zerei
+                          </button>
+
                           <button
                             onClick={() => toggleVote(game.id, isVoted)}
                             className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-extrabold transition active:scale-95 ${
