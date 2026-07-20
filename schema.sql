@@ -4,6 +4,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 1. Tabela de Jogos (Games) - Atua como cache global de jogos buscados
 CREATE TABLE IF NOT EXISTS public.games (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    igdb_id INTEGER UNIQUE,
     title TEXT UNIQUE NOT NULL,
     duration_hours NUMERIC NOT NULL,
     average_rating NUMERIC DEFAULT NULL,

@@ -44,6 +44,7 @@ export async function GET(request: Request) {
     const savedGames: any[] = [];
     for (const game of igdbResults) {
       const gamePayload = {
+        igdb_id: game.id,
         title: game.title,
         duration_hours: game.duration_hours,
         average_rating: game.average_rating,
@@ -83,10 +84,12 @@ export async function GET(request: Request) {
           const metadataPatch = {
             average_rating: existing.average_rating ?? game.average_rating,
             release_year: existing.release_year ?? game.release_year,
+            igdb_id: existing.igdb_id ?? game.id,
           };
           const shouldUpdateMetadata =
             (existing.average_rating === null && game.average_rating !== null) ||
-            (existing.release_year === null && game.release_year !== null);
+            (existing.release_year === null && game.release_year !== null) ||
+            (existing.igdb_id === null && game.id);
 
           if (shouldUpdateMetadata) {
             const { data: updated, error: updateError } = await supabase

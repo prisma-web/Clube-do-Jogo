@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { searchGamesWithIGDB } from '@/lib/igdb';
+import { getGameByIGDBId, searchGamesWithIGDB } from '@/lib/igdb';
 
 interface CachedGame {
   id: string;
+  igdb_id: number | null;
   title: string;
   average_rating: number | null;
   release_year: number | null;
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
 
     let gamesQuery = supabase
       .from('games')
-      .select('id, title, average_rating, release_year')
+      .select('id, igdb_id, title, average_rating, release_year')
       .is('average_rating', null)
       .order('title')
       .limit(25);
@@ -53,17 +54,22 @@ export async function POST(request: Request) {
       checkedCount += 1;
 
       try {
-        const igdbResults = await searchGamesWithIGDB(game.title);
-        const normalizedTitle = normalizeTitle(game.title);
-        const match =
-          igdbResults.find(result => normalizeTitle(result.title) === normalizedTitle) ??
-          igdbResults[0];
+        let match = game.igdb_id ? await getGameByIGDBId(game.igdb_id) : null;
+
+        if (!match) {
+          const igdbResults = await searchGamesWithIGDB(game.title);
+          const normalizedTitle = normalizeTitle(game.title);
+          match =
+            igdbResults.find(result => normalizeTitle(result.title) === normalizedTitle) ??
+            igdbResults[0];
+        }
 
         if (!match?.average_rating) continue;
 
         const { error: updateError } = await supabase
           .from('games')
           .update({
+            igdb_id: game.igdb_id ?? match.id,
             average_rating: match.average_rating,
             release_year: game.release_year ?? match.release_year,
           })

@@ -8,6 +8,19 @@ export interface IGDBGameResult {
   description: string;
 }
 
+interface IGDBGame {
+  id: number;
+  name: string;
+  summary?: string;
+  cover?: {
+    image_id?: string;
+  };
+  first_release_date?: number;
+  total_rating?: number;
+  rating?: number;
+  aggregated_rating?: number;
+}
+
 // Cache do token de acesso em memória para evitar requisições repetidas
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
@@ -70,7 +83,7 @@ export async function searchGamesWithIGDB(query: string): Promise<IGDBGameResult
     throw new Error(`Erro na busca IGDB: ${err}`);
   }
 
-  const games: any[] = await gamesRes.json();
+  const games: IGDBGame[] = await gamesRes.json();
   if (!games || games.length === 0) return [];
 
   // 2. Para cada jogo, buscar o tempo de jogo no endpoint game_time_to_beats
@@ -90,7 +103,7 @@ export async function searchGamesWithIGDB(query: string): Promise<IGDBGameResult
         });
 
         if (ttbRes.ok) {
-          const ttbData: any[] = await ttbRes.json();
+          const ttbData: Array<{ hastily?: number; normally?: number; completely?: number }> = await ttbRes.json();
           if (ttbData && ttbData.length > 0) {
             // "hastily" = história principal (Main Story), converter de segundos para horas
             const seconds = ttbData[0].hastily ?? ttbData[0].normally ?? ttbData[0].completely;
@@ -125,4 +138,76 @@ export async function searchGamesWithIGDB(query: string): Promise<IGDBGameResult
   );
 
   return results;
+}
+
+export async function getGameByIGDBId(igdbId: number): Promise<IGDBGameResult | null> {
+  const clientId = process.env.IGDB_CLIENT_ID;
+  if (!clientId) throw new Error('IGDB_CLIENT_ID nÃ£o configurado.');
+
+  const token = await getTwitchToken();
+
+  const gameRes = await fetch('https://api.igdb.com/v4/games', {
+    method: 'POST',
+    headers: {
+      'Client-ID': clientId,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'text/plain',
+    },
+    body: `
+      fields name, summary, cover.image_id, first_release_date, total_rating, rating, aggregated_rating;
+      where id = ${igdbId};
+      limit 1;
+    `,
+  });
+
+  if (!gameRes.ok) {
+    const err = await gameRes.text();
+    throw new Error(`Erro na busca IGDB por ID: ${err}`);
+  }
+
+  const games: IGDBGame[] = await gameRes.json();
+  if (!games || games.length === 0) return null;
+
+  const game = games[0];
+  let durationHours = 10;
+
+  try {
+    const ttbRes = await fetch('https://api.igdb.com/v4/game_time_to_beats', {
+      method: 'POST',
+      headers: {
+        'Client-ID': clientId,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'text/plain',
+      },
+      body: `fields normally, hastily, completely; where game_id = ${game.id}; limit 1;`,
+    });
+
+    if (ttbRes.ok) {
+      const ttbData: Array<{ hastily?: number; normally?: number; completely?: number }> = await ttbRes.json();
+      const seconds = ttbData[0]?.hastily ?? ttbData[0]?.normally ?? ttbData[0]?.completely;
+      if (seconds) {
+        durationHours = Math.round((seconds / 3600) * 10) / 10;
+      }
+    }
+  } catch {
+    // Se falhar, mantem o valor padrao
+  }
+
+  const imageUrl = game.cover?.image_id
+    ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${game.cover.image_id}.jpg`
+    : null;
+  const averageRating = game.total_rating ?? game.rating ?? game.aggregated_rating ?? null;
+  const releaseYear = game.first_release_date
+    ? new Date(game.first_release_date * 1000).getFullYear()
+    : null;
+
+  return {
+    id: game.id,
+    title: game.name,
+    duration_hours: durationHours,
+    average_rating: averageRating === null ? null : Math.round(averageRating),
+    release_year: releaseYear,
+    image_url: imageUrl,
+    description: game.summary ?? 'Sem descriÃ§Ã£o disponÃ­vel.',
+  };
 }
