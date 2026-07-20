@@ -1,14 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
+import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { Check, CheckCircle2, ChevronDown, ChevronUp, CircleHelp, Clock3, Library, MoreHorizontal, Plus, Search, ThumbsUp, Trophy } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchRankingData } from '@/lib/data';
 import type { Game, RankingItem } from '@/lib/types';
-import { formatFinishedCount, formatMonth, shiftMonth } from '@/lib/utils';
+import { formatMonth, shiftMonth } from '@/lib/utils';
 import { useStaleQuery } from '@/hooks/use-stale-query';
 import { useApp } from '@/components/app-provider';
 import { Avatar } from '@/components/ui/avatar';
@@ -17,11 +18,36 @@ import { ListSkeleton, Skeleton } from '@/components/ui/skeleton';
 import { ParticipantsDialog } from '@/components/participants-dialog';
 import { GameActionButton } from '@/components/game-action-button';
 
+const rankingMotion = { type: 'spring', stiffness: 460, damping: 30, mass: 0.55 } as const;
+
+function AnimatedCount({ count, label, className }: { count: number; label: string; className?: string }) {
+  return (
+    <span className={className} aria-live="polite" aria-atomic="true">
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.span key={count} initial={{ opacity: 0, y: 7, scale: 0.72 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -7, scale: 0.72 }} transition={rankingMotion} className="inline-block tabular-nums">{count}</motion.span>
+      </AnimatePresence>
+      {' '}{label}
+    </span>
+  );
+}
+
+function AnimatedPoints({ value }: { value: number }) {
+  const motionValue = useMotionValue(value);
+  const springValue = useSpring(motionValue, { stiffness: 270, damping: 24, mass: 0.5 });
+  const display = useTransform(springValue, latest => latest.toFixed(1));
+
+  useEffect(() => { motionValue.set(value); }, [motionValue, value]);
+
+  return <motion.span className="inline-block tabular-nums" aria-label={`${value.toFixed(1)} pontos`}>{display}</motion.span>;
+}
+
 function PeopleStack({ people }: { people: RankingItem['voters'] }) {
   return (
     <span className="flex items-center -space-x-2">
-      {people.slice(0, 3).map(person => <Avatar key={person.id} src={person.avatar_url} name={person.name} className="size-7 border-2 border-[#111114] text-[9px]" />)}
-      {people.length > 3 && <span className="grid size-7 place-items-center rounded-full border-2 border-[#111114] bg-zinc-800 text-[9px] font-black text-zinc-300">+{people.length - 3}</span>}
+      <AnimatePresence initial={false} mode="popLayout">
+        {people.slice(0, 3).map((person, index) => <motion.span layout="position" key={person.id} initial={{ opacity: 0, scale: 0.55, x: -8 }} animate={{ opacity: 1, scale: 1, x: 0 }} exit={{ opacity: 0, scale: 0.55, x: 8 }} transition={{ ...rankingMotion, delay: index * 0.025 }} className="inline-flex"><Avatar src={person.avatar_url} name={person.name} className="size-7 border-2 border-[#111114] text-[9px]" /></motion.span>)}
+        {people.length > 3 && <motion.span layout="position" key="more" initial={{ opacity: 0, scale: 0.55 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.55 }} transition={rankingMotion} className="grid size-7 place-items-center rounded-full border-2 border-[#111114] bg-zinc-800 text-[9px] font-black text-zinc-300">+{people.length - 3}</motion.span>}
+      </AnimatePresence>
     </span>
   );
 }
@@ -182,14 +208,14 @@ export default function RankingPage() {
                 <Link href={`/jogos/${item.game.id}`} className="h-[112px] w-[82px] shrink-0 overflow-hidden rounded-xl bg-zinc-900 min-[380px]:h-[120px] min-[380px]:w-[88px]"><img src={item.game.image_url} alt={`Capa de ${item.game.title}`} className="size-full object-cover" /></Link>
                 <div className="flex min-w-0 flex-1 flex-col justify-center py-1 pr-7">
                   <Link href={`/jogos/${item.game.id}`} className="block break-words text-sm font-extrabold leading-snug hover:text-violet-300">{item.game.title}</Link>
-                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-zinc-500"><span className="inline-flex items-center gap-1 whitespace-nowrap"><Clock3 className="size-3" />{item.game.duration_hours} h</span><span className="whitespace-nowrap">{item.votesCount} {item.votesCount === 1 ? 'voto' : 'votos'}</span></div>
-                  <div className="mt-2.5 whitespace-nowrap text-2xl font-black leading-none text-emerald-400">{item.totalPoints}<span className="ml-1 text-[10px] font-bold text-zinc-500">pts</span></div>
+                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-zinc-500"><span className="inline-flex items-center gap-1 whitespace-nowrap"><Clock3 className="size-3" />{item.game.duration_hours} h</span><AnimatedCount count={item.votesCount} label={item.votesCount === 1 ? 'voto' : 'votos'} className="inline-flex whitespace-nowrap" /></div>
+                  <div className="mt-2.5 whitespace-nowrap text-2xl font-black leading-none text-emerald-400"><AnimatedPoints value={item.totalPoints} /><span className="ml-1 text-[10px] font-bold text-zinc-500">pts</span></div>
                 </div>
               </div>
 
               <div className="mt-3 grid min-w-0 grid-cols-2 gap-2 border-t border-white/[0.07] pt-3">
-                <ParticipantsDialog voters={item.voters} completed={item.completedBy} initialTab="completed"><button className="flex h-12 min-w-0 items-center gap-2 rounded-xl bg-black/20 px-2.5 text-left transition hover:bg-white/5"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-emerald-500/10 text-emerald-300"><CheckCircle2 className="size-3.5" /></span><span className="min-w-0"><span className="block truncate text-[10px] font-extrabold text-zinc-300">{formatFinishedCount(item.completedCount)}</span><span className="mt-0.5 block"><PeopleStack people={item.completedBy} /></span></span></button></ParticipantsDialog>
-                <ParticipantsDialog voters={item.voters} completed={item.completedBy} initialTab="votes"><button className="flex h-12 min-w-0 items-center gap-2 rounded-xl bg-black/20 px-2.5 text-left transition hover:bg-white/5"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-violet-500/10 text-violet-300"><ThumbsUp className="size-3.5" /></span><span className="min-w-0"><span className="block truncate text-[10px] font-extrabold text-zinc-300">{item.votesCount} {item.votesCount === 1 ? 'voto' : 'votos'}</span><span className="mt-0.5 block"><PeopleStack people={item.voters} /></span></span></button></ParticipantsDialog>
+                <ParticipantsDialog voters={item.voters} completed={item.completedBy} initialTab="completed"><button className="flex h-12 min-w-0 items-center gap-2 rounded-xl bg-black/20 px-2.5 text-left transition hover:bg-white/5"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-emerald-500/10 text-emerald-300"><CheckCircle2 className="size-3.5" /></span><span className="min-w-0"><AnimatedCount count={item.completedCount} label={item.completedCount === 1 ? 'Finalizou' : 'Finalizaram'} className="block truncate text-[10px] font-extrabold text-zinc-300" /><span className="mt-0.5 block"><PeopleStack people={item.completedBy} /></span></span></button></ParticipantsDialog>
+                <ParticipantsDialog voters={item.voters} completed={item.completedBy} initialTab="votes"><button className="flex h-12 min-w-0 items-center gap-2 rounded-xl bg-black/20 px-2.5 text-left transition hover:bg-white/5"><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-violet-500/10 text-violet-300"><ThumbsUp className="size-3.5" /></span><span className="min-w-0"><AnimatedCount count={item.votesCount} label={item.votesCount === 1 ? 'voto' : 'votos'} className="block truncate text-[10px] font-extrabold text-zinc-300" /><span className="mt-0.5 block"><PeopleStack people={item.voters} /></span></span></button></ParticipantsDialog>
               </div>
 
               <div className="mt-2 grid grid-cols-2 gap-2">
