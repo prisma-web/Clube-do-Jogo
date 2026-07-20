@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS public.games (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT UNIQUE NOT NULL,
     duration_hours NUMERIC NOT NULL,
+    average_rating NUMERIC DEFAULT NULL,
+    release_year INTEGER DEFAULT NULL,
     image_url TEXT,
     description TEXT,
     winner_month TEXT DEFAULT NULL, -- Ex: '2026-06' se o jogo foi o vencedor daquele mês
@@ -14,6 +16,14 @@ CREATE TABLE IF NOT EXISTS public.games (
 
 -- 2. Tabela de Backlogs - Jogos que os membros adicionaram aos seus backlogs pessoais
 CREATE TABLE IF NOT EXISTS public.backlogs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    game_id UUID NOT NULL REFERENCES public.games(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    UNIQUE(user_id, game_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.completed_games (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     game_id UUID NOT NULL REFERENCES public.games(id) ON DELETE CASCADE,
@@ -34,6 +44,7 @@ CREATE TABLE IF NOT EXISTS public.votes (
 -- 4. Habilitar RLS (Row Level Security) em todas as tabelas
 ALTER TABLE public.games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.backlogs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.completed_games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.votes ENABLE ROW LEVEL SECURITY;
 
 -- 5. Criar Políticas RLS
@@ -59,6 +70,15 @@ CREATE POLICY "Permitir exclusão de backlog próprio" ON public.backlogs
     FOR DELETE USING (auth.uid() = user_id);
 
 -- Tabela VOTES: Leitura livre para autenticados (para gerar o ranking), mas apenas o próprio usuário pode inserir ou deletar seu voto
+CREATE POLICY "Permitir leitura de jogos zerados para autenticados" ON public.completed_games
+    FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Permitir insercao de jogo zerado proprio" ON public.completed_games
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Permitir exclusao de jogo zerado proprio" ON public.completed_games
+    FOR DELETE USING (auth.uid() = user_id);
+
 CREATE POLICY "Permitir leitura de votos para autenticados" ON public.votes
     FOR SELECT USING (auth.role() = 'authenticated');
 

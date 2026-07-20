@@ -41,16 +41,32 @@ export async function GET(request: Request) {
     // 4. Salvar os novos jogos retornados pela IGDB no Supabase (ignorando duplicados pelo título)
     const savedGames: any[] = [];
     for (const game of igdbResults) {
-      const { data: inserted, error: insertError } = await supabase
+      const gamePayload = {
+        title: game.title,
+        duration_hours: game.duration_hours,
+        average_rating: game.average_rating,
+        release_year: game.release_year,
+        image_url: game.image_url ?? 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&q=80',
+        description: game.description,
+      };
+
+      let { data: inserted, error: insertError } = await supabase
         .from('games')
-        .insert({
-          title: game.title,
-          duration_hours: game.duration_hours,
-          image_url: game.image_url ?? 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&q=80',
-          description: game.description,
-        })
+        .insert(gamePayload)
         .select()
         .single();
+
+      if (insertError && insertError.code === 'PGRST204') {
+        const { average_rating, release_year, ...legacyPayload } = gamePayload;
+        const retry = await supabase
+          .from('games')
+          .insert(legacyPayload)
+          .select()
+          .single();
+
+        inserted = retry.data ? { ...retry.data, average_rating, release_year } : retry.data;
+        insertError = retry.error;
+      }
 
       if (!insertError && inserted) {
         savedGames.push(inserted);
@@ -61,7 +77,13 @@ export async function GET(request: Request) {
           .select('*')
           .eq('title', game.title)
           .single();
-        if (existing) savedGames.push(existing);
+        if (existing) {
+          savedGames.push({
+            ...existing,
+            average_rating: existing.average_rating ?? game.average_rating,
+            release_year: existing.release_year ?? game.release_year,
+          });
+        }
       } else if (insertError) {
         console.error('Erro ao inserir jogo IGDB:', insertError);
       }

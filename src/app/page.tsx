@@ -10,6 +10,9 @@ import {
   LogOut, 
   Sparkles, 
   Clock, 
+  Star,
+  Calendar,
+  Flag,
   ThumbsUp, 
   Loader2,
   Trash2,
@@ -20,6 +23,8 @@ interface Game {
   id: string;
   title: string;
   duration_hours: number;
+  average_rating?: number | null;
+  release_year?: number | null;
   image_url: string;
   description: string;
 }
@@ -27,9 +32,12 @@ interface Game {
 interface RankingItem {
   game: Game;
   votesCount: number;
+  completedCount: number;
   playtimePoints: number;
+  ratingMultiplier: number;
   totalPoints: number;
   votedByMe: boolean;
+  completedByMe: boolean;
 }
 
 export default function Home() {
@@ -37,10 +45,9 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'ranking' | 'backlog'>('ranking');
+  const [activeTab, setActiveTab] = useState<'ranking' | 'backlog' | 'completed'>('ranking');
   
   // Auth states
-  const [authMethod, setAuthMethod] = useState<'google' | 'email'>('google');
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -49,6 +56,8 @@ export default function Home() {
   
   // Backlog state
   const [backlog, setBacklog] = useState<Game[]>([]);
+  const [completedGames, setCompletedGames] = useState<Game[]>([]);
+  const [completedLoading, setCompletedLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Game[]>([]);
   const [searching, setSearching] = useState(false);
@@ -58,6 +67,7 @@ export default function Home() {
   const [ranking, setRanking] = useState<RankingItem[]>([]);
   const [rankingLoading, setRankingLoading] = useState(false);
   const [votedGameIds, setVotedGameIds] = useState<Set<string>>(new Set());
+  const [completedGameIds, setCompletedGameIds] = useState<Set<string>>(new Set());
 
   // Current Month helper (e.g. "2026-07")
   const getCurrentMonth = () => {
@@ -130,21 +140,6 @@ export default function Home() {
     }
   }, [user, activeTab]);
 
-  const handleLogin = async () => {
-    setAuthErrorMsg('');
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      if (error) throw error;
-    } catch (err: any) {
-      setAuthErrorMsg(err.message || 'Erro ao iniciar Google Login.');
-    }
-  };
-
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
@@ -194,6 +189,34 @@ export default function Home() {
     return 1; // > 20h
   };
 
+  const getRatingMultiplier = (rating?: number | null): number => {
+    if (!rating || rating <= 0) return 1;
+    return rating / 100;
+  };
+
+  const getTotalPoints = (votesCount: number, playtimePoints: number, rating?: number | null, completedCount = 0): number => {
+    const completedPenalty = completedCount > 0 ? completedCount * 2 : 1;
+    const points = (votesCount * 2 * playtimePoints * getRatingMultiplier(rating)) / completedPenalty;
+    return Math.round(points * 10) / 10;
+  };
+
+  const renderRatingStars = (rating?: number | null) => {
+    if (!rating) return null;
+
+    const filledStars = Math.round(rating / 20);
+
+    return (
+      <span className="inline-flex items-center gap-0.5" title={`Nota IGDB: ${Math.round(rating)}%`}>
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Star
+            key={index}
+            className={`w-2.5 h-2.5 ${index < filledStars ? 'fill-amber-300 text-amber-300' : 'text-neutral-700'}`}
+          />
+        ))}
+      </span>
+    );
+  };
+
   // Buscar Ranking (sem filtro de mês — votos acumulados)
   const fetchRanking = async () => {
     setRankingLoading(true);
@@ -206,6 +229,14 @@ export default function Home() {
       if (votesError) throw votesError;
 
       setVotedGameIds(new Set(votes?.filter(v => v.user_id === user.id).map(v => v.game_id) || []));
+
+      const { data: completed, error: completedError } = await supabase
+        .from('completed_games')
+        .select('game_id, user_id');
+
+      if (completedError) throw completedError;
+
+      setCompletedGameIds(new Set(completed?.filter(item => item.user_id === user.id).map(item => item.game_id) || []));
 
       // Buscar todos os jogos relacionados aos votos
       const gameIds = Array.from(new Set(votes?.map(v => v.game_id) || []));
@@ -225,17 +256,24 @@ export default function Home() {
       // Calcular ranking
       const rankingItems: RankingItem[] = games.map((game: Game) => {
         const gameVotes = votes?.filter(v => v.game_id === game.id) || [];
+        const gameCompleted = completed?.filter(item => item.game_id === game.id) || [];
         const votesCount = gameVotes.length;
+        const completedCount = gameCompleted.length;
         const playtimePoints = getPlaytimePoints(game.duration_hours);
-        const totalPoints = votesCount * 2 * playtimePoints;
+        const ratingMultiplier = getRatingMultiplier(game.average_rating);
+        const totalPoints = getTotalPoints(votesCount, playtimePoints, game.average_rating, completedCount);
         const votedByMe = gameVotes.some(v => v.user_id === user.id);
+        const completedByMe = gameCompleted.some(item => item.user_id === user.id);
 
         return {
           game,
           votesCount,
+          completedCount,
           playtimePoints,
+          ratingMultiplier,
           totalPoints,
           votedByMe,
+          completedByMe,
         };
       });
 
@@ -272,8 +310,37 @@ export default function Home() {
       if (votesError) throw votesError;
 
       setVotedGameIds(new Set(votes?.map(v => v.game_id) || []));
+
+      const { data: completed, error: completedError } = await supabase
+        .from('completed_games')
+        .select('game_id')
+        .eq('user_id', user.id);
+
+      if (completedError) throw completedError;
+
+      setCompletedGameIds(new Set(completed?.map(item => item.game_id) || []));
     } catch (error) {
       console.error('Erro ao carregar backlog:', error);
+    }
+  };
+
+  const fetchCompletedGames = async () => {
+    setCompletedLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('completed_games')
+        .select('game_id, games (*)')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      const gameList = data?.map(item => item.games) as unknown as Game[];
+      setCompletedGames(gameList || []);
+      setCompletedGameIds(new Set(gameList?.map(game => game.id) || []));
+    } catch (error) {
+      console.error('Erro ao carregar jogos zerados:', error);
+    } finally {
+      setCompletedLoading(false);
     }
   };
 
@@ -412,6 +479,44 @@ export default function Home() {
     }
   };
 
+  const toggleCompleted = async (game: Game, currentlyCompleted: boolean) => {
+    try {
+      if (currentlyCompleted) {
+        const { error } = await supabase
+          .from('completed_games')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('game_id', game.id);
+
+        if (error) throw error;
+
+        setCompletedGameIds(prev => {
+          const next = new Set(prev);
+          next.delete(game.id);
+          return next;
+        });
+        setCompletedGames(prev => prev.filter(item => item.id !== game.id));
+      } else {
+        const { error } = await supabase
+          .from('completed_games')
+          .insert({
+            user_id: user.id,
+            game_id: game.id,
+          });
+
+        if (error && error.code !== '23505') throw error;
+
+        setCompletedGameIds(prev => new Set(prev).add(game.id));
+        setCompletedGames(prev => prev.some(item => item.id === game.id) ? prev : [...prev, game]);
+      }
+
+      fetchRanking();
+    } catch (error) {
+      console.error('Erro ao atualizar jogo zerado:', error);
+      alert('Erro ao atualizar a lista de jogos zerados.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-neutral-950 text-neutral-50 p-6">
@@ -445,9 +550,7 @@ export default function Home() {
         {/* Card de Login Glassmorphism */}
         <div className="my-auto bg-neutral-900/40 border border-neutral-800/80 rounded-3xl p-8 backdrop-blur-xl z-10 shadow-2xl">
           <h2 className="text-xl font-bold text-center mb-6">
-            {authMethod === 'google' 
-              ? 'Boas-vindas, Jogador!' 
-              : authMode === 'login' ? 'Entrar com E-mail' : 'Criar Nova Conta'}
+            {authMode === 'login' ? 'Entrar com E-mail' : 'Criar Nova Conta'}
           </h2>
           
           {authErrorMsg && (
@@ -456,51 +559,7 @@ export default function Home() {
             </div>
           )}
 
-          {authMethod === 'google' ? (
-            <div className="flex flex-col gap-4">
-              <button 
-                onClick={handleLogin}
-                className="w-full flex items-center justify-center gap-3 bg-white text-neutral-950 font-bold py-3.5 px-6 rounded-2xl transition hover:bg-neutral-100 active:scale-[0.98] shadow-md shadow-white/5"
-              >
-                {/* Google Icon SVG */}
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.69a5.74 5.74 0 0 1-2.49 3.77v3.12h3.99c2.34-2.16 3.69-5.32 3.69-8.74z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 24c3.24 0 5.97-1.08 7.96-2.91l-3.99-3.12c-1.12.75-2.54 1.19-3.97 1.19-3.05 0-5.63-2.06-6.55-4.83H1.31v3.22A12.01 12.01 0 0 0 12 24z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.45 14.33a7.14 7.14 0 0 1 0-4.66V6.45H1.31a12.01 12.01 0 0 0 0 11.1l4.14-3.22z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.96 1.19 15.24 0 12 0 7.33 0 3.31 2.67 1.31 6.45l4.14 3.22c.92-2.77 3.5-4.83 6.55-4.83z"
-                  />
-                </svg>
-                Entrar com o Google
-              </button>
-
-              <div className="relative my-2 flex items-center justify-center">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-neutral-800"></div></div>
-                <span className="relative bg-neutral-950 px-3 text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Ou se preferir</span>
-              </div>
-
-              <button 
-                onClick={() => {
-                  setAuthMethod('email');
-                  setAuthErrorMsg('');
-                }}
-                className="w-full bg-neutral-900 border border-neutral-800 text-neutral-300 font-bold py-3.5 px-6 rounded-2xl transition hover:bg-neutral-850 active:scale-[0.98] text-sm"
-              >
-                Entrar com E-mail e Senha
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
+          <form onSubmit={handleEmailAuth} className="flex flex-col gap-4">
               <div>
                 <label className="block text-[10px] uppercase font-bold text-neutral-400 mb-1.5 tracking-wider">E-mail</label>
                 <input 
@@ -553,19 +612,8 @@ export default function Home() {
                     : 'Já tem uma conta? Faça Login'}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMethod('google');
-                    setAuthErrorMsg('');
-                  }}
-                  className="text-xs text-neutral-400 hover:text-white transition"
-                >
-                  ← Voltar para o Google Login
-                </button>
               </div>
             </form>
-          )}
 
           <div className="mt-6 flex flex-col gap-3 text-xs text-neutral-500 text-center leading-relaxed">
             <p>Usamos autenticação para evitar spam e garantir um voto justo por membro.</p>
@@ -687,6 +735,17 @@ export default function Home() {
                                 <Clock className="w-2.5 h-2.5" />
                                 {item.game.duration_hours}h
                               </span>
+                              {item.game.average_rating && (
+                                <span className="text-[10px] bg-neutral-800 text-amber-300 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                                  {renderRatingStars(item.game.average_rating)}
+                                </span>
+                              )}
+                              {item.game.release_year && (
+                                <span className="text-[10px] bg-neutral-800 text-neutral-400 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                                  <Calendar className="w-2.5 h-2.5" />
+                                  {item.game.release_year}
+                                </span>
+                              )}
                             </div>
                           </div>
 
@@ -694,21 +753,36 @@ export default function Home() {
                             {/* Score Display */}
                             <div className="text-xs">
                               <strong className="text-emerald-400 font-extrabold text-sm">{item.totalPoints}</strong>
-                              <span className="text-neutral-500 font-medium text-[10px] ml-1">pts ({item.votesCount} {item.votesCount === 1 ? 'voto' : 'votos'})</span>
+                              <span className="text-neutral-500 font-medium text-[10px] ml-1">
+                                pts ({item.votesCount} {item.votesCount === 1 ? 'voto' : 'votos'}, {item.completedCount} {item.completedCount === 1 ? 'zerou' : 'zeraram'})
+                              </span>
                             </div>
 
-                            {/* Vote Action */}
-                            <button
-                              onClick={() => toggleVote(item.game.id, item.votedByMe)}
-                              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition active:scale-95 ${
-                                item.votedByMe 
-                                  ? 'bg-violet-600 text-white hover:bg-violet-700' 
-                                  : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white'
-                              }`}
-                            >
-                              <ThumbsUp className={`w-3 h-3 ${item.votedByMe ? 'fill-current' : ''}`} />
-                              {item.votedByMe ? 'Votado' : 'Votar'}
-                            </button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => toggleCompleted(item.game, item.completedByMe)}
+                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition active:scale-95 ${
+                                  item.completedByMe
+                                    ? 'bg-pink-600 text-white hover:bg-pink-700'
+                                    : 'bg-pink-950/40 text-pink-300 border border-pink-500/20 hover:bg-pink-600 hover:text-white'
+                                }`}
+                              >
+                                <Flag className={`w-3 h-3 ${item.completedByMe ? 'fill-current' : ''}`} />
+                                Zerei
+                              </button>
+
+                              <button
+                                onClick={() => toggleVote(item.game.id, item.votedByMe)}
+                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition active:scale-95 ${
+                                  item.votedByMe 
+                                    ? 'bg-violet-600 text-white hover:bg-violet-700' 
+                                    : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white'
+                                }`}
+                              >
+                                <ThumbsUp className={`w-3 h-3 ${item.votedByMe ? 'fill-current' : ''}`} />
+                                {item.votedByMe ? 'Votado' : 'Votar'}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -751,6 +825,7 @@ export default function Home() {
               <div className="flex flex-col gap-3">
                 {backlog.map((game) => {
                   const isVoted = votedGameIds.has(game.id);
+                  const isCompleted = completedGameIds.has(game.id);
                   
                   return (
                     <div 
@@ -771,10 +846,29 @@ export default function Home() {
                             <h4 className="font-extrabold text-sm truncate" title={game.title}>
                               {game.title}
                             </h4>
-                            <span className="inline-flex items-center gap-1 text-[10px] text-neutral-400 mt-1">
-                              <Clock className="w-2.5 h-2.5" />
-                              {game.duration_hours}h de duração
-                            </span>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              <span className="inline-flex items-center gap-1 text-[10px] text-neutral-400">
+                                <Clock className="w-2.5 h-2.5" />
+                                {game.duration_hours}h
+                              </span>
+                              {game.average_rating && (
+                                <span className="inline-flex items-center gap-1 text-[10px] text-amber-300">
+                                  {renderRatingStars(game.average_rating)}
+                                </span>
+                              )}
+                              {game.release_year && (
+                                <span className="inline-flex items-center gap-1 text-[10px] text-neutral-400">
+                                  <Calendar className="w-2.5 h-2.5" />
+                                  {game.release_year}
+                                </span>
+                              )}
+                              {isCompleted && (
+                                <span className="inline-flex items-center gap-1 text-[10px] text-pink-300">
+                                  <Flag className="w-2.5 h-2.5 fill-current" />
+                                  Zerei
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <button
                             onClick={() => removeFromBacklog(game.id)}
@@ -803,6 +897,85 @@ export default function Home() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ABA 3: ZEREI */}
+        {activeTab === 'completed' && (
+          <div className="flex flex-col gap-5 animate-fadeIn">
+            <div className="flex items-center justify-between px-1">
+              <div>
+                <h3 className="font-extrabold text-base">Zerei</h3>
+                <p className="text-xs text-neutral-500">Jogos que vocÃª jÃ¡ concluiu.</p>
+              </div>
+            </div>
+
+            {completedLoading ? (
+              <div className="py-12 flex flex-col items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-pink-500 mb-2" />
+                <span className="text-xs text-neutral-400">Carregando jogos zerados...</span>
+              </div>
+            ) : completedGames.length === 0 ? (
+              <div className="py-16 border border-dashed border-neutral-800 rounded-2xl flex flex-col items-center justify-center text-center p-6 bg-neutral-900/10">
+                <Flag className="w-8 h-8 text-neutral-700 mb-2.5" />
+                <span className="text-sm font-bold text-neutral-400">Nenhum jogo zerado ainda</span>
+                <p className="text-xs text-neutral-500 mt-1 max-w-xs">
+                  Marque jogos como &quot;Zerei&quot; no ranking para montar sua lista de concluÃ­dos.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {completedGames.map((game) => (
+                  <div
+                    key={game.id}
+                    className="group flex gap-3.5 bg-neutral-900/30 border border-neutral-900 rounded-2xl p-3.5 transition duration-300 hover:border-neutral-800 hover:bg-neutral-900/60"
+                  >
+                    <div className="w-14 h-18 rounded-lg overflow-hidden bg-neutral-800 flex-shrink-0 border border-neutral-800/80">
+                      <img
+                        src={game.image_url}
+                        alt={game.title}
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition duration-300"
+                      />
+                    </div>
+
+                    <div className="flex-1 flex flex-col justify-between min-w-0">
+                      <div className="min-w-0">
+                        <h4 className="font-extrabold text-sm truncate" title={game.title}>
+                          {game.title}
+                        </h4>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-neutral-400">
+                            <Clock className="w-2.5 h-2.5" />
+                            {game.duration_hours}h
+                          </span>
+                          {game.average_rating && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-300">
+                              {renderRatingStars(game.average_rating)}
+                            </span>
+                          )}
+                          {game.release_year && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-neutral-400">
+                              <Calendar className="w-2.5 h-2.5" />
+                              {game.release_year}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end mt-2 pt-2 border-t border-neutral-900/60">
+                        <button
+                          onClick={() => toggleCompleted(game, true)}
+                          className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-extrabold transition active:scale-95 bg-pink-600 text-white hover:bg-pink-700"
+                        >
+                          <Flag className="w-3 h-3 fill-current" />
+                          Zerei
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -881,9 +1054,22 @@ export default function Home() {
                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                       <div>
                         <h4 className="font-extrabold text-xs text-neutral-200 truncate">{game.title}</h4>
-                        <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 mt-0.5">
-                          <Clock className="w-3 h-3 text-neutral-500" />
-                          <span>{game.duration_hours}h estimadas</span>
+                        <div className="flex flex-wrap items-center gap-2 text-[10px] mt-0.5">
+                          <span className="inline-flex items-center gap-1 text-neutral-400">
+                            <Clock className="w-3 h-3 text-neutral-500" />
+                            {game.duration_hours}h
+                          </span>
+                          {game.average_rating && (
+                            <span className="inline-flex items-center gap-1 text-amber-300">
+                              {renderRatingStars(game.average_rating)}
+                            </span>
+                          )}
+                          {game.release_year && (
+                            <span className="inline-flex items-center gap-1 text-neutral-400">
+                              <Calendar className="w-3 h-3 text-neutral-500" />
+                              {game.release_year}
+                            </span>
+                          )}
                         </div>
                         <p className="text-[10px] text-neutral-500 mt-1 line-clamp-2 leading-relaxed">
                           {game.description}
@@ -928,6 +1114,19 @@ export default function Home() {
         >
           <Gamepad2 className="w-5 h-5" />
           <span className="text-[10px]">Backlog</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('completed');
+            fetchCompletedGames();
+          }}
+          className={`flex flex-col items-center gap-1 transition-colors ${
+            activeTab === 'completed' ? 'text-pink-500 font-extrabold' : 'text-neutral-500 font-medium hover:text-neutral-300'
+          }`}
+        >
+          <Flag className="w-5 h-5" />
+          <span className="text-[10px]">Zerei</span>
         </button>
       </nav>
     </div>

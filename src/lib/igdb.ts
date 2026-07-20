@@ -2,6 +2,8 @@ export interface IGDBGameResult {
   id: number;
   title: string;
   duration_hours: number;
+  average_rating: number | null;
+  release_year: number | null;
   image_url: string | null;
   description: string;
 }
@@ -57,7 +59,7 @@ export async function searchGamesWithIGDB(query: string): Promise<IGDBGameResult
     },
     body: `
       search "${query}";
-      fields name, summary, cover.image_id, game_type;
+      fields name, summary, cover.image_id, game_type, first_release_date, total_rating, rating, aggregated_rating;
       where version_parent = null & cover != null;
       limit 5;
     `,
@@ -105,11 +107,17 @@ export async function searchGamesWithIGDB(query: string): Promise<IGDBGameResult
       const imageUrl = game.cover?.image_id
         ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${game.cover.image_id}.jpg`
         : null;
+      const averageRating = game.total_rating ?? game.rating ?? game.aggregated_rating ?? null;
+      const releaseYear = game.first_release_date
+        ? new Date(game.first_release_date * 1000).getFullYear()
+        : null;
 
       return {
         id: game.id,
         title: game.name,
         duration_hours: durationHours,
+        average_rating: averageRating === null ? null : Math.round(averageRating),
+        release_year: releaseYear,
         image_url: imageUrl,
         description: game.summary ?? 'Sem descrição disponível.',
       };
