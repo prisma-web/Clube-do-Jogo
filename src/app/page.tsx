@@ -67,6 +67,8 @@ export default function Home() {
   // Ranking state
   const [ranking, setRanking] = useState<RankingItem[]>([]);
   const [rankingLoading, setRankingLoading] = useState(false);
+  const [backfillLoading, setBackfillLoading] = useState(false);
+  const [backfillMessage, setBackfillMessage] = useState('');
   const [votedGameIds, setVotedGameIds] = useState<Set<string>>(new Set());
   const [completedGameIds, setCompletedGameIds] = useState<Set<string>>(new Set());
 
@@ -202,12 +204,18 @@ export default function Home() {
   };
 
   const renderRatingStars = (rating?: number | null) => {
-    if (!rating) return null;
+    if (!rating) {
+      return (
+        <span className="text-[10px] font-medium text-neutral-500" title="Sem nota na IGDB">
+          sem nota
+        </span>
+      );
+    }
 
     const filledStars = Math.round(rating / 20);
 
     return (
-      <span className="inline-flex items-center gap-0.5" title={`Nota IGDB: ${Math.round(rating)}%`}>
+      <span className="inline-flex items-center gap-0.5" title="Nota IGDB">
         {Array.from({ length: 5 }).map((_, index) => (
           <Star
             key={index}
@@ -366,6 +374,45 @@ export default function Home() {
       alert('Erro de conexão ao pesquisar.');
     } finally {
       setSearching(false);
+    }
+  };
+
+  const handleBackfillRatings = async () => {
+    if (!confirm('Atualizar notas dos jogos sem nota agora? Esse botao e temporario e pode demorar um pouco.')) return;
+
+    setBackfillLoading(true);
+    setBackfillMessage('');
+
+    try {
+      let totalChecked = 0;
+      let totalUpdated = 0;
+      let remaining = 0;
+      const checkedIds: string[] = [];
+
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const res = await fetch('/api/admin/backfill-ratings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ excludeIds: checkedIds }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || 'Erro ao atualizar notas.');
+
+        totalChecked += data.checkedCount || 0;
+        totalUpdated += data.updatedCount || 0;
+        remaining = data.remainingCount || 0;
+        checkedIds.push(...(data.checkedIds || []));
+
+        if (!data.checkedCount || remaining === 0) break;
+      }
+
+      setBackfillMessage(`Notas atualizadas: ${totalUpdated}. Verificados: ${totalChecked}. Sem nota restante: ${remaining}.`);
+      await fetchRanking();
+    } catch (error: unknown) {
+      setBackfillMessage(error instanceof Error ? error.message : 'Erro ao atualizar notas.');
+    } finally {
+      setBackfillLoading(false);
     }
   };
 
@@ -683,6 +730,23 @@ export default function Home() {
                 </span>
               </div>
 
+              <div className="mb-4 px-1 flex flex-col gap-2">
+                <button
+                  onClick={handleBackfillRatings}
+                  disabled={backfillLoading}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-50"
+                  title="Ferramenta temporaria: preencher notas antigas pela IGDB"
+                >
+                  {backfillLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Star className="w-3.5 h-3.5" />}
+                  Atualizar notas antigas
+                </button>
+                {backfillMessage && (
+                  <p className="text-[10px] text-neutral-500 text-center">
+                    {backfillMessage}
+                  </p>
+                )}
+              </div>
+
               {rankingLoading ? (
                 <div className="py-12 flex flex-col items-center justify-center">
                   <Loader2 className="w-8 h-8 animate-spin text-violet-500 mb-2" />
@@ -736,11 +800,9 @@ export default function Home() {
                                 <Clock className="w-2.5 h-2.5" />
                                 {item.game.duration_hours}h
                               </span>
-                              {item.game.average_rating && (
-                                <span className="text-[10px] bg-neutral-800 text-amber-300 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
-                                  {renderRatingStars(item.game.average_rating)}
-                                </span>
-                              )}
+                              <span className="text-[10px] bg-neutral-800 text-amber-300 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                                {renderRatingStars(item.game.average_rating)}
+                              </span>
                               {item.game.release_year && (
                                 <span className="text-[10px] bg-neutral-800 text-neutral-400 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
                                   <Calendar className="w-2.5 h-2.5" />
@@ -755,7 +817,7 @@ export default function Home() {
                             <div className="text-xs">
                               <strong className="text-emerald-400 font-extrabold text-sm">{item.totalPoints}</strong>
                               <span className="text-neutral-500 font-medium text-[10px] ml-1">
-                                pts ({item.votesCount} {item.votesCount === 1 ? 'voto' : 'votos'}, {item.completedCount} {item.completedCount === 1 ? 'zerou' : 'zeraram'}, {item.game.average_rating ? `${Math.round(item.game.average_rating)}%` : 'sem nota'})
+                                pts ({item.votesCount} {item.votesCount === 1 ? 'voto' : 'votos'}, {item.completedCount} {item.completedCount === 1 ? 'zerou' : 'zeraram'})
                               </span>
                             </div>
 
@@ -852,11 +914,9 @@ export default function Home() {
                                 <Clock className="w-2.5 h-2.5" />
                                 {game.duration_hours}h
                               </span>
-                              {game.average_rating && (
-                                <span className="inline-flex items-center gap-1 text-[10px] text-amber-300">
-                                  {renderRatingStars(game.average_rating)}
-                                </span>
-                              )}
+                              <span className="inline-flex items-center gap-1 text-[10px] text-amber-300">
+                                {renderRatingStars(game.average_rating)}
+                              </span>
                               {game.release_year && (
                                 <span className="inline-flex items-center gap-1 text-[10px] text-neutral-400">
                                   <Calendar className="w-2.5 h-2.5" />
@@ -951,11 +1011,9 @@ export default function Home() {
                             <Clock className="w-2.5 h-2.5" />
                             {game.duration_hours}h
                           </span>
-                          {game.average_rating && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-300">
-                              {renderRatingStars(game.average_rating)}
-                            </span>
-                          )}
+                          <span className="inline-flex items-center gap-1 text-[10px] text-amber-300">
+                            {renderRatingStars(game.average_rating)}
+                          </span>
                           {game.release_year && (
                             <span className="inline-flex items-center gap-1 text-[10px] text-neutral-400">
                               <Calendar className="w-2.5 h-2.5" />
@@ -1060,11 +1118,9 @@ export default function Home() {
                             <Clock className="w-3 h-3 text-neutral-500" />
                             {game.duration_hours}h
                           </span>
-                          {game.average_rating && (
-                            <span className="inline-flex items-center gap-1 text-amber-300">
-                              {renderRatingStars(game.average_rating)}
-                            </span>
-                          )}
+                          <span className="inline-flex items-center gap-1 text-amber-300">
+                            {renderRatingStars(game.average_rating)}
+                          </span>
                           {game.release_year && (
                             <span className="inline-flex items-center gap-1 text-neutral-400">
                               <Calendar className="w-3 h-3 text-neutral-500" />
