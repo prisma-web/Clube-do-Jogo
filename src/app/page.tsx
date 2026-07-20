@@ -10,6 +10,7 @@ import {
   LogOut, 
   Sparkles, 
   Clock, 
+  UserCircle,
   Star,
   Calendar,
   Flag,
@@ -29,10 +30,18 @@ interface Game {
   description: string;
 }
 
+interface Participant {
+  id: string;
+  name: string | null;
+  avatar_url: string | null;
+}
+
 interface RankingItem {
   game: Game;
   votesCount: number;
   completedCount: number;
+  voters: Participant[];
+  completedBy: Participant[];
   playtimePoints: number;
   ratingMultiplier: number;
   totalPoints: number;
@@ -46,6 +55,9 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [avatarUrlInput, setAvatarUrlInput] = useState('');
+  const [avatarSaving, setAvatarSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'ranking' | 'backlog' | 'completed'>('ranking');
   
   // Auth states
@@ -184,6 +196,39 @@ export default function Home() {
     setProfile(null);
   };
 
+  const openAvatarModal = () => {
+    setAvatarUrlInput(profile?.avatar_url || '');
+    setShowAvatarModal(true);
+  };
+
+  const saveAvatarUrl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const avatarUrl = avatarUrlInput.trim();
+
+    if (avatarUrl && !avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://')) {
+      alert('Use uma URL de imagem começando com http:// ou https://');
+      return;
+    }
+
+    setAvatarSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl || null })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setProfile({ ...(profile || {}), avatar_url: avatarUrl || null });
+      setShowAvatarModal(false);
+    } catch (error) {
+      console.error('Erro ao salvar avatar:', error);
+      alert('Erro ao salvar a foto de perfil.');
+    } finally {
+      setAvatarSaving(false);
+    }
+  };
+
   // Regras de pontuação de duração de jogo
   const getPlaytimePoints = (hours: number): number => {
     if (hours < 8) return 1;
@@ -226,6 +271,34 @@ export default function Home() {
     );
   };
 
+  const renderParticipantStack = (participants: Participant[], accentClass: string) => {
+    const visibleParticipants = participants.slice(0, 2);
+    const extraCount = Math.max(participants.length - visibleParticipants.length, 0);
+
+    return (
+      <div className="flex items-center -space-x-2">
+        {visibleParticipants.map(participant => (
+          <div
+            key={participant.id}
+            className="w-7 h-7 rounded-full border-2 border-neutral-950 bg-neutral-800 overflow-hidden flex items-center justify-center text-neutral-500"
+            title={participant.name || 'Membro'}
+          >
+            {participant.avatar_url ? (
+              <img src={participant.avatar_url} alt={participant.name || 'Membro'} className="w-full h-full object-cover" />
+            ) : (
+              <UserCircle className="w-4 h-4" />
+            )}
+          </div>
+        ))}
+        {extraCount > 0 && (
+          <div className={`w-7 h-7 rounded-full border-2 border-neutral-950 flex items-center justify-center text-xs font-bold ${accentClass}`}>
+            +{extraCount}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Buscar Ranking (sem filtro de mês — votos acumulados)
   const fetchRanking = async () => {
     setRankingLoading(true);
@@ -246,6 +319,25 @@ export default function Home() {
       if (completedError) throw completedError;
 
       setCompletedGameIds(new Set(completed?.filter(item => item.user_id === user.id).map(item => item.game_id) || []));
+
+      const participantIds = Array.from(new Set([
+        ...(votes?.map(v => v.user_id) || []),
+        ...(completed?.map(item => item.user_id) || []),
+      ]));
+      let participantMap = new Map<string, Participant>();
+
+      if (participantIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, name, avatar_url')
+          .in('id', participantIds);
+
+        if (profilesError) throw profilesError;
+
+        participantMap = new Map(
+          (profiles || []).map((participant: Participant) => [participant.id, participant])
+        );
+      }
 
       // Buscar todos os jogos relacionados aos votos
       const gameIds = Array.from(new Set(votes?.map(v => v.game_id) || []));
@@ -273,11 +365,23 @@ export default function Home() {
         const totalPoints = getTotalPoints(votesCount, playtimePoints, game.average_rating, completedCount);
         const votedByMe = gameVotes.some(v => v.user_id === user.id);
         const completedByMe = gameCompleted.some(item => item.user_id === user.id);
+        const voters = gameVotes.map(v => participantMap.get(v.user_id) ?? {
+          id: v.user_id,
+          name: 'Membro',
+          avatar_url: null,
+        });
+        const completedBy = gameCompleted.map(item => participantMap.get(item.user_id) ?? {
+          id: item.user_id,
+          name: 'Membro',
+          avatar_url: null,
+        });
 
         return {
           game,
           votesCount,
           completedCount,
+          voters,
+          completedBy,
           playtimePoints,
           ratingMultiplier,
           totalPoints,
@@ -694,14 +798,21 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-3">
-          {profile?.avatar_url && (
-            <img 
-              src={profile.avatar_url} 
-              alt={profile.name} 
-              className="w-7 h-7 rounded-full border border-neutral-800"
-              title={profile.name}
-            />
-          )}
+          <button
+            onClick={openAvatarModal}
+            className="w-8 h-8 rounded-full border border-neutral-800 bg-neutral-900 flex items-center justify-center overflow-hidden text-neutral-500 hover:text-violet-300 hover:border-violet-500/40 transition"
+            title="Alterar foto"
+          >
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={profile.name || 'Avatar'}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <UserCircle className="w-5 h-5" />
+            )}
+          </button>
           <button 
             onClick={handleLogout}
             className="p-2 text-neutral-400 hover:text-red-400 transition rounded-lg hover:bg-neutral-900"
@@ -812,37 +923,48 @@ export default function Home() {
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-neutral-900/60">
-                            {/* Score Display */}
-                            <div className="text-xs">
-                              <strong className="text-emerald-400 font-extrabold text-sm">{item.totalPoints}</strong>
-                              <span className="text-neutral-500 font-medium text-[10px] ml-1">
-                                pts ({item.votesCount} {item.votesCount === 1 ? 'voto' : 'votos'}, {item.completedCount} {item.completedCount === 1 ? 'zerou' : 'zeraram'})
-                              </span>
+                          <div className="flex flex-wrap items-center justify-between gap-3 mt-2 pt-2 border-t border-neutral-900/60">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="text-xs shrink-0">
+                                <strong className="text-emerald-400 font-extrabold text-xl leading-none">{item.totalPoints}</strong>
+                                <span className="text-neutral-500 font-medium text-xs ml-1">pts</span>
+                              </div>
+
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <ThumbsUp className="w-4 h-4 text-violet-500 fill-violet-500 shrink-0" />
+                                  {renderParticipantStack(item.voters, 'bg-neutral-700 text-white')}
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                  <Flag className="w-4 h-4 text-pink-500 fill-pink-500 shrink-0" />
+                                  {renderParticipantStack(item.completedBy, 'bg-pink-950 text-pink-100')}
+                                </div>
+                              </div>
                             </div>
 
-                            <div className="flex items-center justify-end gap-1.5">
+                            <div className="flex items-center justify-end gap-2 ml-auto">
                               <button
                                 onClick={() => toggleCompleted(item.game, item.completedByMe)}
-                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition active:scale-95 ${
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition active:scale-95 ${
                                   item.completedByMe
                                     ? 'bg-pink-600 text-white hover:bg-pink-700'
                                     : 'bg-pink-950/40 text-pink-300 border border-pink-500/20 hover:bg-pink-600 hover:text-white'
                                 }`}
                               >
-                                <Flag className={`w-3 h-3 ${item.completedByMe ? 'fill-current' : ''}`} />
+                                <Flag className={`w-4 h-4 ${item.completedByMe ? 'fill-current' : ''}`} />
                                 Zerei
                               </button>
 
                               <button
                                 onClick={() => toggleVote(item.game.id, item.votedByMe)}
-                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition active:scale-95 ${
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition active:scale-95 ${
                                   item.votedByMe 
                                     ? 'bg-violet-600 text-white hover:bg-violet-700' 
                                     : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white'
                                 }`}
                               >
-                                <ThumbsUp className={`w-3 h-3 ${item.votedByMe ? 'fill-current' : ''}`} />
+                                <ThumbsUp className={`w-4 h-4 ${item.votedByMe ? 'fill-current' : ''}`} />
                                 {item.votedByMe ? 'Votado' : 'Votar'}
                               </button>
                             </div>
@@ -1147,6 +1269,66 @@ export default function Home() {
                 ))
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* AVATAR MODAL */}
+      {showAvatarModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div className="px-5 py-4 border-b border-neutral-800/80 flex items-center justify-between">
+              <h3 className="font-extrabold text-base">Foto de perfil</h3>
+              <button
+                onClick={() => setShowAvatarModal(false)}
+                className="text-xs font-bold text-neutral-400 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-neutral-800 transition"
+              >
+                Fechar
+              </button>
+            </div>
+
+            <form onSubmit={saveAvatarUrl} className="p-5 flex flex-col gap-4">
+              <div className="flex items-center justify-center">
+                <div className="w-20 h-20 rounded-full border border-neutral-800 bg-neutral-950 overflow-hidden flex items-center justify-center text-neutral-600">
+                  {avatarUrlInput ? (
+                    <img src={avatarUrlInput} alt="Preview do avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <UserCircle className="w-10 h-10" />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase font-bold text-neutral-400 mb-1.5 tracking-wider">
+                  URL da imagem
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={avatarUrlInput}
+                  onChange={(e) => setAvatarUrlInput(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-violet-500 transition text-neutral-200"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAvatarUrlInput('')}
+                  className="flex-1 bg-neutral-800 text-neutral-300 font-bold py-3 px-4 rounded-xl text-xs transition hover:bg-neutral-700"
+                >
+                  Remover
+                </button>
+                <button
+                  type="submit"
+                  disabled={avatarSaving}
+                  className="flex-1 bg-violet-600 text-white font-bold py-3 px-4 rounded-xl text-xs transition hover:bg-violet-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {avatarSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  Salvar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
