@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { AnimatePresence, motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { useUrlDialog } from '@/hooks/use-url-state';
 
 export function ImageGalleryDialog({ title, images, open, onOpenChange, activeIndex, onActiveIndexChange }: {
   title: string;
@@ -18,8 +19,11 @@ export function ImageGalleryDialog({ title, images, open, onOpenChange, activeIn
   const [panning, setPanning] = useState(false);
   const pointerStart = useRef<number | null>(null);
   const panStart = useRef<{ pointerId: number; x: number; y: number; panX: number; panY: number } | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinchStart = useRef<{ distance: number; zoom: number } | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const wasOpen = useRef(false);
   const selectImage = useCallback((index: number) => { setZoom(1); setPan({ x: 0, y: 0 }); onActiveIndexChange(index); }, [onActiveIndexChange]);
   const previous = useCallback(() => selectImage((activeIndex - 1 + images.length) % images.length), [activeIndex, images.length, selectImage]);
   const next = useCallback(() => selectImage((activeIndex + 1) % images.length), [activeIndex, images.length, selectImage]);
@@ -39,6 +43,15 @@ export function ImageGalleryDialog({ title, images, open, onOpenChange, activeIn
     setPan(current => constrainPan(current.x, current.y, value));
   }, [constrainPan]);
   useEffect(() => {
+    if (open && !wasOpen.current) {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      pointers.current.clear();
+      pinchStart.current = null;
+    }
+    wasOpen.current = open;
+  }, [open]);
+  useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'ArrowLeft') previous();
@@ -54,15 +67,25 @@ export function ImageGalleryDialog({ title, images, open, onOpenChange, activeIn
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay gallery-overlay animated-overlay fixed inset-0 z-[90] bg-black/90 backdrop-blur-md" />
-        <Dialog.Content className="animated-modal fixed left-1/2 top-1/2 z-[91] flex max-h-[96dvh] w-[calc(100%-1rem)] max-w-6xl -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-3 outline-none">
+        <Dialog.Content onPointerDown={event => { if (event.target === event.currentTarget) onOpenChange(false); }} className="animated-modal fixed left-1/2 top-1/2 z-[91] flex max-h-[96dvh] w-[calc(100%-1rem)] max-w-6xl -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-3 outline-none">
           <Dialog.Title className="sr-only">Galeria de {title}</Dialog.Title>
           <Dialog.Description className="sr-only">Imagem {activeIndex + 1} de {images.length}. Use as setas para navegar. Ao ampliar, arraste a imagem para explorar.</Dialog.Description>
           <div
             ref={viewportRef}
             className={`gallery-viewport relative flex h-[min(72dvh,760px)] min-h-0 w-full flex-none touch-none items-center justify-center overflow-hidden rounded-2xl ${zoom > 1 ? (panning ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
             onPointerDown={event => {
+              if ((event.target as HTMLElement).closest('button')) return;
+              pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+              event.currentTarget.setPointerCapture(event.pointerId);
+              if (pointers.current.size === 2) {
+                const [first, second] = Array.from(pointers.current.values());
+                pinchStart.current = { distance: Math.hypot(second.x - first.x, second.y - first.y), zoom };
+                panStart.current = null;
+                pointerStart.current = null;
+                setPanning(false);
+                return;
+              }
               if (zoom > 1) {
-                event.currentTarget.setPointerCapture(event.pointerId);
                 panStart.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y };
                 setPanning(true);
               } else {
@@ -70,16 +93,32 @@ export function ImageGalleryDialog({ title, images, open, onOpenChange, activeIn
               }
             }}
             onPointerMove={event => {
+              if (pointers.current.has(event.pointerId)) pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+              if (pinchStart.current && pointers.current.size >= 2) {
+                const [first, second] = Array.from(pointers.current.values());
+                const distance = Math.hypot(second.x - first.x, second.y - first.y);
+                changeZoom(pinchStart.current.zoom * (distance / Math.max(1, pinchStart.current.distance)));
+                event.preventDefault();
+                return;
+              }
               const start = panStart.current;
               if (!start || start.pointerId !== event.pointerId) return;
               event.preventDefault();
               setPan(constrainPan(start.panX + event.clientX - start.x, start.panY + event.clientY - start.y));
             }}
             onPointerUp={event => {
+              pointers.current.delete(event.pointerId);
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+              if (pinchStart.current) {
+                if (pointers.current.size < 2) pinchStart.current = null;
+                panStart.current = null;
+                pointerStart.current = null;
+                setPanning(false);
+                return;
+              }
               if (panStart.current?.pointerId === event.pointerId) {
                 panStart.current = null;
                 setPanning(false);
-                event.currentTarget.releasePointerCapture(event.pointerId);
                 return;
               }
               if (pointerStart.current === null) return;
@@ -90,7 +129,7 @@ export function ImageGalleryDialog({ title, images, open, onOpenChange, activeIn
               }
               pointerStart.current = null;
             }}
-            onPointerCancel={() => { pointerStart.current = null; panStart.current = null; setPanning(false); }}
+            onPointerCancel={event => { pointers.current.delete(event.pointerId); pinchStart.current = null; pointerStart.current = null; panStart.current = null; setPanning(false); }}
           >
             <AnimatePresence mode="wait" initial={false}>
               <motion.div key={images[activeIndex]} initial={{ opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.99 }} transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }} className="flex size-full items-center justify-center">
@@ -104,9 +143,9 @@ export function ImageGalleryDialog({ title, images, open, onOpenChange, activeIn
             <Dialog.Close aria-label="Fechar galeria" className="absolute right-1 top-1 grid size-10 cursor-pointer place-items-center text-white/75 drop-shadow-lg transition hover:text-white sm:right-3 sm:top-3"><X className="size-6" /></Dialog.Close>
           </div>
           <div className="gallery-toolbar flex min-h-11 max-w-full items-center gap-2 rounded-xl border border-white/10 bg-black/70 p-1 text-white shadow-lg">
-            <button onClick={() => changeZoom(zoom - .25)} disabled={zoom <= 1} aria-label="Reduzir zoom" className="grid size-9 cursor-pointer place-items-center rounded-lg transition hover:bg-white/10 disabled:cursor-not-allowed disabled:text-white/30"><ZoomOut className="size-4" /></button>
+            <button onClick={() => changeZoom(zoom - .5)} disabled={zoom <= 1} aria-label="Reduzir zoom" className="grid size-9 cursor-pointer place-items-center rounded-lg transition hover:bg-white/10 disabled:cursor-not-allowed disabled:text-white/30"><ZoomOut className="size-4" /></button>
             <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} disabled={zoom === 1} aria-label="Restaurar zoom" className="grid h-9 min-w-14 cursor-pointer place-items-center rounded-lg px-2 text-[10px] font-bold tabular-nums transition hover:bg-white/10 disabled:cursor-default disabled:text-white/65">{Math.round(zoom * 100)}%</button>
-            <button onClick={() => changeZoom(zoom + .25)} disabled={zoom >= 3} aria-label="Ampliar zoom" className="grid size-9 cursor-pointer place-items-center rounded-lg transition hover:bg-white/10 disabled:cursor-not-allowed disabled:text-white/30"><ZoomIn className="size-4" /></button>
+            <button onClick={() => changeZoom(zoom + .5)} disabled={zoom >= 3} aria-label="Ampliar zoom" className="grid size-9 cursor-pointer place-items-center rounded-lg transition hover:bg-white/10 disabled:cursor-not-allowed disabled:text-white/30"><ZoomIn className="size-4" /></button>
             {zoom > 1 && <motion.span initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} className="hidden border-l border-white/10 pl-3 pr-2 text-[10px] font-semibold text-white/65 sm:block">Arraste para explorar</motion.span>}
           </div>
           {images.length > 1 && <div className="flex max-w-full gap-2 overflow-x-auto px-1 pb-1">
@@ -119,16 +158,14 @@ export function ImageGalleryDialog({ title, images, open, onOpenChange, activeIn
 }
 
 export function GameGallery({ title, images }: { title: string; images: string[] }) {
-  const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [gallerySession, setGallerySession] = useState(0);
+  const gallery = useUrlDialog('gallery', { source: 'game-media' });
+  const requestedIndex = Number(gallery.getParam('image') || 0);
+  const activeIndex = Number.isInteger(requestedIndex) && requestedIndex >= 0 && requestedIndex < images.length ? requestedIndex : 0;
   const visible = images.slice(0, 2);
   const remaining = Math.max(images.length - 2, 0);
 
   const show = (index: number) => {
-    setActiveIndex(index);
-    setGallerySession(session => session + 1);
-    setOpen(true);
+    gallery.show({ image: index });
   };
   if (!images.length) return null;
 
@@ -143,7 +180,7 @@ export function GameGallery({ title, images }: { title: string; images: string[]
         ))}
       </div>
 
-      <ImageGalleryDialog key={gallerySession} title={title} images={images} open={open} onOpenChange={setOpen} activeIndex={activeIndex} onActiveIndexChange={setActiveIndex} />
+      <ImageGalleryDialog title={title} images={images} open={gallery.open} onOpenChange={open => { if (!open) gallery.close(); }} activeIndex={activeIndex} onActiveIndexChange={index => gallery.setParam('image', index)} />
     </>
   );
 }

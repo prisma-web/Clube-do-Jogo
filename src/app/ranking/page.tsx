@@ -17,6 +17,8 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { ListSkeleton, Skeleton } from '@/components/ui/skeleton';
 import { ParticipantsDialog } from '@/components/participants-dialog';
 import { GameActionButton } from '@/components/game-action-button';
+import { useUrlDialog } from '@/hooks/use-url-state';
+import { LoadingToast } from '@/components/ui/loading-toast';
 
 const rankingMotion = { type: 'spring', stiffness: 460, damping: 30, mass: 0.55 } as const;
 
@@ -44,17 +46,15 @@ function AnimatedPoints({ value }: { value: number }) {
 function PeopleStack({ people }: { people: RankingItem['voters'] }) {
   return (
     <span className="people-stack flex items-center -space-x-2">
-      <AnimatePresence initial={false} mode="popLayout">
-        {people.slice(0, 3).map((person, index) => <motion.span layout="position" key={person.id} initial={{ opacity: 0, scale: 0.55, x: -8 }} animate={{ opacity: 1, scale: 1, x: 0 }} exit={{ opacity: 0, scale: 0.55, x: 8 }} transition={{ ...rankingMotion, delay: index * 0.025 }} className="inline-flex"><Avatar src={person.avatar_url} name={person.name} className="participant-avatar size-7 border-2 border-[#111114] text-[9px]" /></motion.span>)}
-        {people.length > 3 && <motion.span layout="position" key="more" initial={{ opacity: 0, scale: 0.55 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.55 }} transition={rankingMotion} className="participant-avatar grid size-7 place-items-center rounded-full border-2 border-[#111114] bg-zinc-800 text-[9px] font-black text-zinc-300">+{people.length - 3}</motion.span>}
-      </AnimatePresence>
+      {people.slice(0, 3).map(person => <span key={person.id} className="inline-flex"><Avatar src={person.avatar_url} name={person.name} className="participant-avatar size-7 border-2 border-[#111114] text-[9px]" /></span>)}
+      {people.length > 3 && <span className="participant-avatar grid size-7 place-items-center rounded-full border-2 border-[#111114] bg-zinc-800 text-[9px] font-black text-zinc-300">+{people.length - 3}</span>}
     </span>
   );
 }
 
 export default function RankingPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, selectedMonth, isHistorical, runOperation } = useApp();
+  const { user, profile, isDemo, selectedMonth, isHistorical, runOptimistic } = useApp();
   const voteMonth = shiftMonth(selectedMonth, 1);
   const [showAll, setShowAll] = useState(false);
   const [query, setQuery] = useState('');
@@ -62,62 +62,65 @@ export default function RankingPage() {
   const [results, setResults] = useState<Game[]>([]);
   const [searchError, setSearchError] = useState('');
   const [rankingParent] = useAutoAnimate<HTMLDivElement>({ duration: 160, easing: 'cubic-bezier(.22, 1, .36, 1)' });
-  const { data: ranking = [], isInitialLoading, isRefreshing, refresh, setData } = useStaleQuery(
+  const { data: ranking = [], isInitialLoading, isRefreshing, setData } = useStaleQuery(
     `ranking:${selectedMonth}:${isHistorical}:${user?.id}`,
     () => fetchRankingData(supabase, selectedMonth, user!.id, isDemo, isHistorical),
     Boolean(user),
   );
+  const voteDialog = useUrlDialog('vote-game');
 
   const visibleRanking = showAll ? ranking : ranking.slice(0, 10);
 
   async function toggleVote(item: RankingItem) {
     if (isHistorical) return;
+    const previous = ranking;
+    const next = ranking.map(row => {
+      if (row.game.id !== item.game.id) return row;
+      const votesCount = row.votesCount + (row.votedByMe ? -1 : 1);
+      const penalty = row.completedCount > 0 ? row.completedCount * 2 : 1;
+      return {
+        ...row,
+        votedByMe: !row.votedByMe,
+        votesCount,
+        totalPoints: Math.round(((votesCount * 2 * row.playtimePoints * row.ratingMultiplier) / penalty) * 10) / 10,
+        voters: row.votedByMe ? row.voters.filter(person => person.id !== user!.id) : [...row.voters, profile || { id: user!.id, name: 'Você', avatar_url: null }],
+      };
+    }).filter(row => row.votesCount > 0).sort((a, b) => b.totalPoints - a.totalPoints || a.game.title.localeCompare(b.game.title, 'pt-BR'));
     if (isDemo) {
-      setData(ranking.map(row => {
-        if (row.game.id !== item.game.id) return row;
-        const votesCount = row.votesCount + (row.votedByMe ? -1 : 1);
-        const penalty = row.completedCount > 0 ? row.completedCount * 2 : 1;
-        return {
-          ...row,
-          votedByMe: !row.votedByMe,
-          votesCount,
-          totalPoints: Math.round(((votesCount * 2 * row.playtimePoints * row.ratingMultiplier) / penalty) * 10) / 10,
-          voters: row.votedByMe ? row.voters.filter(person => person.id !== user!.id) : [...row.voters, { id: user!.id, name: 'Artur Lima', avatar_url: 'https://i.pravatar.cc/160?img=12' }],
-        };
-      }).filter(row => row.votesCount > 0).sort((a, b) => b.totalPoints - a.totalPoints || a.game.title.localeCompare(b.game.title, 'pt-BR')));
+      setData(next);
       return;
     }
     const request = item.votedByMe
       ? supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', item.game.id).eq('vote_month', voteMonth)
       : supabase.from('votes').insert({ user_id: user!.id, game_id: item.game.id, vote_month: voteMonth });
-    const { error } = await runOperation(item.votedByMe ? 'Removendo voto…' : 'Registrando voto…', () => request);
-    if (!error) await refresh();
+    await runOptimistic(item.votedByMe ? 'Removendo voto…' : 'Registrando voto…', () => setData(next), () => setData(previous), () => request);
   }
 
   async function toggleCompleted(item: RankingItem) {
     if (isHistorical) return;
-    const me = { id: user!.id, name: 'Artur Lima', avatar_url: 'https://i.pravatar.cc/160?img=12' };
+    const me = profile || { id: user!.id, name: 'Você', avatar_url: null };
+    const previous = ranking;
+    const next = ranking.map(row => {
+      if (row.game.id !== item.game.id) return row;
+      const completedCount = row.completedCount + (row.completedByMe ? -1 : 1);
+      const penalty = completedCount > 0 ? completedCount * 2 : 1;
+      const totalPoints = Math.round(((row.votesCount * 2 * row.playtimePoints * row.ratingMultiplier) / penalty) * 10) / 10;
+      return {
+        ...row,
+        completedByMe: !row.completedByMe,
+        completedCount,
+        completedBy: row.completedByMe ? row.completedBy.filter(person => person.id !== user!.id) : [...row.completedBy, me],
+        totalPoints,
+      };
+    }).sort((a, b) => b.totalPoints - a.totalPoints || a.game.title.localeCompare(b.game.title, 'pt-BR'));
     if (isDemo) {
-      setData(ranking.map(row => {
-        if (row.game.id !== item.game.id) return row;
-        const completedCount = row.completedCount + (row.completedByMe ? -1 : 1);
-        const penalty = completedCount > 0 ? completedCount * 2 : 1;
-        const totalPoints = Math.round(((row.votesCount * 2 * row.playtimePoints * row.ratingMultiplier) / penalty) * 10) / 10;
-        return {
-          ...row,
-          completedByMe: !row.completedByMe,
-          completedCount,
-          completedBy: row.completedByMe ? row.completedBy.filter(person => person.id !== user!.id) : [...row.completedBy, me],
-          totalPoints,
-        };
-      }).sort((a, b) => b.totalPoints - a.totalPoints || a.game.title.localeCompare(b.game.title, 'pt-BR')));
+      setData(next);
       return;
     }
     const request = item.completedByMe
       ? supabase.from('completed_games').delete().eq('user_id', user!.id).eq('game_id', item.game.id)
       : supabase.from('completed_games').insert({ user_id: user!.id, game_id: item.game.id });
-    const { error } = await runOperation(item.completedByMe ? 'Removendo finalização…' : 'Marcando como finalizado…', () => request);
-    if (!error) await refresh();
+    await runOptimistic(item.completedByMe ? 'Removendo finalização…' : 'Marcando como finalizado…', () => setData(next), () => setData(previous), () => request);
   }
 
   async function searchGames(event: React.FormEvent) {
@@ -150,30 +153,32 @@ export default function RankingPage() {
       if (!existing.votedByMe) await toggleVote(existing);
       return;
     }
+    const ratingMultiplier = Number(game.average_rating || 50) / 100;
+    const playtimePoints = game.duration_hours < 8 ? 1 : game.duration_hours <= 15 ? 3 : game.duration_hours <= 20 ? 2 : 1;
+    const next = [...ranking, { game, votesCount: 1, completedCount: 0, voters: [profile || { id: user!.id, name: 'Você', avatar_url: null }], completedBy: [], playtimePoints, ratingMultiplier, totalPoints: Math.round(2 * playtimePoints * ratingMultiplier * 10) / 10, votedByMe: true, completedByMe: false, inBacklog: false }].sort((a, b) => b.totalPoints - a.totalPoints);
     if (isDemo) {
-      const ratingMultiplier = Number(game.average_rating || 50) / 100;
-      const playtimePoints = game.duration_hours < 8 ? 1 : game.duration_hours <= 15 ? 3 : game.duration_hours <= 20 ? 2 : 1;
-      setData([...ranking, { game, votesCount: 1, completedCount: 0, voters: [{ id: user!.id, name: 'Artur Lima', avatar_url: 'https://i.pravatar.cc/160?img=12' }], completedBy: [], playtimePoints, ratingMultiplier, totalPoints: Math.round(2 * playtimePoints * ratingMultiplier * 10) / 10, votedByMe: true, completedByMe: false, inBacklog: false }].sort((a, b) => b.totalPoints - a.totalPoints));
+      setData(next);
       return;
     }
-    await runOperation('Registrando voto…', () => supabase.from('votes').upsert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth }, { onConflict: 'user_id,game_id,vote_month' }));
-    await refresh();
+    await runOptimistic('Registrando voto…', () => setData(next), () => setData(ranking), () => supabase.from('votes').upsert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth }, { onConflict: 'user_id,game_id,vote_month' }));
   }
 
   async function addToBacklog(item: RankingItem) {
     if (item.inBacklog || isHistorical) return;
-    setData(ranking.map(row => row.game.id === item.game.id ? { ...row, inBacklog: true } : row));
-    if (!isDemo) await runOperation('Adicionando ao backlog…', () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: item.game.id }, { onConflict: 'user_id,game_id' }));
+    const next = ranking.map(row => row.game.id === item.game.id ? { ...row, inBacklog: true } : row);
+    if (isDemo) setData(next);
+    else await runOptimistic('Adicionando ao backlog…', () => setData(next), () => setData(ranking), () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: item.game.id }, { onConflict: 'user_id,game_id' }));
   }
 
   return (
     <div className="mx-auto max-w-3xl animate-fade-in">
+      <LoadingToast visible={isRefreshing} label="Atualizando ranking…" />
       <section className="mb-6 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Votação para {formatMonth(voteMonth, { includeYear: isHistorical })}</h1>
         </div>
         {!isHistorical && (
-          <Dialog>
+          <Dialog open={voteDialog.open} onOpenChange={open => open ? voteDialog.show() : voteDialog.close()}>
             <DialogTrigger asChild><button className="inline-flex h-10 shrink-0 items-center justify-center gap-2 self-end whitespace-nowrap rounded-xl bg-violet-600 px-4 text-xs font-extrabold transition hover:bg-violet-500 active:scale-95 sm:self-auto"><Plus className="size-4" />Votar em um jogo</button></DialogTrigger>
             <DialogContent title="Votar em um jogo" description={`Busque um jogo para a votação de ${formatMonth(voteMonth)}.`}>
               <form onSubmit={searchGames} className="flex gap-2 border-b border-white/8 p-4">
@@ -195,7 +200,6 @@ export default function RankingPage() {
       </section>
 
       {isHistorical && <div className="mb-5 rounded-2xl border border-amber-500/15 bg-amber-500/7 px-4 py-3 text-xs leading-relaxed text-amber-200/80">Esta votação já encerrou e seu resultado foi preservado. Você pode consultar os dados, mas não alterá-los.</div>}
-      {isRefreshing && <div className="mb-3 text-right text-[10px] font-bold uppercase tracking-wider text-zinc-600">Atualizando…</div>}
       {isInitialLoading ? <ListSkeleton count={6} /> : !ranking.length ? (
         <div className="grid min-h-64 place-items-center rounded-3xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center"><div><Trophy className="mx-auto size-8 text-zinc-700" /><h2 className="mt-3 text-sm font-bold text-zinc-300">A votação ainda está vazia</h2><p className="mt-1 text-xs text-zinc-500">Adicione o primeiro jogo para começar o ranking.</p></div></div>
       ) : (
@@ -214,8 +218,8 @@ export default function RankingPage() {
               </div>
 
               <div className="ranking-participation-grid mt-3 grid min-w-0 grid-cols-2 gap-2 border-t border-white/[0.07] pt-3">
-                <ParticipantsDialog voters={item.voters} completed={item.completedBy} initialTab="completed"><button className="ranking-participants ranking-participants-completed flex min-h-[68px] min-w-0 flex-col items-start justify-center gap-1.5 rounded-xl bg-black/20 px-2 py-2 text-left transition hover:bg-white/5"><span className="flex min-w-0 max-w-full items-center gap-1"><span className="grid size-5 shrink-0 place-items-center rounded-md bg-emerald-500/10 text-emerald-300"><CheckCircle2 className="size-3" /></span><AnimatedCount count={item.completedCount} label={item.completedCount === 1 ? 'Finalizou' : 'Finalizaram'} className="min-w-0 truncate text-[9px] font-extrabold text-zinc-300" /></span><PeopleStack people={item.completedBy} /></button></ParticipantsDialog>
-                <ParticipantsDialog voters={item.voters} completed={item.completedBy} initialTab="votes"><button className="ranking-participants ranking-participants-votes flex min-h-[68px] min-w-0 flex-col items-start justify-center gap-1.5 rounded-xl bg-black/20 px-2 py-2 text-left transition hover:bg-white/5"><span className="flex min-w-0 max-w-full items-center gap-1"><span className="grid size-5 shrink-0 place-items-center rounded-md bg-violet-500/10 text-violet-300"><ThumbsUp className="size-3" /></span><AnimatedCount count={item.votesCount} label={item.votesCount === 1 ? 'voto' : 'votos'} className="min-w-0 truncate text-[9px] font-extrabold text-zinc-300" /></span><PeopleStack people={item.voters} /></button></ParticipantsDialog>
+                <ParticipantsDialog dialogId={`${item.game.id}:completed`} voters={item.voters} completed={item.completedBy} initialTab="completed"><button className="ranking-participants ranking-participants-completed flex min-h-[68px] min-w-0 flex-col items-start justify-center gap-1.5 rounded-xl bg-black/20 px-2 py-2 text-left transition hover:bg-white/5"><span className="flex min-w-0 max-w-full items-center gap-1"><span className="grid size-5 shrink-0 place-items-center rounded-md bg-emerald-500/10 text-emerald-300"><CheckCircle2 className="size-3" /></span><AnimatedCount count={item.completedCount} label={item.completedCount === 1 ? 'Finalizou' : 'Finalizaram'} className="min-w-0 truncate text-[9px] font-extrabold text-zinc-300" /></span><PeopleStack people={item.completedBy} /></button></ParticipantsDialog>
+                <ParticipantsDialog dialogId={`${item.game.id}:votes`} voters={item.voters} completed={item.completedBy} initialTab="votes"><button className="ranking-participants ranking-participants-votes flex min-h-[68px] min-w-0 flex-col items-start justify-center gap-1.5 rounded-xl bg-black/20 px-2 py-2 text-left transition hover:bg-white/5"><span className="flex min-w-0 max-w-full items-center gap-1"><span className="grid size-5 shrink-0 place-items-center rounded-md bg-violet-500/10 text-violet-300"><ThumbsUp className="size-3" /></span><AnimatedCount count={item.votesCount} label={item.votesCount === 1 ? 'voto' : 'votos'} className="min-w-0 truncate text-[9px] font-extrabold text-zinc-300" /></span><PeopleStack people={item.voters} /></button></ParticipantsDialog>
               </div>
 
               <div className="mt-2 grid grid-cols-2 gap-2">

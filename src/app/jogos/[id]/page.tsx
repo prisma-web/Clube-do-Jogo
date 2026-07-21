@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, CalendarDays, Clock3, Gamepad2, ImageIcon, Play, Share2, Star, UsersRound } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { CalendarDays, Clock3, Gamepad2, ImageIcon, Play, Share2, Star, Trash2, UsersRound } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { demoRanking } from '@/lib/demo-data';
 import { fetchGame } from '@/lib/data';
@@ -14,14 +15,14 @@ import { ParticipantsDialog } from '@/components/participants-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { GameGallery } from '@/components/game-gallery';
 import { GameActionButton } from '@/components/game-action-button';
+import { AppBackButton } from '@/components/app-back-button';
 
 interface GamePeople { voters: Profile[]; completed: Profile[]; votedByMe: boolean; completedByMe: boolean; inBacklog: boolean; }
 
 export default function GamePage() {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, selectedMonth, isHistorical, runOperation } = useApp();
+  const { user, isDemo, selectedMonth, isHistorical, runOptimistic } = useApp();
   const voteMonth = shiftMonth(selectedMonth, 1);
   const gameQuery = useStaleQuery(`game:${params.id}`, () => fetchGame(supabase, params.id, isDemo));
   const mediaRequested = useRef(new Set<string>());
@@ -67,34 +68,48 @@ export default function GamePage() {
 
   async function addToBacklog() {
     if (!game || people.inBacklog) return;
-    peopleQuery.setData({ ...people, inBacklog: true });
-    if (!isDemo) await runOperation('Adicionando ao backlog…', () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
+    const next = { ...people, inBacklog: true };
+    if (isDemo) peopleQuery.setData(next);
+    else await runOptimistic('Adicionando ao backlog…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
+  }
+
+  async function removeFromBacklog() {
+    if (!game || !people.inBacklog) return;
+    const next = { ...people, inBacklog: false };
+    if (isDemo) peopleQuery.setData(next);
+    else await runOptimistic('Removendo do backlog…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => supabase.from('backlogs').delete().eq('user_id', user!.id).eq('game_id', game.id));
   }
 
   async function toggleVote() {
     if (!game || isHistorical) return;
     const mine: Profile = { id: user!.id, name: 'Você', avatar_url: null };
-    peopleQuery.setData({ ...people, votedByMe: !people.votedByMe, voters: people.votedByMe ? people.voters.filter(item => item.id !== user!.id) : [...people.voters, mine] });
-    if (!isDemo) {
-      if (people.votedByMe) await runOperation('Removendo voto…', () => supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', game.id).eq('vote_month', voteMonth));
-      else await runOperation('Registrando voto…', () => supabase.from('votes').insert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth }));
+    const next = { ...people, votedByMe: !people.votedByMe, voters: people.votedByMe ? people.voters.filter(item => item.id !== user!.id) : [...people.voters, mine] };
+    if (isDemo) {
+      peopleQuery.setData(next);
+      return;
     }
+    const request = people.votedByMe
+      ? supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', game.id).eq('vote_month', voteMonth)
+      : supabase.from('votes').insert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth });
+    await runOptimistic(people.votedByMe ? 'Removendo voto…' : 'Registrando voto…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => request);
   }
 
   async function toggleCompleted() {
     if (!game || isHistorical) return;
     const mine: Profile = { id: user!.id, name: 'Você', avatar_url: null };
-    peopleQuery.setData({
+    const next = {
       ...people,
       completedByMe: !people.completedByMe,
       completed: people.completedByMe ? people.completed.filter(item => item.id !== user!.id) : [...people.completed, mine],
-    });
-    if (!isDemo) {
-      const request = people.completedByMe
-        ? supabase.from('completed_games').delete().eq('user_id', user!.id).eq('game_id', game.id)
-        : supabase.from('completed_games').insert({ user_id: user!.id, game_id: game.id });
-      await runOperation(people.completedByMe ? 'Removendo finalização…' : 'Marcando como finalizado…', () => request);
+    };
+    if (isDemo) {
+      peopleQuery.setData(next);
+      return;
     }
+    const request = people.completedByMe
+      ? supabase.from('completed_games').delete().eq('user_id', user!.id).eq('game_id', game.id)
+      : supabase.from('completed_games').insert({ user_id: user!.id, game_id: game.id });
+    await runOptimistic(people.completedByMe ? 'Removendo finalização…' : 'Marcando como finalizado…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => request);
   }
 
   async function shareGame() {
@@ -115,7 +130,7 @@ export default function GamePage() {
   return (
     <div className="mx-auto max-w-4xl animate-fade-in">
       <div className="mb-5 flex items-center justify-between gap-3">
-        <button onClick={() => router.back()} className="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-white/5 px-3 text-xs font-bold text-zinc-400 hover:bg-white/10 hover:text-white"><ArrowLeft className="size-4" />Voltar</button>
+        <AppBackButton />
         <button onClick={() => void shareGame()} className="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-white/5 px-3 text-xs font-bold text-zinc-400 transition hover:bg-white/10 hover:text-white"><Share2 className="size-3.5" />Compartilhar</button>
       </div>
       <section className="game-detail-hero relative overflow-hidden rounded-[30px] border border-white/8 bg-white/[0.025] p-4 sm:p-7">
@@ -127,12 +142,27 @@ export default function GamePage() {
         <div className="game-detail-summary relative flex min-w-0 flex-col items-center gap-5 text-center sm:flex-row sm:items-start sm:text-left">
           <div className="game-detail-cover aspect-[3/4] w-40 shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-zinc-900 shadow-2xl sm:w-52"><img src={game.image_url} alt={`Capa de ${game.title}`} className="size-full object-cover" /></div>
           <div className="game-detail-info min-w-0 flex-1 pt-5 sm:pt-7"><h1 className="break-words text-3xl font-black tracking-[-0.035em] sm:text-5xl">{game.title}</h1><div className="mt-3 flex flex-wrap justify-center gap-2 text-[11px] font-bold text-zinc-400 sm:justify-start"><span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/6 px-3 py-1.5"><Clock3 className="size-3.5" />{game.duration_hours} horas</span>{game.average_rating && <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-amber-500/10 px-3 py-1.5 text-amber-300"><Star className="size-3.5 fill-current" />{Math.round(game.average_rating)}/100</span>}{game.release_year && <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/6 px-3 py-1.5"><CalendarDays className="size-3.5" />{game.release_year}</span>}</div><p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-300">{game.description || 'Sem descrição disponível.'}</p>
-            <div className="mt-5 flex flex-wrap justify-center gap-2"><GameActionButton kind="backlog" active={people.inBacklog} onClick={() => void addToBacklog()} className="h-10 px-4" /><GameActionButton kind="completed" active={people.completedByMe} disabled={isHistorical} onClick={() => void toggleCompleted()} className="h-10 px-4" /><GameActionButton kind="vote" active={people.votedByMe} disabled={isHistorical} onClick={() => void toggleVote()} className="h-10 px-4" /></div>
+            <div className="game-detail-actions mt-5 flex flex-wrap justify-center gap-2">
+              {people.inBacklog ? (
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger asChild><GameActionButton kind="backlog" active className="h-10 px-4" aria-label="Opções do backlog" /></DropdownMenu.Trigger>
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content align="start" sideOffset={8} collisionPadding={12} className="app-popup animated-popup z-[100] min-w-52 rounded-xl border border-white/10 bg-zinc-900 p-1.5 shadow-2xl outline-none">
+                      <DropdownMenu.Item onSelect={() => void removeFromBacklog()} className="danger-action flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold text-red-300 outline-none data-[highlighted]:bg-red-500/10">
+                        <Trash2 className="size-3.5" />Remover do backlog
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+              ) : <GameActionButton kind="backlog" active={false} onClick={() => void addToBacklog()} className="h-10 px-4" />}
+              <GameActionButton kind="completed" active={people.completedByMe} disabled={isHistorical} onClick={() => void toggleCompleted()} className="h-10 px-4" />
+              <GameActionButton kind="vote" active={people.votedByMe} disabled={isHistorical} onClick={() => void toggleVote()} className="h-10 px-4" />
+            </div>
           </div>
         </div>
       </section>
 
-      <ParticipantsDialog voters={people.voters} completed={people.completed}><button className="participation-card mt-4 flex w-full min-w-0 items-center justify-between gap-2 rounded-2xl border border-white/8 bg-white/[0.025] p-4 text-left transition hover:bg-white/5"><span className="flex min-w-0 items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-violet-300"><UsersRound className="size-4" /></span><span className="min-w-0"><strong className="block text-sm">Participação</strong><span className="block truncate text-[10px] text-zinc-500 min-[360px]:text-[11px]">{people.voters.length} votos · {formatFinishedCount(people.completed.length)}</span></span></span><span className="shrink-0 text-xs font-bold text-violet-300"><span className="min-[360px]:hidden">Ver</span><span className="hidden min-[360px]:inline">Ver pessoas</span></span></button></ParticipantsDialog>
+      <ParticipantsDialog dialogId={params.id} voters={people.voters} completed={people.completed}><button className="participation-card mt-4 flex w-full min-w-0 items-center justify-between gap-2 rounded-2xl border border-white/8 bg-white/[0.025] p-4 text-left transition hover:bg-white/5"><span className="flex min-w-0 items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-violet-300"><UsersRound className="size-4" /></span><span className="min-w-0"><strong className="block text-sm">Participação</strong><span className="block truncate text-[10px] text-zinc-500 min-[360px]:text-[11px]">{people.voters.length} votos · {formatFinishedCount(people.completed.length)}</span></span></span><span className="shrink-0 text-xs font-bold text-violet-300"><span className="min-[360px]:hidden">Ver</span><span className="hidden min-[360px]:inline">Ver pessoas</span></span></button></ParticipantsDialog>
 
       {(game.genres?.length || game.platforms?.length) && <section className="mt-8 space-y-5"><div className="border-t border-white/8" />{game.genres?.length ? <div><h2 className="text-sm font-extrabold">Gêneros</h2><div className="mt-2.5 flex flex-wrap gap-2">{game.genres.map(genre => <span key={genre} className="rounded-full bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-zinc-400">{genre}</span>)}</div></div> : null}{game.platforms?.length ? <div><h2 className="text-sm font-extrabold">Plataformas</h2><div className="mt-2.5 flex flex-wrap gap-2">{game.platforms.map(platform => <span key={platform} className="rounded-full bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-zinc-400">{platform}</span>)}</div></div> : null}</section>}
 

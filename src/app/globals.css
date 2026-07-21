@@ -192,6 +192,7 @@
 .theme-shell { background: var(--background); }
 .theme-header { background: var(--theme-header); }
 .theme-nav { background: var(--theme-nav); box-shadow: 0 -12px 40px rgb(0 0 0 / 20%); }
+.theme-sidebar { box-shadow: 12px 0 40px rgb(0 0 0 / 16%); }
 .theme-ambient { background: var(--theme-ambient); }
 .theme-pattern { background-image: var(--theme-pattern); background-size: var(--theme-pattern-size); background-repeat: repeat; opacity: var(--theme-pattern-opacity); }
 
@@ -200,9 +201,18 @@ body,
 .theme-header,
 .theme-nav { transition: background-color 220ms var(--ease-snappy), color 180ms var(--ease-snappy), border-color 180ms var(--ease-snappy); }
 
+@media (min-width: 960px) {
+  .theme-ambient {
+    mask-image: linear-gradient(to bottom, #000 0%, #000 58%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 58%, transparent 100%);
+  }
+}
+
 :root[data-theme] [class*='border-white/'] { border-color: var(--hairline) !important; }
 :root[data-theme] [class*='bg-white/'] { background-color: var(--surface-soft) !important; }
 :root[data-theme] [class*='bg-black/'] { background-color: var(--surface-deep) !important; }
+:root[data-theme] .notes-image .notes-image-overlay { background-color: transparent !important; }
+:root[data-theme] .notes-image:hover .notes-image-overlay { background-color: rgb(0 0 0 / 10%) !important; }
 :root[data-theme] button.bg-violet-600 { color: var(--primary-on); }
 :root[data-theme] [class*='#0c0c0f'],
 :root[data-theme] [class*='#101013'],
@@ -1272,6 +1282,30 @@ body,
     padding: 1.75rem 0 0;
     border-top: 0;
     background: transparent;
+  }
+}
+
+@media (min-width: 960px) {
+  :root:is(:not([data-theme]), [data-theme='original']) .game-detail-actions .game-action {
+    border-color: rgb(255 255 255 / 18%) !important;
+    background: rgb(12 12 16 / 72%) !important;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+    backdrop-filter: blur(12px);
+  }
+
+  :root:is(:not([data-theme]), [data-theme='original']) .game-detail-actions .game-action-vote[data-active='true'] {
+    border-color: rgb(167 139 250 / 42%) !important;
+    background: color-mix(in srgb, var(--support-vote) 34%, rgb(12 12 16 / 88%)) !important;
+  }
+
+  :root:is(:not([data-theme]), [data-theme='original']) .game-detail-actions .game-action-completed[data-active='true'] {
+    border-color: rgb(52 211 153 / 38%) !important;
+    background: color-mix(in srgb, var(--support-completed) 30%, rgb(12 12 16 / 88%)) !important;
+  }
+
+  :root:is(:not([data-theme]), [data-theme='original']) .game-detail-actions .game-action-backlog[data-active='true'] {
+    border-color: rgb(125 211 252 / 40%) !important;
+    background: color-mix(in srgb, var(--support-backlog) 30%, rgb(12 12 16 / 88%)) !important;
   }
 }
 

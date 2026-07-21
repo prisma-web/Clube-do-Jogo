@@ -15,12 +15,13 @@ import { GameDialogPreview } from '@/components/game-dialog-preview';
 import { ListSkeleton, Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { GameActionButton } from '@/components/game-action-button';
+import { useUrlDialog, useUrlTab } from '@/hooks/use-url-state';
 
 const animation = { duration: 160, easing: 'cubic-bezier(.22, 1, .36, 1)' };
 
 export default function YourGamesPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, selectedMonth, isHistorical, runOperation } = useApp();
+  const { user, isDemo, selectedMonth, isHistorical, runOptimistic } = useApp();
   const voteMonth = shiftMonth(selectedMonth, 1);
   const query = useStaleQuery(`your-games:${user?.id}:${voteMonth}`, () => fetchProfileWithGames(supabase, user!.id, isDemo, voteMonth), Boolean(user));
   const data = query.data;
@@ -30,40 +31,50 @@ export default function YourGamesPage() {
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<Game[]>([]);
   const [searchError, setSearchError] = useState('');
+  const addDialog = useUrlDialog('add-backlog');
+  const actionDialog = useUrlDialog('game-action');
+  const [activeTab, setActiveTab] = useUrlTab('list', ['backlog', 'completed'] as const, 'backlog');
 
   async function removeBacklog(game: Game) {
     if (!data) return;
-    query.setData({ ...data, backlog: data.backlog.filter(item => item.id !== game.id) });
-    if (!isDemo) await runOperation('Removendo do backlog…', () => supabase.from('backlogs').delete().eq('user_id', user!.id).eq('game_id', game.id));
+    const next = { ...data, backlog: data.backlog.filter(item => item.id !== game.id) };
+    if (isDemo) query.setData(next);
+    else await runOptimistic('Removendo do backlog…', () => query.setData(next), () => query.setData(data), () => supabase.from('backlogs').delete().eq('user_id', user!.id).eq('game_id', game.id));
   }
 
   async function addToBacklog(game: Game) {
     if (!data || data.backlog.some(item => item.id === game.id)) return;
-    query.setData({ ...data, backlog: [game, ...data.backlog] });
-    if (!isDemo) await runOperation('Adicionando ao backlog…', () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
+    const next = { ...data, backlog: [game, ...data.backlog] };
+    if (isDemo) query.setData(next);
+    else await runOptimistic('Adicionando ao backlog…', () => query.setData(next), () => query.setData(data), () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
   }
 
   async function markFinished(game: Game, finished: boolean) {
     if (!data) return;
-    query.setData({ ...data, completed: finished ? [...data.completed, game] : data.completed.filter(item => item.id !== game.id) });
-    if (!isDemo) {
-      if (finished) await runOperation('Marcando como finalizado…', () => supabase.from('completed_games').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
-      else await runOperation('Removendo finalização…', () => supabase.from('completed_games').delete().eq('user_id', user!.id).eq('game_id', game.id));
+    const next = { ...data, completed: finished ? [...data.completed, game] : data.completed.filter(item => item.id !== game.id) };
+    if (isDemo) {
+      query.setData(next);
+      return;
     }
+    const request = finished
+      ? supabase.from('completed_games').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' })
+      : supabase.from('completed_games').delete().eq('user_id', user!.id).eq('game_id', game.id);
+    await runOptimistic(finished ? 'Marcando como finalizado…' : 'Removendo finalização…', () => query.setData(next), () => query.setData(data), () => request);
   }
 
   async function toggleVote(game: Game) {
     if (!data || isHistorical) return;
     const voted = data.votedGameIds.includes(game.id);
     const votedGameIds = voted ? data.votedGameIds.filter(id => id !== game.id) : [...data.votedGameIds, game.id];
-    query.setData({ ...data, votedGameIds, rankingGameIds: voted ? data.rankingGameIds : Array.from(new Set([...data.rankingGameIds, game.id])) });
-    if (!isDemo) {
-      const request = voted
-        ? supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', game.id).eq('vote_month', voteMonth)
-        : supabase.from('votes').insert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth });
-      const { error } = await runOperation(voted ? 'Removendo voto…' : 'Registrando voto…', () => request);
-      if (!error) await query.refresh();
+    const next = { ...data, votedGameIds, rankingGameIds: voted ? data.rankingGameIds : Array.from(new Set([...data.rankingGameIds, game.id])) };
+    if (isDemo) {
+      query.setData(next);
+      return;
     }
+    const request = voted
+      ? supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', game.id).eq('vote_month', voteMonth)
+      : supabase.from('votes').insert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth });
+    await runOptimistic(voted ? 'Removendo voto…' : 'Registrando voto…', () => query.setData(next), () => query.setData(data), () => request);
   }
 
   async function searchGames(event: React.FormEvent) {
@@ -100,7 +111,7 @@ export default function YourGamesPage() {
         ? `O jogo já está no ranking. Seu voto será somado à votação de ${formatMonth(voteMonth)}.`
         : `Seu voto adicionará o jogo ao ranking de ${formatMonth(voteMonth)}.`;
     return (
-      <Dialog>
+      <Dialog open={actionDialog.open && actionDialog.getParam('action') === 'vote' && actionDialog.getParam('item') === game.id} onOpenChange={open => open ? actionDialog.show({ action: 'vote', item: game.id }) : actionDialog.close()}>
         <DialogTrigger asChild>
           <GameActionButton kind="vote" active={voted} disabled={isHistorical} className="h-8 rounded-lg px-2.5 text-[10px]" />
         </DialogTrigger>
@@ -116,7 +127,7 @@ export default function YourGamesPage() {
     <div className="mx-auto max-w-3xl">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div><div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-violet-300"><Library className="size-3" />Biblioteca</div><h1 className="text-2xl font-black tracking-tight sm:text-3xl">Seus jogos</h1><p className="mt-1.5 text-sm text-zinc-500">Seu backlog é pessoal e não interfere na votação.</p></div>
-        <Dialog>
+        <Dialog open={addDialog.open} onOpenChange={open => open ? addDialog.show() : addDialog.close()}>
           <DialogTrigger asChild><button className="inline-flex h-10 shrink-0 items-center justify-center gap-2 self-end rounded-xl bg-violet-600 px-4 text-xs font-extrabold hover:bg-violet-500 sm:self-auto"><Plus className="size-4" />Adicionar ao backlog</button></DialogTrigger>
           <DialogContent title="Adicionar ao backlog" description="Busque um jogo para guardar na sua lista.">
             <form onSubmit={searchGames} className="flex gap-2 border-b border-white/8 p-4"><label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-600" /><input autoFocus value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Nome do jogo" className="h-11 w-full rounded-xl border border-white/10 bg-black/30 pl-10 pr-3 text-sm outline-none focus:border-violet-500" /></label><button disabled={searching} className="h-11 shrink-0 rounded-xl bg-violet-600 px-4 text-xs font-bold disabled:opacity-50">Buscar</button></form>
@@ -130,7 +141,7 @@ export default function YourGamesPage() {
         </Dialog>
       </div>
 
-      <Tabs.Root defaultValue="backlog">
+      <Tabs.Root value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
         <Tabs.List className="app-tabs mb-5 grid grid-cols-2 rounded-2xl border border-white/8 bg-white/[0.025] p-1.5">
           <Tabs.Trigger value="backlog" className="rounded-xl px-3 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300">Backlog · {data?.backlog.length || 0}</Tabs.Trigger>
           <Tabs.Trigger value="completed" className="rounded-xl px-3 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-300">Finalizados · {data?.completed.length || 0}</Tabs.Trigger>
@@ -138,7 +149,7 @@ export default function YourGamesPage() {
         <Tabs.Content value="backlog" className="outline-none data-[state=active]:animate-tab-in">{query.isInitialLoading ? <ListSkeleton /> : data?.backlog.length ? <div ref={backlogParent} className="space-y-3">{data.backlog.map(game => {
           const finished = data.completed.some(item => item.id === game.id);
           return <GameListCard key={game.id} game={game} action={<>
-            <Dialog><DialogTrigger asChild><button aria-label={`Remover ${game.title}`} className="grid size-8 shrink-0 place-items-center rounded-lg text-zinc-600 hover:bg-red-500/10 hover:text-red-300"><Trash2 className="size-3.5" /></button></DialogTrigger><DialogContent title="Remover do backlog" description="Esta ação não altera votos nem o status de finalização." className="max-w-sm"><GameDialogPreview game={game} message="O jogo será removido apenas da sua lista pessoal." /><div className="flex gap-2 p-4"><DialogClose className="h-10 flex-1 rounded-xl bg-white/5 px-3 text-xs font-bold text-zinc-300">Cancelar</DialogClose><DialogClose onClick={() => void removeBacklog(game)} className="h-10 flex-1 rounded-xl bg-red-600 px-3 text-xs font-bold text-white">Remover</DialogClose></div></DialogContent></Dialog>
+            <Dialog open={actionDialog.open && actionDialog.getParam('action') === 'remove' && actionDialog.getParam('item') === game.id} onOpenChange={open => open ? actionDialog.show({ action: 'remove', item: game.id }) : actionDialog.close()}><DialogTrigger asChild><button aria-label={`Remover ${game.title}`} className="grid size-8 shrink-0 place-items-center rounded-lg text-zinc-600 hover:bg-red-500/10 hover:text-red-300"><Trash2 className="size-3.5" /></button></DialogTrigger><DialogContent title="Remover do backlog" description="Esta ação não altera votos nem o status de finalização." className="max-w-sm"><GameDialogPreview game={game} message="O jogo será removido apenas da sua lista pessoal." /><div className="flex gap-2 p-4"><DialogClose className="h-10 flex-1 rounded-xl bg-white/5 px-3 text-xs font-bold text-zinc-300">Cancelar</DialogClose><DialogClose onClick={() => void removeBacklog(game)} className="h-10 flex-1 rounded-xl bg-red-600 px-3 text-xs font-bold text-white">Remover</DialogClose></div></DialogContent></Dialog>
             <GameActionButton kind="completed" active={finished} onClick={() => void markFinished(game, !finished)} className="h-8 rounded-lg px-2.5 text-[10px]" />
             {voteAction(game)}
           </>} />;

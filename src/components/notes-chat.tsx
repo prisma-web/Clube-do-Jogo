@@ -10,13 +10,14 @@ import { formatDate, formatTime } from '@/lib/utils';
 import { useApp } from './app-provider';
 import { Skeleton } from './ui/skeleton';
 import { ImageGalleryDialog } from './game-gallery';
+import { useUrlDialog } from '@/hooks/use-url-state';
 
 function dateKey(value: string) {
   return new Intl.DateTimeFormat('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Fortaleza' }).format(new Date(value));
 }
 
 export function NotesChat({ game }: { game: Game }) {
-  const { user, selectedMonth, isHistorical } = useApp();
+  const { user, selectedMonth, isHistorical, runOptimistic } = useApp();
   const [notes, setNotes] = useState<LocalNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [body, setBody] = useState('');
@@ -24,9 +25,7 @@ export function NotesChat({ game }: { game: Game }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menuNoteId, setMenuNoteId] = useState<string | null>(null);
   const [imageError, setImageError] = useState('');
-  const [galleryOpen, setGalleryOpen] = useState(false);
-  const [galleryIndex, setGalleryIndex] = useState(0);
-  const [gallerySession, setGallerySession] = useState(0);
+  const gallery = useUrlDialog('gallery', { source: `notes-${game.id}` });
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -46,21 +45,31 @@ export function NotesChat({ game }: { game: Game }) {
 
   async function submit() {
     if ((!body.trim() && !imageDataUrl) || isHistorical) return;
+    const previousBody = body;
+    const previousImage = imageDataUrl;
+    const previousEditingId = editingId;
     const now = new Date().toISOString();
+    const previous = notes;
+    let nextNotes: LocalNote[];
+    let noteToSave: LocalNote;
     if (editingId) {
       const existing = notes.find(note => note.id === editingId);
       if (!existing) return;
-      const next = { ...existing, body: body.trim(), updatedAt: now };
-      await saveNote(next);
-      setNotes(items => items.map(item => item.id === editingId ? next : item));
+      noteToSave = { ...existing, body: body.trim(), updatedAt: now };
+      nextNotes = notes.map(item => item.id === editingId ? noteToSave : item);
     } else {
-      const next: LocalNote = { id: crypto.randomUUID(), userId: user!.id, gameId: game.id, clubMonth: selectedMonth, body: body.trim(), imageDataUrl, createdAt: now, updatedAt: now };
-      await saveNote(next);
-      setNotes(items => [...items, next]);
+      noteToSave = { id: crypto.randomUUID(), userId: user!.id, gameId: game.id, clubMonth: selectedMonth, body: body.trim(), imageDataUrl, createdAt: now, updatedAt: now };
+      nextNotes = [...notes, noteToSave];
     }
     setBody('');
     setImageDataUrl(undefined);
     setEditingId(null);
+    const saved = await runOptimistic(editingId ? 'Salvando anotação…' : 'Criando anotação…', () => setNotes(nextNotes), () => setNotes(previous), () => saveNote(noteToSave));
+    if (!saved) {
+      setBody(previousBody);
+      setImageDataUrl(previousImage);
+      setEditingId(previousEditingId);
+    }
   }
 
   function pickImage(file?: File) {
@@ -82,13 +91,16 @@ export function NotesChat({ game }: { game: Game }) {
   }
 
   async function remove(id: string) {
-    await deleteNote(id);
-    setNotes(items => items.filter(item => item.id !== id));
+    const previous = notes;
+    const next = notes.filter(item => item.id !== id);
+    await runOptimistic('Excluindo anotação…', () => setNotes(next), () => setNotes(previous), () => deleteNote(id));
     if (editingId === id) { setEditingId(null); setBody(''); }
   }
 
   if (loading) return <div className="space-y-3 p-4"><Skeleton className="h-16 w-3/4" /><Skeleton className="ml-auto h-24 w-4/5" /><Skeleton className="h-20 w-2/3" /></div>;
   const noteImages = notes.flatMap(note => note.imageDataUrl ? [note.imageDataUrl] : []);
+  const requestedGalleryIndex = Number(gallery.getParam('image') || 0);
+  const galleryIndex = Number.isInteger(requestedGalleryIndex) && requestedGalleryIndex >= 0 && requestedGalleryIndex < noteImages.length ? requestedGalleryIndex : 0;
 
   return (
     <div className="notes-panel overflow-hidden rounded-3xl border border-white/8 bg-[radial-gradient(circle_at_20%_0%,rgba(124,58,237,.08),transparent_45%),#0c0c0f]">
@@ -109,7 +121,7 @@ export function NotesChat({ game }: { game: Game }) {
                         <DropdownMenu.Item onSelect={() => void remove(note.id)} className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-red-300 outline-none data-[highlighted]:bg-red-500/10"><Trash2 className="size-3.5" />Excluir</DropdownMenu.Item>
                       </DropdownMenu.Content></DropdownMenu.Portal>
                     </DropdownMenu.Root>
-                    {note.imageDataUrl && <button onClick={() => { setGalleryIndex(noteImages.indexOf(note.imageDataUrl!)); setGallerySession(session => session + 1); setGalleryOpen(true); }} onPointerDown={event => event.stopPropagation()} onPointerUp={event => event.stopPropagation()} className="notes-image group relative block w-full cursor-zoom-in overflow-hidden"><img src={note.imageDataUrl} alt="Abrir imagem anexada à anotação" className="block aspect-video max-h-72 w-full object-cover transition duration-200 group-hover:scale-[1.02]" /><span className="pointer-events-none absolute inset-0 bg-black/0 transition group-hover:bg-black/10" /></button>}
+                    {note.imageDataUrl && <button onClick={() => gallery.show({ image: noteImages.indexOf(note.imageDataUrl!) })} onPointerDown={event => event.stopPropagation()} onPointerUp={event => event.stopPropagation()} className="notes-image group relative block w-full cursor-zoom-in overflow-hidden"><img src={note.imageDataUrl} alt="Abrir imagem anexada à anotação" className="block aspect-video max-h-72 w-full object-cover transition duration-200 group-hover:scale-[1.02]" /><span className="notes-image-overlay pointer-events-none absolute inset-0 transition" /></button>}
                     {(note.body || !note.imageDataUrl) && <p className="whitespace-pre-wrap break-words pb-2 pl-3 pr-12 pt-4 text-sm leading-relaxed text-zinc-100">{note.body}</p>}
                     <div className="flex items-center justify-end gap-1 px-3 pb-2 text-[9px] text-violet-200/45">{note.updatedAt !== note.createdAt && 'editada · '}{formatTime(note.createdAt)}<Check className="size-3" /></div>
                   </div>
@@ -133,7 +145,7 @@ export function NotesChat({ game }: { game: Game }) {
           </>
         )}
       </div>
-      <ImageGalleryDialog key={gallerySession} title="anotações" images={noteImages} open={galleryOpen} onOpenChange={setGalleryOpen} activeIndex={galleryIndex} onActiveIndexChange={setGalleryIndex} />
+      <ImageGalleryDialog title="anotações" images={noteImages} open={gallery.open} onOpenChange={open => { if (!open) gallery.close(); }} activeIndex={galleryIndex} onActiveIndexChange={index => gallery.setParam('image', index)} />
     </div>
   );
 }

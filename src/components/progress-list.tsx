@@ -21,7 +21,7 @@ const statusMeta: Record<ProgressStatus, { label: string; icon: typeof Circle; c
 
 export function ProgressList({ game }: { game: Game }) {
   const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, selectedMonth, isHistorical, runOperation } = useApp();
+  const { user, isDemo, selectedMonth, isHistorical, runOptimistic } = useApp();
   const query = useStaleQuery<GameProgress[]>(`progress:${game.id}:${selectedMonth}`, async () => {
     if (isDemo) return demoProgress.map(item => ({ ...item, club_month: selectedMonth }));
     const [{ data: profiles, error: profilesError }, { data: progress, error: progressError }] = await Promise.all([
@@ -61,15 +61,16 @@ export function ProgressList({ game }: { game: Game }) {
       rating: null, started_at: status === 'not_started' ? null : now, finished_at: status === 'finished' ? now : null,
       profile: demoProfiles[0],
     };
-    query.setData(progress.some(item => item.user_id === user!.id) ? progress.map(item => item.user_id === user!.id ? next : item) : [next, ...progress]);
-    if (!isDemo) await runOperation('Atualizando progresso…', () => supabase.from('game_progress').upsert({ user_id: user!.id, game_id: game.id, club_month: selectedMonth, status: next.status, rating: next.rating, started_at: next.started_at, finished_at: next.finished_at }, { onConflict: 'user_id,game_id,club_month' }));
+    const nextProgress = progress.some(item => item.user_id === user!.id) ? progress.map(item => item.user_id === user!.id ? next : item) : [next, ...progress];
+    if (isDemo) query.setData(nextProgress);
+    else await runOptimistic('Atualizando progresso…', () => query.setData(nextProgress), () => query.setData(progress), () => supabase.from('game_progress').upsert({ user_id: user!.id, game_id: game.id, club_month: selectedMonth, status: next.status, rating: next.rating, started_at: next.started_at, finished_at: next.finished_at }, { onConflict: 'user_id,game_id,club_month' }));
   }
 
   async function updateRating(rating: number) {
     if (isHistorical) return;
     const next = progress.map(item => item.user_id === user!.id ? { ...item, rating } : item);
-    query.setData(next);
-    if (!isDemo) await runOperation('Salvando nota…', () => supabase.from('game_progress').update({ rating }).eq('user_id', user!.id).eq('game_id', game.id).eq('club_month', selectedMonth));
+    if (isDemo) query.setData(next);
+    else await runOptimistic('Salvando nota…', () => query.setData(next), () => query.setData(progress), () => supabase.from('game_progress').update({ rating }).eq('user_id', user!.id).eq('game_id', game.id).eq('club_month', selectedMonth));
   }
 
   const mine = progress.find(item => item.user_id === user!.id);

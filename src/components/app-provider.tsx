@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { AnimatePresence, motion } from 'motion/react';
-import { LoaderCircle } from 'lucide-react';
+import { CircleAlert, LoaderCircle, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { demoMonths, demoProfiles } from '@/lib/demo-data';
 import type { Profile } from '@/lib/types';
@@ -24,10 +24,20 @@ interface AppContextValue {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   runOperation: <T>(label: string, operation: () => PromiseLike<T>) => Promise<T>;
+  runOptimistic: (label: string, apply: () => void, rollback: () => void, operation: () => PromiseLike<unknown>) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 const MONTH_STORAGE_KEY = 'clube-do-jogo:selected-month';
+
+function getOperationError(result: unknown): Error | null {
+  if (!result || typeof result !== 'object' || !('error' in result)) return null;
+  const error = (result as { error?: unknown }).error;
+  if (!error) return null;
+  if (error instanceof Error) return error;
+  if (typeof error === 'object' && error && 'message' in error) return new Error(String(error.message));
+  return new Error(String(error));
+}
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const isDemo = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -39,16 +49,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [availableMonths, setAvailableMonths] = useState<string[]>(isDemo ? demoMonths : [monthKey()]);
   const [theme, setThemeState] = useState<ThemeId>(DEFAULT_THEME);
   const [operations, setOperations] = useState<{ id: string; label: string }[]>([]);
+  const [toasts, setToasts] = useState<{ id: string; message: string }[]>([]);
+
+  const showError = useCallback((value: unknown) => {
+    const id = crypto.randomUUID();
+    const detail = value instanceof Error ? value.message : 'Não foi possível concluir a ação.';
+    const message = detail && detail !== 'Não foi possível concluir a ação.'
+      ? `Não foi possível concluir a ação. ${detail}`
+      : detail;
+    setToasts(current => [...current, { id, message }]);
+    window.setTimeout(() => setToasts(current => current.filter(item => item.id !== id)), 5000);
+  }, []);
 
   const runOperation = useCallback(async function runOperation<T>(label: string, operation: () => PromiseLike<T>) {
     const id = crypto.randomUUID();
     setOperations(current => [...current, { id, label }]);
     try {
-      return await operation();
+      const result = await operation();
+      const error = getOperationError(result);
+      if (error) showError(error);
+      return result;
+    } catch (error) {
+      showError(error);
+      throw error;
     } finally {
       setOperations(current => current.filter(item => item.id !== id));
     }
-  }, []);
+  }, [showError]);
+
+  const runOptimistic = useCallback(async (label: string, apply: () => void, rollback: () => void, operation: () => PromiseLike<unknown>) => {
+    const id = crypto.randomUUID();
+    apply();
+    setOperations(current => [...current, { id, label }]);
+    try {
+      const result = await operation();
+      const error = getOperationError(result);
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      rollback();
+      showError(error);
+      return false;
+    } finally {
+      setOperations(current => current.filter(item => item.id !== id));
+    }
+  }, [showError]);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
@@ -142,10 +187,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTheme,
     signOut,
     runOperation,
+    runOptimistic,
     refreshProfile: async () => {
       if (user) await fetchProfile(user.id);
     },
-  }), [authLoading, availableMonths, fetchProfile, isDemo, profile, runOperation, selectedMonth, setSelectedMonth, setTheme, signOut, theme, user]);
+  }), [authLoading, availableMonths, fetchProfile, isDemo, profile, runOperation, runOptimistic, selectedMonth, setSelectedMonth, setTheme, signOut, theme, user]);
 
   const currentOperation = operations.at(-1);
 
@@ -169,6 +215,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           </motion.div>
         )}
       </AnimatePresence>
+      <div className="pointer-events-none fixed inset-x-3 top-[max(4rem,calc(env(safe-area-inset-top)+4rem))] z-[310] flex flex-col items-center gap-2" aria-live="assertive">
+        <AnimatePresence initial={false}>
+          {toasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              role="alert"
+              initial={{ opacity: 0, y: -10, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.97 }}
+              className="pointer-events-auto flex w-full max-w-md items-start gap-2.5 rounded-2xl border border-red-400/20 bg-[#211416]/95 px-4 py-3 text-xs font-semibold leading-relaxed text-red-100 shadow-2xl shadow-black/40 backdrop-blur-md"
+            >
+              <CircleAlert className="mt-0.5 size-4 shrink-0 text-red-300" />
+              <span className="min-w-0 flex-1">{toast.message}</span>
+              <button aria-label="Fechar aviso" onClick={() => setToasts(current => current.filter(item => item.id !== toast.id))} className="grid size-6 shrink-0 place-items-center rounded-full text-red-200/60 hover:bg-white/10 hover:text-red-100"><X className="size-3.5" /></button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
     </AppContext.Provider>
   );
 }

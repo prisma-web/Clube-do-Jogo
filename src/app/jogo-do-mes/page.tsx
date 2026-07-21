@@ -13,11 +13,13 @@ import { Timeline } from '@/components/timeline';
 import { ProgressList } from '@/components/progress-list';
 import { NotesChat } from '@/components/notes-chat';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useUrlTab } from '@/hooks/use-url-state';
 
 export default function GameOfMonthPage() {
   const supabase = useMemo(() => createClient(), []);
   const { selectedMonth, isHistorical, isDemo } = useApp();
   const { data: game, isInitialLoading } = useStaleQuery(`game-of-month:${selectedMonth}`, () => fetchGameOfMonth(supabase, selectedMonth, isDemo));
+  const [activeTab, setActiveTab] = useUrlTab('section', ['timeline', 'progress', 'notes'] as const, 'timeline');
 
   if (isInitialLoading) return <div className="mx-auto max-w-3xl space-y-5"><Skeleton className="mx-auto aspect-[3/4] w-44 rounded-3xl" /><Skeleton className="mx-auto h-9 w-64" /><Skeleton className="h-12 w-full" /><Skeleton className="h-64 w-full rounded-3xl" /></div>;
 
@@ -40,7 +42,7 @@ export default function GameOfMonthPage() {
 
       {isHistorical && <div className="mb-4 rounded-2xl border border-amber-500/15 bg-amber-500/[0.07] px-4 py-3 text-xs leading-relaxed text-amber-200/75">Você está revisitando {formatMonth(selectedMonth)}. Comentários, progresso e anotações estão somente para leitura.</div>}
 
-      <Tabs.Root defaultValue="timeline">
+      <Tabs.Root value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
         <Tabs.List aria-label="Seções do jogo do mês" className="app-tabs sticky top-[calc(4rem+env(safe-area-inset-top))] z-30 mb-5 grid grid-cols-3 rounded-2xl border border-white/8 bg-[#0c0c0f]/92 p-1.5 shadow-xl backdrop-blur-xl">
           <Tabs.Trigger value="timeline" className="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-1 py-2.5 text-[11px] font-extrabold text-zinc-500 outline-none transition data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300"><MessageCircle className="size-3.5" /><span className="truncate">Timeline</span></Tabs.Trigger>
           <Tabs.Trigger value="progress" className="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-1 py-2.5 text-[11px] font-extrabold text-zinc-500 outline-none transition data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300"><ListChecks className="size-3.5" /><span className="truncate">Progresso</span></Tabs.Trigger>

@@ -24,7 +24,7 @@ function relationProfile(value: Profile | Profile[] | null | undefined, userId: 
 
 export function Timeline({ game }: { game: Game }) {
   const supabase = useMemo(() => createClient(), []);
-  const { user, profile, isDemo, selectedMonth, isHistorical, runOperation } = useApp();
+  const { user, profile, isDemo, selectedMonth, isHistorical, runOptimistic } = useApp();
   const [body, setBody] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState('');
@@ -69,16 +69,21 @@ export function Timeline({ game }: { game: Game }) {
     if (!text || isHistorical) return;
     setSending(true);
     const now = new Date().toISOString();
-    if (isDemo) {
-      const next: ClubComment = { id: crypto.randomUUID(), user_id: user!.id, game_id: game.id, club_month: selectedMonth, parent_id: parentId, body: text, created_at: now, updated_at: now, profile: profile || demoProfiles[0], reactions: [], replies: [] };
-      query.setData(parentId ? comments.map(comment => comment.id === parentId ? { ...comment, replies: [...comment.replies, next] } : comment) : [...comments, next]);
-    } else {
-      await runOperation(parentId ? 'Enviando resposta…' : 'Publicando comentário…', () => supabase.from('club_comments').insert({ user_id: user!.id, game_id: game.id, club_month: selectedMonth, parent_id: parentId, body: text }));
-      await query.refresh();
-    }
+    const next: ClubComment = { id: `optimistic-${crypto.randomUUID()}`, user_id: user!.id, game_id: game.id, club_month: selectedMonth, parent_id: parentId, body: text, created_at: now, updated_at: now, profile: profile || demoProfiles[0], reactions: [], replies: [] };
+    const nextComments = parentId ? comments.map(comment => comment.id === parentId ? { ...comment, replies: [...comment.replies, next] } : comment) : [...comments, next];
     setBody('');
     setReplyBody('');
     setReplyingTo(null);
+    if (isDemo) {
+      query.setData(nextComments);
+    } else {
+      const saved = await runOptimistic(parentId ? 'Enviando resposta…' : 'Publicando comentário…', () => query.setData(nextComments), () => query.setData(comments), () => supabase.from('club_comments').insert({ user_id: user!.id, game_id: game.id, club_month: selectedMonth, parent_id: parentId, body: text }));
+      if (saved) await query.refresh();
+      else if (parentId) {
+        setReplyingTo(parentId);
+        setReplyBody(text);
+      } else setBody(text);
+    }
     setSending(false);
   }
 
@@ -95,11 +100,15 @@ export function Timeline({ game }: { game: Game }) {
       users: reaction.reactedByMe ? reaction.users.filter(person => person.id !== user!.id) : [...reaction.users, profile || demoProfiles[0]],
     } : { emoji, reactedByMe: true, users: [profile || demoProfiles[0]] };
     const updateComment = (item: ClubComment) => item.id === comment.id ? { ...item, reactions: reaction ? item.reactions.map(value => value.emoji === emoji ? nextReaction : value).filter(value => value.users.length) : [...item.reactions, nextReaction] } : item;
-    query.setData(comments.map(root => root.id === rootId ? (root.id === comment.id ? updateComment(root) : { ...root, replies: root.replies.map(updateComment) }) : root));
-    if (!isDemo) {
-      if (reaction?.reactedByMe) await runOperation('Removendo reação…', () => supabase.from('comment_reactions').delete().eq('comment_id', comment.id).eq('user_id', user!.id).eq('emoji', emoji));
-      else await runOperation('Adicionando reação…', () => supabase.from('comment_reactions').insert({ comment_id: comment.id, user_id: user!.id, emoji, game_id: game.id, club_month: selectedMonth }));
+    const nextComments = comments.map(root => root.id === rootId ? (root.id === comment.id ? updateComment(root) : { ...root, replies: root.replies.map(updateComment) }) : root);
+    if (isDemo) {
+      query.setData(nextComments);
+      return;
     }
+    const request = reaction?.reactedByMe
+      ? supabase.from('comment_reactions').delete().eq('comment_id', comment.id).eq('user_id', user!.id).eq('emoji', emoji)
+      : supabase.from('comment_reactions').insert({ comment_id: comment.id, user_id: user!.id, emoji, game_id: game.id, club_month: selectedMonth });
+    await runOptimistic(reaction?.reactedByMe ? 'Removendo reação…' : 'Adicionando reação…', () => query.setData(nextComments), () => query.setData(comments), () => request);
   }
 
   function ReactionPicker({ comment, rootId }: { comment: ClubComment; rootId: string }) {

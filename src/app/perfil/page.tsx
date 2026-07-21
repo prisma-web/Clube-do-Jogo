@@ -5,5 +5,5 @@ import { ProfileView } from '@/components/profile-view';
 
 export default function MyProfilePage() {
   const { user } = useApp();
-  return user ? <ProfileView profileId={user.id} own /> : null;
+  return user ? <ProfileView profileId={user.id} own showThemeSelector /> : null;
 }

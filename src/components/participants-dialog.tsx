@@ -8,6 +8,7 @@ import type { Profile } from '@/lib/types';
 import { Dialog, DialogContent, DialogTrigger } from './ui/dialog';
 import { Avatar } from './ui/avatar';
 import { formatFinishedCount } from '@/lib/utils';
+import { useUrlDialog } from '@/hooks/use-url-state';
 
 function PeopleList({ people, empty }: { people: Profile[]; empty: string }) {
   const [parent] = useAutoAnimate<HTMLDivElement>({ duration: 150, easing: 'cubic-bezier(.22, 1, .36, 1)' });
@@ -27,17 +28,21 @@ function PeopleList({ people, empty }: { people: Profile[]; empty: string }) {
   );
 }
 
-export function ParticipantsDialog({ voters, completed, children, initialTab = 'votes' }: {
+export function ParticipantsDialog({ voters, completed, children, initialTab = 'votes', dialogId }: {
   voters: Profile[];
   completed: Profile[];
   children: React.ReactNode;
   initialTab?: 'votes' | 'completed';
+  dialogId: string;
 }) {
+  const dialog = useUrlDialog('participants', { item: dialogId });
+  const requestedTab = dialog.getParam('modalTab');
+  const activeTab = requestedTab === 'votes' || requestedTab === 'completed' ? requestedTab : initialTab;
   return (
-    <Dialog>
+    <Dialog open={dialog.open} onOpenChange={open => open ? dialog.show({ modalTab: initialTab }) : dialog.close()}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent title="Participantes" description="Veja quem votou e quem já terminou este jogo.">
-        <Tabs.Root defaultValue={initialTab}>
+        <Tabs.Root value={activeTab} onValueChange={value => dialog.setParam('modalTab', value)}>
           <Tabs.List className="participants-tabs app-tabs mx-4 mt-4 grid grid-cols-2 rounded-xl bg-black/30 p-1">
             <Tabs.Trigger value="votes" className="flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold text-zinc-500 outline-none transition data-[state=active]:bg-zinc-800 data-[state=active]:text-violet-300"><ThumbsUp className="size-3.5" />Votos · {voters.length}</Tabs.Trigger>
             <Tabs.Trigger value="completed" className="flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold text-zinc-500 outline-none transition data-[state=active]:bg-zinc-800 data-[state=active]:text-emerald-300"><CheckCircle2 className="size-3.5" />{formatFinishedCount(completed.length)}</Tabs.Trigger>
