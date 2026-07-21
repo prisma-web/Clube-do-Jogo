@@ -6,12 +6,1273 @@
   color-scheme: dark;
   --ease-snappy: cubic-bezier(.22, 1, .36, 1);
 }
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+:root,
+:root[data-theme='original'] {
+  --background: #08080a;
+  --foreground: #f4f4f5;
+  --surface: #101014;
+  --surface-soft: rgb(255 255 255 / 3.5%);
+  --surface-deep: rgb(0 0 0 / 24%);
+  --hairline: rgb(255 255 255 / 8%);
+  --theme-header: rgb(8 8 10 / 86%);
+  --theme-nav: rgb(11 11 14 / 94%);
+  --theme-shadow: 0 18px 55px rgb(0 0 0 / 28%);
+  --theme-pattern: url('/patterns/original-grid.svg');
+  --theme-pattern-size: 56px 56px;
+  --theme-pattern-opacity: .34;
+  --theme-ambient: radial-gradient(circle at 30% 0%, rgb(124 58 237 / 14%), transparent 62%);
+  --primary-on: #fff;
+  --support-vote: #8b5cf6;
+  --support-completed: #10b981;
+  --support-backlog: #38bdf8;
+  --support-danger: #ef4444;
+}
+
+:root[data-theme='zelda'] {
+  --background: #070807;
+  --foreground: #efe6cf;
+  --surface: #10120f;
+  --surface-soft: #151712;
+  --surface-deep: #0a0c0a;
+  --hairline: rgb(211 181 99 / 20%);
+  --theme-header: rgb(7 8 7 / 98%);
+  --theme-nav: rgb(9 11 9 / 99%);
+  --theme-shadow: 0 18px 46px rgb(0 0 0 / 42%);
+  --theme-pattern: url('/patterns/zelda-triforce.svg');
+  --theme-pattern-size: 184px 168px;
+  --theme-pattern-opacity: .86;
+  --theme-ambient: linear-gradient(180deg, rgb(197 160 64 / 6%), transparent 22%);
+  --primary-on: #171006;
+  --support-vote: #5274a6;
+  --support-completed: #4f8a67;
+  --support-backlog: #7c929f;
+  --support-danger: #a64e56;
+  --color-violet-200: #fff1bd;
+  --color-violet-300: #ead58e;
+  --color-violet-400: #d7bb6f;
+  --color-violet-500: #c39b42;
+  --color-violet-600: #b48732;
+  --color-violet-700: #76551e;
+  --color-violet-950: #2e220d;
+  --color-fuchsia-600: #3d7553;
+  --color-fuchsia-700: #28523a;
+  --color-zinc-50: #faf6e9;
+  --color-zinc-100: #f1ead7;
+  --color-zinc-200: #ddd2b9;
+  --color-zinc-300: #c5b99e;
+  --color-zinc-400: #a79f8b;
+  --color-zinc-500: #8f8878;
+  --color-zinc-600: #575348;
+  --color-zinc-700: #3d4037;
+  --color-zinc-800: #252d27;
+  --color-zinc-900: #152019;
+  --color-zinc-950: #0b120d;
+  --color-emerald-300: #91c59c;
+  --color-emerald-400: #6eaa7d;
+  --color-emerald-500: #4c855f;
+  --color-sky-200: #dbe2df;
+  --color-sky-400: #9eaaa7;
+}
+
+:root[data-theme='nier'] {
+  color-scheme: light;
+  --background: #c7c1aa;
+  --foreground: #332d2a;
+  --surface: #d8d2bc;
+  --surface-soft: #d3cdb6;
+  --surface-deep: #bdb6a0;
+  --hairline: rgb(75 65 61 / 28%);
+  --theme-header: rgb(199 193 170 / 96%);
+  --theme-nav: rgb(216 210 188 / 97%);
+  --theme-shadow: 5px 5px 0 rgb(75 65 61 / 16%);
+  --theme-pattern: url('/patterns/nier-grid.svg');
+  --theme-pattern-size: 180px 150px;
+  --theme-pattern-opacity: .78;
+  --theme-ambient: linear-gradient(180deg, rgb(244 239 216 / 38%), transparent 38%);
+  --primary-on: #f4efdc;
+  --support-vote: #6f5148;
+  --support-completed: #4f6956;
+  --support-backlog: #59676a;
+  --support-danger: #8f4037;
+  --color-violet-200: #6d5e57;
+  --color-violet-300: #5f514c;
+  --color-violet-400: #4b413d;
+  --color-violet-500: #514641;
+  --color-violet-600: #403733;
+  --color-violet-700: #332c29;
+  --color-violet-950: #211d1b;
+  --color-fuchsia-600: #8a5848;
+  --color-fuchsia-700: #70463a;
+  --color-zinc-50: #332d2a;
+  --color-zinc-100: #3f3733;
+  --color-zinc-200: #4b413d;
+  --color-zinc-300: #594e4a;
+  --color-zinc-400: #5e5550;
+  --color-zinc-500: #574e49;
+  --color-zinc-600: #7c7268;
+  --color-zinc-700: #b0ab98;
+  --color-zinc-800: #c3bda8;
+  --color-zinc-900: #d5cfb8;
+  --color-zinc-950: #e3deca;
+  --color-emerald-300: #55735e;
+  --color-emerald-400: #476450;
+  --color-emerald-500: #3d5745;
+  --color-amber-300: #915b48;
+  --color-amber-200: #5c3d34;
+  --color-amber-400: #7e4e3e;
+  --color-amber-500: #6f4437;
+  --color-sky-200: #625a55;
+  --color-sky-400: #514945;
+  --color-red-300: #87362f;
+  --color-red-500: #a83f35;
+  --color-red-600: #8f332c;
+}
+
+:root[data-theme='crossing'] {
+  color-scheme: light;
+  --background: #e7dcc0;
+  --foreground: #4d6258;
+  --surface: #f7eccf;
+  --surface-soft: #f2e4c5;
+  --surface-deep: #e8d9b8;
+  --hairline: transparent;
+  --theme-header: #f5e9ca;
+  --theme-nav: #f9efd6;
+  --theme-shadow: 0 5px 0 -2px rgb(119 84 57 / 14%), 0 10px 18px rgb(119 84 57 / 5%);
+  --theme-pattern: none;
+  --theme-pattern-size: auto;
+  --theme-pattern-opacity: 0;
+  --theme-ambient: none;
+  --primary-on: #174f48;
+  --support-vote: #56bfb1;
+  --support-completed: #86c673;
+  --support-backlog: #78b8cc;
+  --support-danger: #d26f78;
+  --color-violet-200: #075f5a;
+  --color-violet-300: #08756d;
+  --color-violet-400: #07968c;
+  --color-violet-500: #08aaa0;
+  --color-violet-600: #087a73;
+  --color-violet-700: #075f5a;
+  --color-violet-950: #073d39;
+  --color-fuchsia-600: #75b94e;
+  --color-fuchsia-700: #568f37;
+  --color-zinc-50: #3d554b;
+  --color-zinc-100: #465d53;
+  --color-zinc-200: #4d6258;
+  --color-zinc-300: #596e63;
+  --color-zinc-400: #687c71;
+  --color-zinc-500: #5f7368;
+  --color-zinc-600: #819187;
+  --color-zinc-700: #c3cdbd;
+  --color-zinc-800: #e3e8d9;
+  --color-zinc-900: #f5f4e5;
+  --color-zinc-950: #fffaf0;
+  --color-emerald-300: #3d7f2d;
+  --color-emerald-400: #397b2b;
+  --color-emerald-500: #4f9138;
+  --color-amber-300: #a86b35;
+  --color-amber-200: #7a4824;
+  --color-amber-400: #8a5125;
+  --color-amber-500: #cf8e4c;
+  --color-sky-200: #347b91;
+  --color-sky-400: #3c94aa;
+  --color-red-300: #a92f35;
+  --color-red-500: #c63f44;
+  --color-red-600: #ac2e34;
+}
+
+.theme-shell { background: var(--background); }
+.theme-header { background: var(--theme-header); }
+.theme-nav { background: var(--theme-nav); box-shadow: 0 -12px 40px rgb(0 0 0 / 20%); }
+.theme-ambient { background: var(--theme-ambient); }
+.theme-pattern { background-image: var(--theme-pattern); background-size: var(--theme-pattern-size); background-repeat: repeat; opacity: var(--theme-pattern-opacity); }
+
+body,
+.theme-shell,
+.theme-header,
+.theme-nav { transition: background-color 220ms var(--ease-snappy), color 180ms var(--ease-snappy), border-color 180ms var(--ease-snappy); }
+
+:root[data-theme] [class*='border-white/'] { border-color: var(--hairline) !important; }
+:root[data-theme] [class*='bg-white/'] { background-color: var(--surface-soft) !important; }
+:root[data-theme] [class*='bg-black/'] { background-color: var(--surface-deep) !important; }
+:root[data-theme] button.bg-violet-600 { color: var(--primary-on); }
+:root[data-theme] [class*='#0c0c0f'],
+:root[data-theme] [class*='#101013'],
+:root[data-theme] [class*='#101014'] { background-color: var(--surface) !important; }
+
+:root[data-theme='zelda'] main :where(article, section[class*='border']),
+:root[data-theme='nier'] main :where(article, section[class*='border']),
+:root[data-theme='crossing'] main :where(article, section[class*='border']) { box-shadow: var(--theme-shadow); }
+
+:root[data-theme='zelda'] :where(.rounded-3xl, .rounded-2xl, .rounded-\[30px\], .rounded-\[32px\], .rounded-\[28px\]) { border-radius: 14px !important; }
+:root[data-theme='nier'] :where(.rounded-3xl, .rounded-2xl, .rounded-xl, .rounded-\[30px\], .rounded-\[32px\], .rounded-\[28px\]) { border-radius: 2px !important; }
+:root[data-theme='crossing'] :where(.rounded-3xl, .rounded-2xl, .rounded-xl, .rounded-\[30px\], .rounded-\[32px\], .rounded-\[28px\]) { border-radius: 26px !important; }
+
+:root[data-theme='zelda'] :where(h1, h2) { font-family: Georgia, 'Times New Roman', serif; letter-spacing: .01em; }
+:root[data-theme='nier'] body { font-family: var(--font-geist-mono), monospace; }
+:root[data-theme='nier'] :where(button, [role='menuitem']) { text-transform: uppercase; letter-spacing: .045em; }
+:root[data-theme='nier'] [role='tab'] { font-size: 10px !important; text-transform: uppercase; letter-spacing: .012em; }
+:root[data-theme='nier'] .theme-option[aria-checked='true'] { box-shadow: inset 4px 0 0 var(--color-violet-400); }
+:root[data-theme='crossing'] body { font-family: var(--font-geist-sans), Arial, sans-serif; }
+:root[data-theme='crossing'] :where(button, a, section, article) { transition-duration: 190ms; }
+
+/* Theme-aware components: materials, framing and fixed visual landmarks. */
+.participant-avatar { border-color: var(--surface) !important; }
+.ranking-participants { overflow: visible; letter-spacing: 0 !important; }
+.app-dialog,
+.app-popup,
+.app-tabs { background-color: var(--surface) !important; border-color: var(--hairline) !important; }
+:root[data-theme] .gallery-more { background-color: rgb(0 0 0 / 58%) !important; color: #fff !important; }
+
+/* Zelda Deluxe — black collector's edition, engraved circles and metallic gold. */
+:root[data-theme='zelda'] main :where(article, section[class*='border']) {
+  border-color: rgb(215 187 111 / 20%) !important;
+  background-color: #111310 !important;
+  background-image: linear-gradient(145deg, rgb(255 241 190 / 2.5%), transparent 45%, rgb(0 0 0 / 12%));
+}
+:root[data-theme='zelda'] .theme-header,
+:root[data-theme='zelda'] .theme-nav,
+:root[data-theme='zelda'] .app-tabs { backdrop-filter: none; }
+:root[data-theme='zelda'] .theme-logo {
+  border: 1px solid rgb(255 231 157 / 32%);
+  background: radial-gradient(circle at 32% 25%, #f5dea0 0 8%, transparent 9%), linear-gradient(145deg, #d8bb6d, #76531e 72%);
+  color: #161006;
+  box-shadow: 0 8px 22px rgb(0 0 0 / 48%), inset 1px 1px 1px rgb(255 247 208 / 55%), inset -2px -2px 4px rgb(70 43 8 / 55%);
+}
+:root[data-theme='zelda'] .ranking-card {
+  isolation: isolate;
+  overflow: visible;
+  background: linear-gradient(135deg, #161812, #0f110e 62%, #15150f) !important;
+}
+:root[data-theme='zelda'] .ranking-card::after {
+  position: absolute;
+  inset: 5px;
+  z-index: -1;
+  border: 1px solid rgb(216 188 111 / 7%);
+  border-radius: 9px;
+  content: '';
+  pointer-events: none;
+}
+:root[data-theme='zelda'] .ranking-card[data-rank='1'] {
+  border-color: rgb(226 196 109 / 48%) !important;
+  background: radial-gradient(circle at 20% 5%, rgb(221 187 92 / 12%), transparent 34%), linear-gradient(135deg, #191a12, #0c0e0c) !important;
+  box-shadow: 0 18px 42px rgb(0 0 0 / 48%), 0 0 22px rgb(194 152 54 / 7%), inset 0 0 0 1px rgb(255 234 163 / 5%);
+}
+:root[data-theme='zelda'] .ranking-medal {
+  border-radius: 34% 34% 45% 45% !important;
+  border-color: rgb(255 238 184 / 42%) !important;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 55%), inset 1px 1px 1px rgb(255 250 218 / 55%), inset -3px -4px 6px rgb(70 44 10 / 45%) !important;
+}
+:root[data-theme='zelda'] .ranking-medal-1 { background: linear-gradient(145deg, #f1d98e, #b1842f 58%, #6d4815) !important; }
+:root[data-theme='zelda'] .ranking-medal-2 { background: linear-gradient(145deg, #f1f0e9, #9b9c94 62%, #62635f) !important; }
+:root[data-theme='zelda'] .ranking-medal-3 { background: linear-gradient(145deg, #d7995c, #845126 64%, #492a13) !important; }
+:root[data-theme='zelda'] .ranking-medal-number,
+:root[data-theme='zelda'] .ranking-position { border-color: #070908 !important; background: #171811 !important; color: #d7bb6f !important; }
+:root[data-theme='zelda'] .game-month-hero {
+  border-color: rgb(224 196 113 / 44%) !important;
+  box-shadow: 0 25px 70px rgb(0 0 0 / 58%), inset 0 0 0 1px rgb(255 238 179 / 7%) !important;
+}
+:root[data-theme='zelda'] .game-month-hero::after,
+:root[data-theme='zelda'] .game-detail-hero::after {
+  position: absolute;
+  inset: 8px;
+  z-index: 1;
+  border: 1px solid rgb(226 198 117 / 16%);
+  border-radius: 8px;
+  content: '';
+  pointer-events: none;
+}
+:root[data-theme='zelda'] .game-month-chip {
+  border-color: rgb(255 226 135 / 55%) !important;
+  background: linear-gradient(145deg, #f0d789, #a97b29 56%, #664314) !important;
+  color: #171006 !important;
+  text-shadow: 0 1px rgb(255 243 200 / 45%);
+  box-shadow: 0 7px 18px rgb(0 0 0 / 48%), inset 1px 1px 1px rgb(255 247 208 / 60%), inset -2px -3px 4px rgb(76 44 7 / 45%) !important;
+}
+:root[data-theme='zelda'] .game-month-chip svg { color: #171006; fill: rgb(23 16 6 / 20%); }
+:root[data-theme='zelda'] .game-month-cover { border-color: rgb(229 201 119 / 36%) !important; box-shadow: 0 20px 42px rgb(0 0 0 / 72%), 0 0 0 5px rgb(7 9 8 / 40%) !important; }
+:root[data-theme='zelda'] .app-dialog,
+:root[data-theme='zelda'] .app-popup { border-color: rgb(215 187 111 / 28%) !important; background: #10120f !important; box-shadow: 0 24px 80px rgb(0 0 0 / 68%), inset 0 1px 0 rgb(255 238 181 / 6%) !important; }
+:root[data-theme='zelda'] .app-dialog-header { background: linear-gradient(90deg, rgb(215 187 111 / 8%), transparent); }
+:root[data-theme='zelda'] .theme-settings { padding: 18px; border: 1px solid rgb(215 187 111 / 24%); border-radius: 14px; background: linear-gradient(145deg, #151711, #0f110e) !important; }
+:root[data-theme='zelda'] .game-action[data-active='true'] { box-shadow: inset 0 1px rgb(255 241 190 / 8%), 0 5px 15px rgb(0 0 0 / 18%); }
+:root[data-theme='zelda'] .game-action-vote[data-active='true'] { background: linear-gradient(145deg, rgb(215 187 111 / 20%), rgb(118 83 30 / 18%)) !important; }
+:root[data-theme='zelda'] button.bg-violet-600:disabled { color: #c5b99e !important; }
+
+/* Animal Crossing — opaque paper cards, rounded prompts, dots and cheerful stripes. */
+:root[data-theme='crossing'] main :where(article, section[class*='border']) {
+  border-color: rgb(115 119 79 / 22%) !important;
+  background: #fff9e8 !important;
+}
+:root[data-theme='crossing'] .theme-header,
+:root[data-theme='crossing'] .theme-nav,
+:root[data-theme='crossing'] .app-tabs { backdrop-filter: none; }
+:root[data-theme='crossing'] .theme-logo {
+  border: 2px solid #fff7d4;
+  background: repeating-linear-gradient(135deg, #08aaa0 0 7px, #18bdb2 7px 14px);
+  color: #fff;
+  box-shadow: 0 5px 0 rgb(55 119 83 / 16%), 0 8px 18px rgb(59 98 73 / 16%);
+}
+:root[data-theme='crossing'] .ranking-card {
+  overflow: visible;
+  background: #fff9e8 !important;
+  box-shadow: 0 7px 0 rgb(101 126 78 / 10%), 0 13px 25px rgb(69 98 73 / 10%) !important;
+}
+:root[data-theme='crossing'] .ranking-card[data-rank='1'] { border-color: rgb(201 158 56 / 38%) !important; background: linear-gradient(145deg, #fff9e8, #fff2bd) !important; }
+:root[data-theme='crossing'] .ranking-medal {
+  border: 3px solid #fff9e8 !important;
+  border-radius: 45% 55% 48% 52% !important;
+  box-shadow: 0 5px 0 rgb(105 92 55 / 15%), 0 8px 16px rgb(76 79 52 / 14%), inset 1px 1px rgb(255 255 255 / 75%) !important;
+}
+:root[data-theme='crossing'] .ranking-medal-1 { background: linear-gradient(145deg, #ffe781, #e8ad32) !important; color: #745113 !important; }
+:root[data-theme='crossing'] .ranking-medal-2 { background: linear-gradient(145deg, #f5f4ec, #aebbb5) !important; color: #51645b !important; }
+:root[data-theme='crossing'] .ranking-medal-3 { background: linear-gradient(145deg, #e9ad72, #a86237) !important; color: #fff8e5 !important; }
+:root[data-theme='crossing'] .ranking-medal-number { border-color: #fff9e8 !important; background: #665a43 !important; color: #fff !important; }
+:root[data-theme='crossing'] .ranking-position { border-color: #c9e6c2 !important; background: #5f7359 !important; color: #fff !important; }
+:root[data-theme='crossing'] .ranking-participants { border: 1px dashed rgb(104 111 71 / 20%); background: #f4edcf !important; }
+:root[data-theme='crossing'] .ranking-participants:hover { border-color: rgb(8 122 115 / 38%); background: #eee4c3 !important; }
+:root[data-theme='crossing'] .game-action { background: #f1e8ca !important; color: #665e4c !important; }
+:root[data-theme='crossing'] .game-action:hover { border-color: #8a9d75 !important; background: #e8ddba !important; color: #403b30 !important; }
+:root[data-theme='crossing'] .game-action[data-active='true'] {
+  color: #fff !important;
+  text-shadow: 0 1px rgb(0 0 0 / 12%);
+}
+:root[data-theme='crossing'] .game-action-vote[data-active='true'],
+:root[data-theme='crossing'] .game-action-backlog[data-active='true'] { background: repeating-linear-gradient(135deg, #078d84 0 7px, #09a79c 7px 14px) !important; border-color: #06766f !important; }
+:root[data-theme='crossing'] .game-action-completed[data-active='true'] { background: repeating-linear-gradient(135deg, #4f9138 0 7px, #62a749 7px 14px) !important; border-color: #467e34 !important; }
+:root[data-theme='crossing'] .app-tabs { background: #e8ddb8 !important; border: 2px solid #fff6d7 !important; box-shadow: inset 0 2px 5px rgb(100 88 54 / 10%), 0 5px 0 rgb(96 125 79 / 8%) !important; }
+:root[data-theme='crossing'] .app-tabs [data-state='active'] { box-shadow: 0 3px 0 rgb(73 112 70 / 11%); }
+:root[data-theme='crossing'] .app-dialog,
+:root[data-theme='crossing'] .app-popup { border: 3px solid #fff5d0 !important; background: #fff9e8 !important; box-shadow: 0 9px 0 rgb(84 103 68 / 12%), 0 24px 70px rgb(55 81 61 / 26%) !important; }
+:root[data-theme='crossing'] .app-dialog-header { background-color: #f3e8c7; background-image: radial-gradient(circle, rgb(116 98 62 / 13%) 1px, transparent 1.5px); background-size: 8px 8px; }
+:root[data-theme='crossing'] .theme-settings { padding: 18px; border: 3px solid #fff5d0; border-radius: 32px; background: #fff9e8 !important; box-shadow: var(--theme-shadow); }
+:root[data-theme='crossing'] .game-month-hero { border: 4px solid #fff5ce !important; border-radius: 38px !important; box-shadow: 0 8px 0 rgb(83 117 69 / 16%), 0 22px 45px rgb(54 78 59 / 18%) !important; }
+:root[data-theme='crossing'] .game-month-shade { background: radial-gradient(ellipse at 50% 20%, rgb(20 50 40 / 10%), rgb(21 55 43 / 42%) 48%, rgb(22 44 35 / 86%) 100%) !important; }
+:root[data-theme='crossing'] .game-month-tint { background: rgb(51 113 78 / 18%) !important; }
+:root[data-theme='crossing'] .game-month-chip { border: 3px solid #fff5cd !important; background: repeating-linear-gradient(135deg, #e6b83f 0 7px, #f3ca55 7px 14px) !important; color: #5e4818 !important; box-shadow: 0 5px 0 rgb(69 61 35 / 18%), 0 8px 18px rgb(0 0 0 / 20%) !important; }
+:root[data-theme='crossing'] .game-month-chip svg { color: #6f5014; fill: rgb(111 80 20 / 18%); }
+:root[data-theme='crossing'] .game-month-cover { border: 4px solid #fff7dc !important; box-shadow: 0 7px 0 rgb(20 42 32 / 22%), 0 16px 30px rgb(0 0 0 / 30%) !important; }
+:root[data-theme='crossing'] .theme-nav [aria-current='page'] { color: var(--color-violet-600) !important; }
+:root[data-theme='crossing'] .app-tabs [data-state='active'] { color: var(--color-violet-700) !important; }
+:root[data-theme='crossing'] button.bg-violet-600:disabled { color: #665c49 !important; }
+
+:root[data-theme='nier'] .ranking-position { border-color: #c9c3ad !important; background: #4b413d !important; color: #e3deca !important; }
+:root[data-theme='nier'] .participant-avatar { color: #4b413d !important; }
+:root[data-theme='nier'] button.bg-violet-600:disabled { color: #4b413d !important; }
+
+/* Second refinement: identity color, neutral material and semantic support colors. */
+.month-popup {
+  width: min(18rem, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+}
+.month-popup-item + .month-popup-item { margin-top: 4px; }
+.participants-tabs [value='votes'][data-state='active'] {
+  background: color-mix(in srgb, var(--support-vote) 12%, transparent) !important;
+  color: var(--support-vote) !important;
+}
+.participants-tabs [value='completed'][data-state='active'] {
+  background: color-mix(in srgb, var(--support-completed) 12%, transparent) !important;
+  color: var(--support-completed) !important;
+}
+.ranking-participants-votes > span:first-child > span:first-child {
+  background: color-mix(in srgb, var(--support-vote) 12%, transparent) !important;
+  color: var(--support-vote) !important;
+}
+.ranking-participants-completed > span:first-child > span:first-child {
+  background: color-mix(in srgb, var(--support-completed) 12%, transparent) !important;
+  color: var(--support-completed) !important;
+}
+.app-tabs [value='backlog'][data-state='active'] {
+  background: color-mix(in srgb, var(--support-backlog) 12%, transparent) !important;
+  color: var(--support-backlog) !important;
+}
+.app-tabs [value='completed'][data-state='active'] {
+  background: color-mix(in srgb, var(--support-completed) 12%, transparent) !important;
+  color: var(--support-completed) !important;
+}
+
+/* Zelda: flat black collector material, restrained gold and short ornamental rules. */
+:root[data-theme='zelda'] main :where(article, section[class*='border']) {
+  border-color: rgb(211 181 99 / 18%) !important;
+  background: #10120f !important;
+  box-shadow: 0 18px 44px rgb(0 0 0 / 38%) !important;
+}
+:root[data-theme='zelda'] .theme-logo {
+  border: 1px solid rgb(224 195 113 / 55%);
+  background: #0d0f0d;
+  color: #d8ba69;
+  box-shadow: none;
+}
+:root[data-theme='zelda'] .ranking-card,
+:root[data-theme='zelda'] .game-list-card { background: #11130f !important; }
+:root[data-theme='zelda'] .ranking-card[data-rank='1'] { background: linear-gradient(100deg, rgb(206 170 73 / 7%), #11130f 34%) !important; }
+:root[data-theme='zelda'] .ranking-card::before,
+:root[data-theme='zelda'] .game-list-card::before,
+:root[data-theme='zelda'] .theme-settings::before {
+  position: absolute;
+  top: -1px;
+  left: 56px;
+  width: 24px;
+  height: 1px;
+  background: #d6b866;
+  content: '';
+  pointer-events: none;
+}
+:root[data-theme='zelda'] .game-list-card::before,
+:root[data-theme='zelda'] .theme-settings::before { left: 18px; }
+:root[data-theme='zelda'] .theme-settings { position: relative; border-color: rgb(211 181 99 / 22%); background: #10120f !important; box-shadow: none; }
+:root[data-theme='zelda'] .ranking-participants { border: 0; border-top: 1px solid rgb(211 181 99 / 13%); background: #0b0d0b !important; }
+:root[data-theme='zelda'] .ranking-participants:hover { border-top-color: rgb(211 181 99 / 34%); background: #0d100d !important; }
+:root[data-theme='zelda'] .game-action { border-color: rgb(211 181 99 / 21%) !important; background: #10120f !important; color: #b9b09c !important; box-shadow: none !important; }
+:root[data-theme='zelda'] .game-action:hover { border-color: rgb(224 195 113 / 45%) !important; background: #15170f !important; color: #eee4cb !important; }
+:root[data-theme='zelda'] .game-action-vote[data-active='true'] { border-color: rgb(82 116 166 / 68%) !important; background: rgb(40 58 84 / 72%) !important; color: #c9dcf7 !important; }
+:root[data-theme='zelda'] .game-action-completed[data-active='true'] { border-color: rgb(79 138 103 / 65%) !important; background: rgb(31 65 44 / 74%) !important; color: #b9dec3 !important; }
+:root[data-theme='zelda'] .game-action-backlog[data-active='true'] { border-color: rgb(124 146 159 / 56%) !important; background: rgb(44 56 63 / 72%) !important; color: #d4dde2 !important; }
+:root[data-theme='zelda'] button.bg-violet-600:not(:disabled) {
+  border: 1px solid #c7a84e;
+  background: linear-gradient(90deg, #a97d26, #dec66d 52%, #ad822e) !important;
+  color: #181105 !important;
+  box-shadow: none;
+}
+:root[data-theme='zelda'] button.bg-violet-600:not(:disabled):hover { filter: brightness(1.08); }
+:root[data-theme='zelda'] .app-tabs { border-color: rgb(211 181 99 / 22%) !important; background: #0d100d !important; box-shadow: none !important; }
+:root[data-theme='zelda'] .app-tabs [data-state='active'] { background: rgb(211 181 99 / 12%) !important; color: #e5ce8c !important; }
+:root[data-theme='zelda'] .participants-tabs [value='votes'][data-state='active'] { background: rgb(82 116 166 / 16%) !important; color: #a9c8f2 !important; }
+:root[data-theme='zelda'] .participants-tabs [value='completed'][data-state='active'] { background: rgb(79 138 103 / 16%) !important; color: #a8d7b5 !important; }
+:root[data-theme='zelda'] .app-dialog,
+:root[data-theme='zelda'] .app-popup { border-color: rgb(211 181 99 / 26%) !important; background: #0f110f !important; box-shadow: 0 28px 80px rgb(0 0 0 / 65%) !important; }
+:root[data-theme='zelda'] .app-dialog-header { position: relative; background: #11130f; }
+:root[data-theme='zelda'] .app-dialog-header::before { position: absolute; bottom: -1px; left: 20px; width: 26px; height: 1px; background: #d6b866; content: ''; }
+:root[data-theme='zelda'] .month-popup { padding: 10px !important; }
+:root[data-theme='zelda'] .month-popup-item { border: 1px solid transparent; background: #141611; }
+:root[data-theme='zelda'] .month-popup-item[data-selected='true'] { border-color: rgb(211 181 99 / 24%); background: rgb(211 181 99 / 9%); }
+:root[data-theme='zelda'] .game-month-chip {
+  border: 1px solid rgb(225 197 116 / 56%) !important;
+  background: linear-gradient(90deg, rgb(211 181 99 / 14%), rgb(211 181 99 / 3%)) !important;
+  color: #e3c978 !important;
+  text-shadow: none;
+  box-shadow: none !important;
+}
+:root[data-theme='zelda'] .game-month-chip svg { color: #d6b866; fill: none; }
+:root[data-theme='zelda'] .game-month-chip::before { display: none; }
+:root[data-theme='zelda'] .game-month-cover { border: 1px solid rgb(223 193 111 / 36%) !important; box-shadow: 0 20px 42px rgb(0 0 0 / 65%) !important; }
+:root[data-theme='zelda'] .danger-action { border-color: rgb(166 78 86 / 45%) !important; background: #251315 !important; color: #e9aab0 !important; }
+
+/* NieR: flat modular HUD, hard offsets, technical marks and almost no ornamental chrome. */
+:root[data-theme='nier'] main :where(article, section[class*='border']) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #d8d2bc !important;
+  box-shadow: 5px 5px 0 rgb(75 65 61 / 16%) !important;
+}
+:root[data-theme='nier'] .theme-header,
+:root[data-theme='nier'] .theme-nav { border-color: rgb(75 65 61 / 25%) !important; backdrop-filter: none; }
+:root[data-theme='nier'] .theme-logo { border: 0; border-radius: 0 !important; background: #4b413d; color: #d8d2bc; box-shadow: 3px 3px 0 rgb(75 65 61 / 20%); }
+:root[data-theme='nier'] .ranking-card,
+:root[data-theme='nier'] .game-list-card { position: relative; border: 0 !important; border-left: 4px solid #4b413d !important; background: #d8d2bc !important; }
+:root[data-theme='nier'] .ranking-card::before,
+:root[data-theme='nier'] .game-list-card::before { position: absolute; top: 8px; right: 42px; width: 28px; height: 3px; background: repeating-linear-gradient(90deg, #4b413d 0 3px, transparent 3px 6px); opacity: .45; content: ''; }
+:root[data-theme='nier'] .ranking-card[data-rank='1'] { background: linear-gradient(90deg, rgb(75 65 61 / 8%), #d8d2bc 24%) !important; }
+:root[data-theme='nier'] .ranking-medal { border: 2px solid #c7c1aa !important; border-radius: 0 !important; background: #4b413d !important; color: #ded8c1 !important; box-shadow: 3px 3px 0 rgb(75 65 61 / 18%) !important; }
+:root[data-theme='nier'] .ranking-medal-2 { background: #70665e !important; }
+:root[data-theme='nier'] .ranking-medal-3 { background: #805746 !important; }
+:root[data-theme='nier'] .ranking-medal-number { border-color: #c7c1aa !important; border-radius: 0 !important; background: #d8d2bc !important; color: #4b413d !important; }
+:root[data-theme='nier'] .ranking-position { border-radius: 0 !important; }
+:root[data-theme='nier'] .ranking-participants { border: 0; border-top: 1px solid rgb(75 65 61 / 28%); border-radius: 0 !important; background: #c9c3ad !important; }
+:root[data-theme='nier'] .game-action { border: 1px solid rgb(75 65 61 / 42%) !important; border-radius: 0 !important; background: transparent !important; color: #4b413d !important; box-shadow: none; }
+:root[data-theme='nier'] .game-action:hover { background: rgb(75 65 61 / 7%) !important; }
+:root[data-theme='nier'] .game-action-vote[data-active='true'] { border-color: #6f5148 !important; background: #6f5148 !important; color: #eee8d2 !important; }
+:root[data-theme='nier'] .game-action-completed[data-active='true'] { border-color: #4f6956 !important; background: #4f6956 !important; color: #eef0dd !important; }
+:root[data-theme='nier'] .game-action-backlog[data-active='true'] { border-color: #59676a !important; background: #59676a !important; color: #edf0e5 !important; }
+:root[data-theme='nier'] button.bg-violet-600:not(:disabled) { border: 0; border-radius: 0 !important; background: #4b413d !important; color: #e3deca !important; box-shadow: 3px 3px 0 rgb(75 65 61 / 18%); }
+:root[data-theme='nier'] .app-tabs { border: 0 !important; border-block: 1px solid rgb(75 65 61 / 34%) !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+:root[data-theme='nier'] .app-tabs [data-state='active'] { border-radius: 0 !important; background: #4b413d !important; color: #e3deca !important; }
+:root[data-theme='nier'] .app-dialog,
+:root[data-theme='nier'] .app-popup { border: 0 !important; border-left: 5px solid #4b413d !important; border-radius: 0 !important; background: #d8d2bc !important; box-shadow: 8px 8px 0 rgb(75 65 61 / 22%), 0 30px 80px rgb(75 65 61 / 18%) !important; }
+:root[data-theme='nier'] .app-dialog-header { border-color: rgb(75 65 61 / 28%); background: #c9c3ad; }
+:root[data-theme='nier'] .theme-settings { position: relative; border: 0; border-left: 5px solid #4b413d; border-radius: 0; background: #d8d2bc !important; box-shadow: 5px 5px 0 rgb(75 65 61 / 15%); }
+:root[data-theme='nier'] .month-popup { padding: 10px !important; }
+:root[data-theme='nier'] .month-popup-item { border-radius: 0 !important; background: #c9c3ad; }
+:root[data-theme='nier'] .month-popup-item[data-selected='true'] { background: #4b413d; color: #e3deca; }
+:root[data-theme='nier'] .notes-panel { border: 0 !important; border-radius: 0 !important; background-color: #d8d2bc !important; background-image: url('/patterns/nier-grid.svg') !important; box-shadow: 5px 5px 0 rgb(75 65 61 / 16%); }
+:root[data-theme='nier'] .game-month-hero { border: 0 !important; border-radius: 0 !important; background: #d8d2bc !important; color: #332d2a; box-shadow: 7px 7px 0 rgb(75 65 61 / 22%) !important; }
+:root[data-theme='nier'] .game-month-hero::after { inset: 9px; border: 1px solid rgb(75 65 61 / 24%); border-radius: 0; }
+:root[data-theme='nier'] .game-month-backdrop img { opacity: .19; filter: blur(9px) grayscale(1) brightness(1.3) contrast(.8); }
+:root[data-theme='nier'] .game-month-shade { background: linear-gradient(180deg, rgb(216 210 188 / 68%), rgb(216 210 188 / 94%)) !important; }
+:root[data-theme='nier'] .game-month-tint { background: transparent !important; }
+:root[data-theme='nier'] .game-month-title { color: #332d2a !important; text-shadow: none !important; }
+:root[data-theme='nier'] .game-month-description { color: #594e4a !important; text-shadow: none !important; }
+:root[data-theme='nier'] .game-month-chip { border: 0 !important; border-radius: 0 !important; background: #4b413d !important; color: #e3deca !important; text-shadow: none; box-shadow: 4px 4px 0 rgb(75 65 61 / 17%) !important; }
+:root[data-theme='nier'] .game-month-chip svg { color: #e3deca; fill: none; }
+:root[data-theme='nier'] .game-month-cover { border: 4px solid #e3deca !important; border-radius: 0 !important; box-shadow: 6px 6px 0 rgb(75 65 61 / 25%) !important; filter: grayscale(.25) sepia(.12); }
+:root[data-theme='nier'] .game-detail-backdrop-image { opacity: .18; filter: blur(8px) grayscale(1) brightness(1.3); }
+:root[data-theme='nier'] .game-detail-shade { background: linear-gradient(180deg, rgb(216 210 188 / 70%), rgb(216 210 188 / 96%)) !important; }
+:root[data-theme='nier'] .game-detail-tint { background: transparent !important; }
+:root[data-theme='nier'] .danger-action { border-color: #8f4037 !important; border-radius: 0 !important; background: rgb(143 64 55 / 10%) !important; color: #7c332d !important; }
+
+/* Animal Crossing: soft paper, close-value pastels and friendly repeated motifs. */
+:root[data-theme='crossing'] main :where(article, section[class*='border']) {
+  border-color: rgb(125 154 116 / 16%) !important;
+  background-color: #fffaf0 !important;
+  background-image: radial-gradient(circle at 12px 12px, rgb(114 156 116 / 6%) 1.2px, transparent 1.4px);
+  background-size: 22px 22px;
+  box-shadow: var(--theme-shadow) !important;
+}
+:root[data-theme='crossing'] .theme-logo {
+  border: 2px solid #fff8dc;
+  background: repeating-linear-gradient(135deg, #69c9bb 0 9px, #76d0c3 9px 18px);
+  color: #215b53;
+  box-shadow: 0 5px 0 rgb(88 139 93 / 10%);
+}
+:root[data-theme='crossing'] .ranking-card { background-color: #fffaf0 !important; background-image: radial-gradient(circle at 12px 12px, rgb(105 151 108 / 6%) 1.2px, transparent 1.4px) !important; background-size: 22px 22px !important; }
+:root[data-theme='crossing'] .ranking-card[data-rank='1'] { border-color: rgb(211 180 88 / 24%) !important; background-color: #fff8df !important; }
+:root[data-theme='crossing'] .ranking-medal { box-shadow: 0 5px 0 rgb(105 92 55 / 9%), 0 8px 16px rgb(76 79 52 / 8%) !important; }
+:root[data-theme='crossing'] .ranking-participants { border: 1px dashed rgb(113 151 108 / 16%); background-color: #f7f0da !important; background-image: radial-gradient(circle, rgb(105 151 108 / 7%) 1px, transparent 1.2px); background-size: 12px 12px; }
+:root[data-theme='crossing'] .ranking-participants:hover { border-color: rgb(77 151 130 / 28%); background-color: #f4eed8 !important; }
+:root[data-theme='crossing'] .game-action { border-color: rgb(130 151 113 / 22%) !important; background: #f7efd8 !important; color: #52675c !important; }
+:root[data-theme='crossing'] .game-action:hover { border-color: rgb(89 145 113 / 34%) !important; background: #f2ead3 !important; color: #38564b !important; }
+:root[data-theme='crossing'] .game-action[data-active='true'] { text-shadow: none; }
+:root[data-theme='crossing'] .game-action-vote[data-active='true'] { border-color: #52b4a7 !important; background: repeating-linear-gradient(135deg, #69c9bb 0 9px, #76d0c3 9px 18px) !important; color: #174f48 !important; }
+:root[data-theme='crossing'] .game-action-completed[data-active='true'] { border-color: #7ab767 !important; background: repeating-linear-gradient(135deg, #98cf84 0 9px, #a5d691 9px 18px) !important; color: #315c2b !important; }
+:root[data-theme='crossing'] .game-action-backlog[data-active='true'] { border-color: #6eabbf !important; background: repeating-linear-gradient(135deg, #91c8d8 0 9px, #9fd0de 9px 18px) !important; color: #285c6c !important; }
+:root[data-theme='crossing'] button.bg-violet-600:not(:disabled) {
+  border: 1px solid #5ab9ac;
+  background: repeating-linear-gradient(135deg, #69c9bb 0 10px, #76d0c3 10px 20px) !important;
+  color: #174f48 !important;
+  box-shadow: 0 5px 0 rgb(73 132 95 / 9%);
+}
+:root[data-theme='crossing'] button.bg-violet-600:not(:disabled):hover { filter: saturate(1.03) brightness(1.02); }
+:root[data-theme='crossing'] .app-tabs { border: 2px solid #fff9df !important; background: #f3ead0 !important; box-shadow: 0 5px 0 rgb(95 139 91 / 7%) !important; }
+:root[data-theme='crossing'] .app-tabs [data-state='active'] { background: #d7e8c6 !important; color: #326f60 !important; box-shadow: none; }
+:root[data-theme='crossing'] .app-dialog,
+:root[data-theme='crossing'] .app-popup { border: 3px solid #fff8dc !important; background: #fffaf0 !important; box-shadow: 0 8px 0 rgb(95 132 83 / 8%), 0 25px 68px rgb(68 101 76 / 18%) !important; }
+:root[data-theme='crossing'] .app-dialog-header { background-color: #f7efd8; background-image: radial-gradient(circle, rgb(104 139 96 / 8%) 1px, transparent 1.2px); background-size: 10px 10px; }
+:root[data-theme='crossing'] .theme-settings { border-color: #fff8dc; background-color: #fffaf0 !important; background-image: radial-gradient(circle, rgb(105 151 108 / 5%) 1px, transparent 1.2px) !important; background-size: 18px 18px !important; }
+:root[data-theme='crossing'] .month-popup { padding: 10px !important; }
+:root[data-theme='crossing'] .month-popup-item { border: 1px solid transparent; background: #f7efd8; }
+:root[data-theme='crossing'] .month-popup-item[data-selected='true'] { border-color: rgb(87 167 145 / 22%); background: #e0edd0; color: #356b5e; }
+:root[data-theme='crossing'] .notes-panel { background-color: #fffaf0 !important; background-image: radial-gradient(circle, rgb(105 151 108 / 6%) 1px, transparent 1.2px) !important; background-size: 16px 16px !important; }
+:root[data-theme='crossing'] .game-month-hero { border: 4px solid #fff9e3 !important; background: #f8f4df !important; color: #465f54; box-shadow: 0 8px 0 rgb(95 139 91 / 8%), 0 22px 44px rgb(69 105 77 / 12%) !important; }
+:root[data-theme='crossing'] .game-month-backdrop img { opacity: .26; filter: blur(10px) brightness(1.5) saturate(.65); }
+:root[data-theme='crossing'] .game-month-shade { background: linear-gradient(180deg, rgb(255 250 232 / 52%), rgb(255 250 232 / 86%) 62%, #fffaf0 100%) !important; }
+:root[data-theme='crossing'] .game-month-tint { background: rgb(117 193 157 / 7%) !important; mix-blend-mode: normal; }
+:root[data-theme='crossing'] .game-month-title { color: #435c51 !important; text-shadow: none !important; }
+:root[data-theme='crossing'] .game-month-description { color: #61766b !important; text-shadow: none !important; }
+:root[data-theme='crossing'] .game-month-chip { border: 2px solid #fff9df !important; background: repeating-linear-gradient(135deg, #f2d77e 0 10px, #f7df90 10px 20px) !important; color: #685a2f !important; text-shadow: none; box-shadow: 0 4px 0 rgb(105 92 55 / 8%) !important; }
+:root[data-theme='crossing'] .game-month-chip svg { color: #79672d; fill: none; }
+:root[data-theme='crossing'] .game-month-chip::before { display: none; }
+:root[data-theme='crossing'] .game-month-cover { border: 4px solid #fffaf0 !important; box-shadow: 0 8px 0 rgb(75 117 80 / 9%), 0 18px 34px rgb(65 94 72 / 15%) !important; }
+:root[data-theme='crossing'] .game-detail-backdrop-image { opacity: .24; filter: blur(9px) brightness(1.5) saturate(.68); }
+:root[data-theme='crossing'] .game-detail-shade { background: linear-gradient(180deg, rgb(255 250 232 / 54%), rgb(255 250 232 / 92%)) !important; }
+:root[data-theme='crossing'] .game-detail-tint { background: rgb(117 193 157 / 6%) !important; mix-blend-mode: normal; }
+:root[data-theme='crossing'] .danger-action { border-color: rgb(210 111 120 / 26%) !important; background: #fbe7e5 !important; color: #9d414a !important; }
+
+/* Third refinement: denser identities, external light and softer cozy materials. */
+.ranking-card::before { display: none !important; }
+
+/* Zelda collector pattern, filled gold seal and a more deliberate threaded timeline. */
+:root[data-theme='zelda'] .game-month-chip {
+  border: 1px solid #e8ca72 !important;
+  background: linear-gradient(145deg, #f1dc95 0%, #d0aa4c 48%, #9a6f22 100%) !important;
+  color: #241805 !important;
+  text-shadow: 0 1px rgb(255 246 205 / 68%);
+  box-shadow: 0 5px 10px rgb(0 0 0 / 34%), inset 1px 1px 1px rgb(255 249 218 / 72%), inset -1px -2px 3px rgb(91 55 7 / 38%) !important;
+}
+:root[data-theme='zelda'] .game-month-chip svg { color: #241805; fill: rgb(36 24 5 / 18%); }
+:root[data-theme='zelda'] .comment-card {
+  border-color: rgb(216 187 104 / 21%) !important;
+  background: linear-gradient(145deg, #12140f, #0d0f0c) !important;
+}
+:root[data-theme='zelda'] .thread-branch {
+  position: relative;
+  margin-top: 7px;
+  padding-top: 5px;
+}
+:root[data-theme='zelda'] .thread-branch::before {
+  position: absolute;
+  top: 0;
+  bottom: 8px;
+  left: 0;
+  width: 1px;
+  background: linear-gradient(#d8bb68, rgb(216 187 104 / 13%) 42%, transparent);
+  box-shadow: 0 0 8px rgb(216 187 104 / 12%);
+  content: '';
+}
+:root[data-theme='zelda'] .thread-reply {
+  margin-top: 6px;
+  padding: 13px 12px 13px 14px;
+  border-left: 1px solid rgb(216 187 104 / 17%);
+  background: linear-gradient(90deg, rgb(216 187 104 / 6%), transparent 68%);
+}
+:root[data-theme='zelda'] .thread-reply::before { display: none; }
+:root[data-theme='zelda'] .thread-reply .comment-avatar { margin-top: 2px; box-shadow: 0 0 0 3px #0d0f0c, 0 0 0 4px rgb(216 187 104 / 22%); }
+
+/* Animal Crossing: gentle checker field, rounded type and dotted paper everywhere. */
+:root[data-theme='nier'] .game-action { padding-inline: 8px !important; font-size: 10px; letter-spacing: .015em !important; }
+:root[data-theme='crossing'] body { font-family: var(--font-nunito), ui-rounded, 'Arial Rounded MT Bold', sans-serif; }
+:root[data-theme='crossing'] main :where(article, section[class*='border']),
+:root[data-theme='crossing'] :where(.ranking-card, .game-list-card, .theme-settings, .app-dialog, .comment-card, .comment-composer, .notes-panel) {
+  background-color: #fffaf0 !important;
+  background-image: radial-gradient(circle at 10px 10px, rgb(105 151 108 / 6%) 1.05px, transparent 1.2px) !important;
+  background-size: 20px 20px !important;
+}
+:root[data-theme='crossing'] .ranking-card[data-rank='1'] { background-color: #fff8df !important; }
+:root[data-theme='crossing'] .game-action {
+  border-color: rgb(116 146 108 / 13%) !important;
+  background: #f8f1dc !important;
+  color: #48675a !important;
+  font-size: 12px;
+}
+:root[data-theme='crossing'] .game-action:hover { border-color: rgb(91 145 116 / 20%) !important; background: #f4ecd5 !important; color: #31584a !important; }
+:root[data-theme='crossing'] .game-action-vote[data-active='true'] { border-color: rgb(65 154 142 / 16%) !important; background: repeating-linear-gradient(135deg, #72cbbf 0 10px, #78cec3 10px 20px) !important; color: #174f48 !important; }
+:root[data-theme='crossing'] .game-action-completed[data-active='true'] { border-color: rgb(111 164 94 / 16%) !important; background: repeating-linear-gradient(135deg, #9bce8a 0 10px, #a1d190 10px 20px) !important; color: #315c2b !important; }
+:root[data-theme='crossing'] .game-action-backlog[data-active='true'] { border-color: rgb(96 160 181 / 16%) !important; background: repeating-linear-gradient(135deg, #98c9d7 0 10px, #9ecdda 10px 20px) !important; color: #285c6c !important; }
+:root[data-theme='crossing'] button.bg-violet-600:not(:disabled) {
+  border-color: rgb(65 154 142 / 15%);
+  background: repeating-linear-gradient(135deg, #72cbbf 0 11px, #78cec3 11px 22px) !important;
+  color: #174f48 !important;
+}
+:root[data-theme='crossing'] .app-tabs { border-color: rgb(255 251 229 / 72%) !important; }
+:root[data-theme='crossing'] .month-popup-item { background: #f6f0dc; color: #526d61; }
+:root[data-theme='crossing'] .danger-action { border-color: rgb(205 119 126 / 16%) !important; background: #fae9e5 !important; color: #a34b55 !important; }
+
+/* Semantic action colors stay recognizable even when a theme changes its primary. */
+:root[data-theme] .participants-tabs [value='votes'][data-state='active'],
+:root[data-theme] .app-tabs [value='votes'][data-state='active'] {
+  background: color-mix(in srgb, var(--support-vote) 12%, transparent) !important;
+  color: var(--support-vote) !important;
+}
+:root[data-theme] .participants-tabs [value='completed'][data-state='active'],
+:root[data-theme] .app-tabs [value='completed'][data-state='active'] {
+  background: color-mix(in srgb, var(--support-completed) 12%, transparent) !important;
+  color: var(--support-completed) !important;
+}
+:root[data-theme] .app-tabs [value='backlog'][data-state='active'] {
+  background: color-mix(in srgb, var(--support-backlog) 12%, transparent) !important;
+  color: var(--support-backlog) !important;
+}
+:root[data-theme='zelda'] .participants-tabs [value='votes'][data-state='active'] { color: #a9c8f2 !important; }
+:root[data-theme='zelda'] .participants-tabs [value='completed'][data-state='active'] { color: #a8d7b5 !important; }
+:root[data-theme='zelda'] .app-tabs [value='backlog'][data-state='active'] { color: #c9d6dc !important; }
+:root[data-theme='crossing'] .participants-tabs [value='votes'][data-state='active'],
+:root[data-theme='crossing'] .app-tabs [value='votes'][data-state='active'] { color: #267b70 !important; }
+:root[data-theme='crossing'] .participants-tabs [value='completed'][data-state='active'],
+:root[data-theme='crossing'] .app-tabs [value='completed'][data-state='active'] { color: #467b38 !important; }
+:root[data-theme='crossing'] .app-tabs [value='backlog'][data-state='active'] { color: #3d7483 !important; }
+
+/* Final material pass: quiet glass in the default theme and flat patterned Crossing paper. */
+:root[data-theme='original'] main :where(article, section[class*='bg-white/'], .game-list-card, .comment-card, .comment-composer, .ranking-participants) {
+  backdrop-filter: blur(3px);
+}
+
+.dialog-overlay {
+  background: radial-gradient(circle at 50% 34%, rgb(12 10 19 / 46%), rgb(5 5 8 / 78%)) !important;
+  backdrop-filter: blur(7px) saturate(.82) !important;
+}
+.gallery-overlay {
+  background: radial-gradient(circle at 50% 36%, rgb(4 4 7 / 76%), rgb(0 0 0 / 93%)) !important;
+  backdrop-filter: blur(9px) saturate(.75) !important;
+}
+
+:root[data-theme='crossing'] {
+  --theme-shadow: 0 5px 14px rgb(78 112 83 / 6%);
+}
+:root[data-theme='crossing'] :where(main, .app-dialog, .app-popup) :where([class*='border']) {
+  border-color: transparent !important;
+}
+:root[data-theme='crossing'] :where(
+  .ranking-card,
+  .game-list-card,
+  .profile-hero,
+  .theme-settings,
+  .game-detail-hero,
+  .participation-card,
+  .comment-card,
+  .comment-composer,
+  .notes-panel,
+  .game-dialog-preview,
+  .app-dialog,
+  .app-popup,
+  .app-tabs
+) {
+  border: 0 !important;
+  box-shadow: 0 5px 14px rgb(78 112 83 / 6%) !important;
+}
+:root[data-theme='crossing'] :where(.game-list-card, .profile-hero, .theme-settings, .game-detail-hero, .participation-card, .comment-card, .comment-composer, .notes-panel, .game-dialog-preview, .app-dialog) {
+  background-color: #fffaf0 !important;
+  background-image: none !important;
+  background-size: 20px 20px !important;
+}
+:root[data-theme='crossing'] .ranking-card {
+  background-color: #fffaf0 !important;
+  background-image: none !important;
+  background-size: 18px 18px !important;
+}
+:root[data-theme='crossing'] .ranking-card[data-rank='1'] { background-color: #fff5d5 !important; }
+:root[data-theme='crossing'] .ranking-participants {
+  border: 0 !important;
+  background: #f3ecd2 !important;
+  box-shadow: none !important;
+}
+:root[data-theme='crossing'] .ranking-participants:hover { background: #eee5ca !important; }
+:root[data-theme='crossing'] .game-detail-backdrop::after {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background-image: none;
+  background-size: 20px 20px;
+  opacity: .72;
+  content: '';
+}
+:root[data-theme='crossing'] .game-action {
+  border: 0 !important;
+  background: #f1ead0 !important;
+  color: #4d685c !important;
+  box-shadow: none !important;
+}
+:root[data-theme='crossing'] .game-action:hover { background: #ebe2c5 !important; color: #385b4d !important; }
+:root[data-theme='crossing'] .game-action-vote[data-active='true'] {
+  background: repeating-linear-gradient(135deg, #43b8aa 0 10px, #51c1b4 10px 20px) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 2px #72d0c5 !important;
+}
+:root[data-theme='crossing'] .game-action-completed[data-active='true'] {
+  background: repeating-linear-gradient(135deg, #72b65f 0 10px, #80c16e 10px 20px) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 2px #9bd18d !important;
+}
+:root[data-theme='crossing'] .game-action-backlog[data-active='true'] {
+  background: repeating-linear-gradient(135deg, #5ba9c0 0 10px, #69b4c9 10px 20px) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 2px #8bc8d8 !important;
+}
+:root[data-theme='crossing'] button.bg-violet-600:not(:disabled) {
+  border: 0 !important;
+  background: repeating-linear-gradient(135deg, #43b8aa 0 11px, #51c1b4 11px 22px) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 2px #72d0c5 !important;
+}
+:root[data-theme='crossing'] .app-tabs { background: #f1e8c9 !important; box-shadow: none !important; }
+:root[data-theme='crossing'] .app-tabs [data-state='active'] { background: #d7e8c7 !important; box-shadow: none !important; }
+:root[data-theme='crossing'] .theme-option { border: 0 !important; background: #f3ecd5 !important; box-shadow: none !important; }
+:root[data-theme='crossing'] .theme-option[aria-checked='true'] { background: #dff0df !important; box-shadow: inset 0 0 0 2px rgb(67 184 170 / 32%) !important; }
+:root[data-theme='crossing'] .game-month-chip svg { color: currentColor !important; fill: currentColor !important; fill-opacity: .14; }
+:root[data-theme='crossing'] .game-month-hero,
+:root[data-theme='crossing'] .game-month-cover { box-shadow: 0 6px 16px rgb(72 105 75 / 8%) !important; }
+:root[data-theme='crossing'] .theme-header,
+:root[data-theme='crossing'] .theme-nav { border-color: transparent !important; box-shadow: none; }
+:root[data-theme='crossing'] .theme-logo,
+:root[data-theme='crossing'] .ranking-medal,
+:root[data-theme='crossing'] .ranking-medal-number,
+:root[data-theme='crossing'] .ranking-position,
+:root[data-theme='crossing'] .game-month-chip,
+:root[data-theme='crossing'] .game-month-cover,
+:root[data-theme='crossing'] .game-month-hero,
+:root[data-theme='crossing'] .ranking-card,
+:root[data-theme='crossing'] .game-list-card,
+:root[data-theme='crossing'] .profile-hero,
+:root[data-theme='crossing'] .theme-settings,
+:root[data-theme='crossing'] .game-detail-hero,
+:root[data-theme='crossing'] .participation-card,
+:root[data-theme='crossing'] .comment-card,
+:root[data-theme='crossing'] .comment-composer,
+:root[data-theme='crossing'] .app-tabs,
+:root[data-theme='crossing'] .app-dialog,
+:root[data-theme='crossing'] .app-dialog-header,
+:root[data-theme='crossing'] .app-popup { border: 0 !important; }
+:root[data-theme='crossing'] .ranking-medal { box-shadow: none !important; }
+:root[data-theme='crossing'] .danger-action { border: 0 !important; box-shadow: none !important; }
+:root[data-theme='crossing'] .dialog-overlay { background: radial-gradient(circle at 50% 34%, rgb(91 117 88 / 28%), rgb(45 67 50 / 58%)) !important; backdrop-filter: blur(7px) saturate(.8) !important; }
+
+/* Crossing: warm paper hierarchy — patterned media above, calm paper below. */
+:root[data-theme='crossing'] .ranking-card {
+  overflow: visible;
+  background: #fff9ec !important;
+}
+:root[data-theme='crossing'] .ranking-card-summary {
+  position: relative;
+  z-index: 1;
+  margin: -.75rem -.75rem 0;
+  padding: .75rem;
+  border-radius: 1rem 1rem 0 0;
+  background-color: #eadfc7;
+  background-image: none;
+  background-size: 18px 18px;
+}
+:root[data-theme='crossing'] .ranking-card[data-rank='1'] .ranking-card-summary {
+  background-color: #ead9ae;
+}
+:root[data-theme='crossing'] .ranking-participation-grid {
+  margin-right: -.75rem;
+  margin-left: -.75rem;
+  padding-right: .75rem;
+  padding-left: .75rem;
+  border-top-color: #d8c49d !important;
+}
+:root[data-theme='crossing'] .ranking-participants {
+  background: #f1e6ca !important;
+}
+:root[data-theme='crossing'] .ranking-participants:hover { background: #eadcbc !important; }
+:root[data-theme='crossing'] .game-detail-hero {
+  background: #fff9ec !important;
+  background-image: none !important;
+}
+:root[data-theme='crossing'] .game-detail-backdrop {
+  height: 16rem;
+  background-color: #eadfc7;
+  background-image: none;
+  background-size: 18px 18px;
+}
+:root[data-theme='crossing'] .game-detail-backdrop-image,
+:root[data-theme='crossing'] .game-detail-shade,
+:root[data-theme='crossing'] .game-detail-tint,
+:root[data-theme='crossing'] .game-detail-backdrop::after { display: none !important; }
+:root[data-theme='crossing'] .game-detail-info {
+  align-self: stretch;
+  margin: 0 -1rem -1rem;
+  padding: 1rem 1rem 1.25rem;
+  border-top: 0;
+  background: #fff9ec;
+}
+:root[data-theme='crossing'] .game-detail-cover {
+  position: relative;
+  z-index: 1;
+  border: 0 !important;
+  box-shadow: 0 5px 13px rgb(91 66 45 / 16%) !important;
+}
+:root[data-theme='crossing'] .profile-hero {
+  background-color: #f2e7cf !important;
+  background-image: none !important;
+  background-size: 18px 18px !important;
+}
+:root[data-theme='crossing'] .profile-hero-glow { display: none; }
+:root[data-theme='crossing'] .app-tabs [data-state='active'],
+:root[data-theme='crossing'] .month-popup-item[data-selected='true'],
+:root[data-theme='crossing'] .theme-option[aria-checked='true'] {
+  background: #955138 !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+:root[data-theme='crossing'] .app-tabs [data-state='active'] :is(svg, span),
+:root[data-theme='crossing'] .month-popup-item[data-selected='true'] :is(svg, span) { color: currentColor !important; }
+:root[data-theme='crossing'] .month-popup-item,
+:root[data-theme='crossing'] .app-popup,
+:root[data-theme='crossing'] .app-dialog,
+:root[data-theme='crossing'] .app-dialog-header,
+:root[data-theme='crossing'] .theme-settings { border: 0 !important; }
+:root[data-theme='crossing'] .comment-reaction {
+  border: 0 !important;
+  background: #eee1c4 !important;
+  color: #775a47 !important;
+}
+:root[data-theme='crossing'] .comment-reaction[data-active='true'] {
+  background: #ddcda9 !important;
+  color: #75452f !important;
+}
+:root[data-theme='crossing'] .theme-logo,
+:root[data-theme='crossing'] .ranking-medal {
+  box-shadow: 0 5px 0 -1px rgb(81 58 39 / 20%), 0 8px 12px rgb(81 58 39 / 10%) !important;
+}
+:root[data-theme='crossing'] .theme-logo { border: 0 !important; }
+:root[data-theme='crossing'] .ranking-medal { border: 3px solid #fffdf5 !important; }
+:root[data-theme='crossing'] .ranking-medal-number { border: 2px solid #fffdf5 !important; }
+:root[data-theme='crossing'] .game-action-vote[data-active='true'],
+:root[data-theme='crossing'] .game-action-completed[data-active='true'],
+:root[data-theme='crossing'] .game-action-backlog[data-active='true'] {
+  background: repeating-linear-gradient(135deg, #8e4d37 0 10px, #ad6549 10px 20px) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 2px #d28b67 !important;
+}
+:root[data-theme='crossing'] .game-action:hover,
+:root[data-theme='crossing'] button.bg-violet-600:not(:disabled):hover {
+  filter: brightness(1.06) saturate(1.08);
+}
+:root[data-theme='crossing'] button.bg-violet-600:not(:disabled) {
+  background: repeating-linear-gradient(135deg, #43b8aa 0 10px, #51c1b4 10px 20px) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 2px #72d0c5 !important;
+}
+:root[data-theme='crossing'] .game-month-chip svg { color: currentColor !important; fill: currentColor !important; }
+
+:root[data-theme='crossing'] :is(input, textarea) {
+  border: 0 !important;
+  background-color: #eee4ca !important;
+  color: #815039 !important;
+  box-shadow: none !important;
+}
+:root[data-theme='crossing'] :is(input, textarea)::placeholder { color: #a2765e !important; }
+:root[data-theme='crossing'] :is(input, textarea):focus-visible { outline: 2px solid #a45d41; outline-offset: 2px; }
+:root[data-theme='crossing'] .ranking-card-summary :is(a, .text-zinc-500, .text-emerald-400, .text-emerald-300) { color: #87513b !important; }
+:root[data-theme='crossing'] .profile-hero :is(h1, p, .text-zinc-400, .text-zinc-500) { color: #87513b !important; }
+:root[data-theme='crossing'] .theme-option[aria-checked='true'] :is(strong, span:not([aria-hidden='true'])) { color: #fff !important; }
+:root[data-theme='crossing'] .theme-option[aria-checked='true'] [aria-hidden='true'] span { color: inherit !important; }
+:root[data-theme='crossing'] .thread-reply {
+  margin-top: .5rem;
+  background-color: #f7efd9 !important;
+  background-image: none !important;
+  background-size: 18px 18px !important;
+  box-shadow: 0 4px 0 -2px rgb(106 78 55 / 13%) !important;
+}
+:root[data-theme='crossing'] .thread-reply::before { display: none !important; }
+:root[data-theme='crossing'] :is(.ranking-card, .game-list-card, .profile-hero, .participation-card, .comment-card, .comment-composer, .notes-panel, .game-detail-hero) {
+  box-shadow: 0 5px 0 -2px rgb(104 77 54 / 13%), 0 10px 15px rgb(104 77 54 / 5%) !important;
+}
+:root[data-theme='crossing'] :is(.ranking-card-summary > a, .game-list-card > a, .comment-avatar, .game-month-cover, .game-detail-cover, .profile-hero .size-24) {
+  box-shadow: 0 5px 0 -1px rgb(93 64 45 / 18%), 0 9px 13px rgb(93 64 45 / 8%) !important;
+}
+:root[data-theme='crossing'] .notes-message {
+  border: 0 !important;
+  background: #d2ebe3 !important;
+  box-shadow: 0 4px 0 -1px rgb(72 120 111 / 17%) !important;
+}
+:root[data-theme='crossing'] .notes-image { background: #eadfc7 !important; }
+:root[data-theme='crossing'] .notes-image > span { background-color: transparent !important; }
+:root[data-theme='crossing'] .notes-image:hover > span { background-color: rgb(67 47 34 / 10%) !important; }
+:root[data-theme='crossing'] .gallery-toolbar {
+  border: 0 !important;
+  background: #654637 !important;
+  color: #fff !important;
+  box-shadow: 0 5px 0 -1px rgb(72 48 37 / 34%) !important;
+}
+:root[data-theme='crossing'] .gallery-toolbar button:not(:disabled):hover { background: rgb(255 255 255 / 14%) !important; }
+:root[data-theme='crossing'] .gallery-toolbar button:disabled { color: rgb(255 255 255 / 44%) !important; }
+
+/* Crossing neutral palette: one family of paper tones, no outlines or patterns. */
+:root[data-theme='crossing'] {
+  --background: #e7dcc0;
+  --surface: #f7eccf;
+  --surface-soft: #f2e4c5;
+  --surface-deep: #e8d9b8;
+  --theme-header: #f5e9ca;
+  --theme-nav: #f9efd6;
+  --theme-shadow: 0 5px 0 -2px rgb(119 84 57 / 14%), 0 10px 18px rgb(119 84 57 / 5%);
+  --theme-pattern: none;
+  --theme-pattern-opacity: 0;
+  --theme-ambient: none;
+}
+:root[data-theme='crossing'] .theme-pattern { display: none; }
+:root[data-theme='crossing'] :is(.theme-header, .theme-nav) {
+  border: 0 !important;
+  background: var(--theme-header) !important;
+  box-shadow: 0 5px 0 -2px rgb(119 84 57 / 10%) !important;
+}
+:root[data-theme='crossing'] .theme-nav { background: var(--theme-nav) !important; }
+:root[data-theme='crossing'] :is(.ranking-card, .game-list-card, .profile-hero, .theme-settings, .game-detail-hero, .participation-card, .comment-card, .comment-composer, .notes-panel, .game-dialog-preview, .app-dialog, .app-popup, .thread-reply) {
+  border: 0 !important;
+  background-color: #f7eccf !important;
+  background-image: none !important;
+  box-shadow: var(--theme-shadow) !important;
+}
+:root[data-theme='crossing'] .ranking-card[data-rank] { background-color: #f7eccf !important; }
+:root[data-theme='crossing'] .ranking-card-summary {
+  border-radius: 1rem 1rem 0 0;
+  background: #f0dfbf !important;
+  color: #87513b;
+}
+:root[data-theme='crossing'] .ranking-card[data-rank='1'] .ranking-card-summary { background: #f0dfbf !important; }
+:root[data-theme='crossing'] .ranking-participation-grid {
+  border-top: 0 !important;
+  margin-top: 0 !important;
+  background: #f7eccf;
+}
+:root[data-theme='crossing'] .ranking-participants,
+:root[data-theme='crossing'] .ranking-participants:hover {
+  border: 0 !important;
+  background: #f0e2c2 !important;
+  box-shadow: none !important;
+}
+:root[data-theme='crossing'] .game-detail-hero { background: #f7eccf !important; }
+:root[data-theme='crossing'] .game-detail-backdrop {
+  background: #ecdab6 !important;
+  background-image: none !important;
+}
+:root[data-theme='crossing'] .game-detail-info {
+  border-top: 0 !important;
+  background: #f7eccf !important;
+}
+:root[data-theme='crossing'] :is(.game-detail-cover, .game-month-cover) {
+  border: 0 !important;
+  box-shadow: 0 5px 0 -1px rgb(93 64 45 / 20%), 0 9px 13px rgb(93 64 45 / 8%) !important;
+}
+:root[data-theme='crossing'] .profile-hero { background: #f2e4c5 !important; }
+:root[data-theme='crossing'] .app-tabs { border: 0 !important; background: #eedfbc !important; }
+:root[data-theme='crossing'] .app-tabs [data-state='active'],
+:root[data-theme='crossing'] .month-popup-item[data-selected='true'],
+:root[data-theme='crossing'] .theme-option[aria-checked='true'] {
+  background: #b36d50 !important;
+  color: #fff !important;
+}
+:root[data-theme='crossing'] .month-selector-trigger {
+  border: 0 !important;
+  background: #f0e2c2 !important;
+  box-shadow: none !important;
+}
+:root[data-theme='crossing'] .month-popup-item,
+:root[data-theme='crossing'] .theme-option { border: 0 !important; background: #f0e2c2 !important; }
+:root[data-theme='crossing'] :is(.month-popup, .app-popup, .app-dialog, .app-dialog-header) { border: 0 !important; background-image: none !important; }
+:root[data-theme='crossing'] .comment-reaction { border: 0 !important; background: #efe0c0 !important; }
+:root[data-theme='crossing'] .comment-reaction[data-active='true'] { background: #dfcba7 !important; }
+:root[data-theme='crossing'] .thread-reply { margin-top: .5rem; background: #f1e3c5 !important; }
+:root[data-theme='crossing'] .notes-message { background: #d2ebe3 !important; border: 0 !important; }
+:root[data-theme='crossing'] .notes-image { background: #ead9b8 !important; }
+:root[data-theme='crossing'] .game-action-vote[data-active='true'] {
+  background: repeating-linear-gradient(135deg, #43b8aa 0 10px, #51c1b4 10px 20px) !important;
+  box-shadow: inset 0 0 0 2px #72d0c5 !important;
+}
+:root[data-theme='crossing'] .game-action-completed[data-active='true'] {
+  background: repeating-linear-gradient(135deg, #72b65f 0 10px, #80c16e 10px 20px) !important;
+  box-shadow: inset 0 0 0 2px #9bd18d !important;
+}
+:root[data-theme='crossing'] .game-action-backlog[data-active='true'] {
+  background: repeating-linear-gradient(135deg, #5ba9c0 0 10px, #69b4c9 10px 20px) !important;
+  box-shadow: inset 0 0 0 2px #8bc8d8 !important;
+}
+:root[data-theme='crossing'] .game-month-hero {
+  border: 0 !important;
+  background: #f7eccf !important;
+  box-shadow: var(--theme-shadow) !important;
+}
+:root[data-theme='crossing'] .game-month-chip {
+  border: 0 !important;
+  background: #b36d50 !important;
+  color: #fff !important;
+  box-shadow: 0 4px 0 -1px #8e4e39 !important;
+}
+:root[data-theme='crossing'] .game-month-chip svg { color: currentColor !important; fill: currentColor !important; }
+
+/* Crossing finishing pass: the soft green field stays outside the paper surfaces. */
+:root[data-theme='crossing'] {
+  --background: #d8edce;
+  --theme-pattern: url('/patterns/crossing-leaves.svg');
+  --theme-pattern-size: 220px 200px;
+  --theme-pattern-opacity: .9;
+}
+:root[data-theme='crossing'] .theme-pattern { display: block; }
+:root[data-theme='crossing'] .game-detail-backdrop {
+  background: #ead9b8 !important;
+}
+:root[data-theme='crossing'] .game-detail-backdrop-image {
+  display: block !important;
+  opacity: .7;
+  filter: blur(9px) brightness(.76) saturate(.9) !important;
+}
+:root[data-theme='crossing'] .game-detail-shade {
+  display: block !important;
+  background: linear-gradient(180deg, rgb(100 63 45 / 28%), rgb(144 94 66 / 38%) 55%, rgb(236 217 184 / 84%)) !important;
+}
+:root[data-theme='crossing'] .game-detail-tint {
+  display: block !important;
+  background: rgb(148 91 61 / 17%) !important;
+  mix-blend-mode: multiply !important;
+}
+:root[data-theme='crossing'] .game-month-backdrop img {
+  opacity: .7 !important;
+  filter: blur(9px) brightness(.72) saturate(.9) !important;
+}
+:root[data-theme='crossing'] .game-month-shade {
+  background: linear-gradient(180deg, rgb(98 61 44 / 28%), rgb(136 86 62 / 38%) 56%, rgb(247 236 207 / 84%)) !important;
+}
+:root[data-theme='crossing'] .game-month-tint {
+  background: rgb(148 91 61 / 17%) !important;
+  mix-blend-mode: multiply !important;
+}
+:root[data-theme='crossing'] .game-month-title { color: #fff8df !important; text-shadow: 0 2px 12px rgb(69 42 29 / 58%) !important; }
+:root[data-theme='crossing'] .game-month-description { color: rgb(255 248 223 / 90%) !important; text-shadow: 0 1px 8px rgb(69 42 29 / 55%) !important; }
+:root[data-theme='crossing'] .game-month-chip {
+  background: repeating-linear-gradient(135deg, #d7ac45 0 10px, #e5c55f 10px 20px) !important;
+  color: #5e4219 !important;
+  box-shadow: inset 0 0 0 2px #f2d87e, 0 4px 0 -1px rgb(126 84 28 / 36%) !important;
+}
+:root[data-theme='crossing'] .comment-composer textarea {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+:root[data-theme='crossing'] .comment-composer:focus-within {
+  background: #f2e4c5 !important;
+  box-shadow: 0 5px 0 -2px rgb(119 84 57 / 18%), 0 10px 18px rgb(119 84 57 / 7%) !important;
+}
+:root[data-theme='crossing'] .progress-status-card {
+  border: 0 !important;
+  background: #f7eccf !important;
+  box-shadow: var(--theme-shadow) !important;
+}
+:root[data-theme='crossing'] .progress-status-option {
+  border: 0 !important;
+  background: #f0e2c2 !important;
+  color: #5b7065 !important;
+}
+:root[data-theme='crossing'] .progress-status-option[data-selected='true'] {
+  border: 3px solid #9bd18d !important;
+  background: repeating-linear-gradient(135deg, #72b65f 0 10px, #80c16e 10px 20px) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+:root[data-theme='crossing'] .game-action:not([data-active='true']) {
+  background: #f0e2c2 !important;
+  color: #5b7065 !important;
+}
+:root[data-theme='crossing'] .profile-hero {
+  background: linear-gradient(180deg, #efddba 0 29%, #f7eccf 29%) !important;
+}
+:root[data-theme='crossing'] :is(.game-media-card, .game-trailer-card) {
+  border: 0 !important;
+  box-shadow: 0 6px 0 -2px rgb(93 64 45 / 24%), 0 12px 18px rgb(93 64 45 / 8%) !important;
+}
+
+/* Archived Animal Crossing study: island mint, warm paper, leaf and coral accents. */
+:root[data-theme='crossing'] {
+  --background: #d8edce;
+  --foreground: #3f5f56;
+  --surface: #fff8df;
+  --surface-soft: #f6edcf;
+  --surface-deep: #ebe2bd;
+  --theme-header: rgb(251 247 220 / 97%);
+  --theme-nav: rgb(255 249 225 / 98%);
+  --theme-shadow: 0 5px 0 -2px rgb(79 132 103 / 17%), 0 11px 20px rgb(68 112 88 / 6%);
+  --primary-on: #fff;
+  --support-vote: #4eafa2;
+  --support-completed: #72b86a;
+  --support-backlog: #6ab6c7;
+  --support-danger: #dc796f;
+  --color-violet-200: #e8fff9;
+  --color-violet-300: #2f8176;
+  --color-violet-400: #27998c;
+  --color-violet-500: #45ab9e;
+  --color-violet-600: #3d998d;
+  --color-violet-700: #2e746b;
+  --color-violet-950: #164a45;
+  --color-zinc-50: #35564e;
+  --color-zinc-100: #3d5d54;
+  --color-zinc-200: #45645b;
+  --color-zinc-300: #506e65;
+  --color-zinc-400: #617b72;
+  --color-zinc-500: #6e837a;
+  --color-zinc-600: #91a096;
+  --color-zinc-700: #c4cfbb;
+  --color-zinc-800: #e6e8ce;
+  --color-zinc-900: #f5efd3;
+  --color-zinc-950: #fff8df;
+  --color-emerald-300: #3f8b52;
+  --color-emerald-400: #37834a;
+  --color-emerald-500: #60a95b;
+  --color-amber-300: #c07b42;
+  --color-amber-400: #aa682e;
+  --color-amber-500: #d79b52;
+}
+:root[data-theme='crossing'] :is(.theme-header, .theme-nav) {
+  background: var(--theme-header) !important;
+  box-shadow: 0 5px 0 -2px rgb(79 132 103 / 12%) !important;
+}
+:root[data-theme='crossing'] .theme-nav { background: var(--theme-nav) !important; }
+:root[data-theme='crossing'] :is(.ranking-card, .game-list-card, .profile-hero, .theme-settings, .game-detail-hero, .participation-card, .comment-card, .comment-composer, .notes-panel, .game-dialog-preview, .app-dialog, .app-popup, .thread-reply, .progress-status-card) {
+  background-color: #fff8df !important;
+  color: #3f5f56;
+  box-shadow: var(--theme-shadow) !important;
+}
+:root[data-theme='crossing'] .ranking-card-summary,
+:root[data-theme='crossing'] .ranking-card[data-rank='1'] .ranking-card-summary {
+  background: #e4efcf !important;
+  color: #365e52 !important;
+}
+:root[data-theme='crossing'] .ranking-card-summary :is(a, .text-zinc-500, .text-emerald-400, .text-emerald-300) { color: #397662 !important; }
+:root[data-theme='crossing'] .ranking-participation-grid { background: #fff8df !important; }
+:root[data-theme='crossing'] .ranking-participants,
+:root[data-theme='crossing'] .ranking-participants:hover { background: #f1e9c9 !important; color: #49685f !important; }
+:root[data-theme='crossing'] .app-tabs { background: #f2ebca !important; }
+:root[data-theme='crossing'] .app-tabs [data-state='active'],
+:root[data-theme='crossing'] .month-popup-item[data-selected='true'],
+:root[data-theme='crossing'] .theme-option[aria-checked='true'] {
+  background: repeating-linear-gradient(135deg, #45a99b 0 10px, #57b8aa 10px 20px) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 3px #83d1c5 !important;
+}
+:root[data-theme='crossing'] :is(.month-selector-trigger, .month-popup-item, .theme-option, .game-action:not([data-active='true']), .progress-status-option) {
+  background: #f1e9c9 !important;
+  color: #4e6b62 !important;
+}
+:root[data-theme='crossing'] :is(input, textarea) {
+  background-color: #f2ebd0 !important;
+  color: #3f6258 !important;
+}
+:root[data-theme='crossing'] :is(input, textarea)::placeholder { color: #82938a !important; }
+:root[data-theme='crossing'] :is(input, textarea):focus-visible { outline-color: #55ad9e; }
+:root[data-theme='crossing'] .comment-composer textarea { background: transparent !important; outline: 0 !important; }
+:root[data-theme='crossing'] .comment-composer:focus-within {
+  background: #fbf3d7 !important;
+  box-shadow: 0 5px 0 -2px rgb(79 132 103 / 21%), 0 11px 20px rgb(68 112 88 / 8%) !important;
+}
+:root[data-theme='crossing'] .comment-reaction { background: #eee8c9 !important; color: #557067 !important; }
+:root[data-theme='crossing'] .comment-reaction[data-active='true'] { background: #d4e9ce !important; color: #39724f !important; }
+:root[data-theme='crossing'] .thread-reply { background: #f5efd4 !important; }
+:root[data-theme='crossing'] .notes-message { background: #d7eee5 !important; color: #3d655b !important; }
+:root[data-theme='crossing'] .notes-image { background: #e4edcf !important; }
+:root[data-theme='crossing'] .profile-hero {
+  background: linear-gradient(180deg, #dcebc9 0 29%, #fff8df 29%) !important;
+}
+:root[data-theme='crossing'] .profile-hero :is(h1, p, .text-zinc-400, .text-zinc-500) { color: #45685d !important; }
+:root[data-theme='crossing'] .game-detail-hero,
+:root[data-theme='crossing'] .game-month-hero { background: #fff8df !important; }
+:root[data-theme='crossing'] .game-detail-backdrop-image,
+:root[data-theme='crossing'] .game-month-backdrop img {
+  opacity: .5 !important;
+  filter: blur(9px) brightness(1.14) saturate(.86) !important;
+}
+:root[data-theme='crossing'] .game-detail-shade,
+:root[data-theme='crossing'] .game-month-shade {
+  background: linear-gradient(180deg, rgb(255 248 223 / 46%), rgb(255 248 223 / 69%) 56%, rgb(255 248 223 / 93%)) !important;
+}
+:root[data-theme='crossing'] .game-detail-tint,
+:root[data-theme='crossing'] .game-month-tint {
+  background: rgb(74 170 148 / 8%) !important;
+  mix-blend-mode: normal !important;
+}
+:root[data-theme='crossing'] .game-detail-info { background: #fff8df !important; }
+:root[data-theme='crossing'] .game-month-title { color: #365e54 !important; text-shadow: none !important; }
+:root[data-theme='crossing'] .game-month-description { color: #60796f !important; text-shadow: none !important; }
+:root[data-theme='crossing'] .game-month-chip {
+  background: repeating-linear-gradient(135deg, #dfb64e 0 10px, #edcc6d 10px 20px) !important;
+  color: #5e501e !important;
+  box-shadow: inset 0 0 0 2px #f6df91, 0 4px 0 -1px rgb(121 102 37 / 24%) !important;
+}
+:root[data-theme='crossing'] button.bg-violet-600:not(:disabled),
+:root[data-theme='crossing'] .game-action-vote[data-active='true'] {
+  background: repeating-linear-gradient(135deg, #45aa9d 0 10px, #58bbad 10px 20px) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 2px #83d1c5 !important;
+}
+:root[data-theme='crossing'] .game-action-completed[data-active='true'],
+:root[data-theme='crossing'] .progress-status-option[data-selected='true'] {
+  background: repeating-linear-gradient(135deg, #70b66a 0 10px, #82c47a 10px 20px) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 2px #a7d99d !important;
+}
+:root[data-theme='crossing'] .game-action-backlog[data-active='true'] {
+  background: repeating-linear-gradient(135deg, #65adbf 0 10px, #78bdcb 10px 20px) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 2px #9bd4df !important;
+}
+:root[data-theme='crossing'] .danger-action { background: #f7ddd4 !important; color: #b65450 !important; }
+:root[data-theme='crossing'] .gallery-toolbar { background: #326f67 !important; }
+:root[data-theme='crossing'] :is(.game-media-card, .game-trailer-card, .ranking-card, .game-list-card, .profile-hero, .comment-card, .comment-composer, .notes-panel, .game-detail-hero, .game-month-hero) {
+  box-shadow: 0 5px 0 -2px rgb(79 132 103 / 17%), 0 11px 20px rgb(68 112 88 / 6%) !important;
+}
+
+@media (min-width: 640px) {
+  :root[data-theme='crossing'] .game-detail-info {
+    margin: 0;
+    padding: 1.75rem 0 0;
+    border-top: 0;
+    background: transparent;
+  }
 }
 
 * {
@@ -109,13 +1370,13 @@ iframe {
 }
 
 @keyframes modal-in {
-  from { opacity: 0; transform: translate(-50%, calc(-50% + 12px)) scale(.975); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  from { opacity: 0; filter: blur(3px); translate: -50% calc(-50% + 30px); scale: .94; }
+  to { opacity: 1; translate: -50% -50%; scale: 1; }
 }
 
 @keyframes modal-out {
-  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  to { opacity: 0; transform: translate(-50%, calc(-50% + 8px)) scale(.985); }
+  from { opacity: 1; translate: -50% -50%; scale: 1; }
+  to { opacity: 0; filter: blur(1px); translate: -50% calc(-50% + 14px); scale: .98; }
 }
 
 @keyframes overlay-out {
@@ -124,13 +1385,13 @@ iframe {
 }
 
 @keyframes pop-in {
-  from { opacity: 0; transform: translateY(-4px) scale(.98); }
+  from { opacity: 0; filter: blur(2px); transform: translateY(-14px) scale(.92); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes pop-out {
   from { opacity: 1; transform: translateY(0) scale(1); }
-  to { opacity: 0; transform: translateY(-3px) scale(.98); }
+  to { opacity: 0; filter: blur(1px); transform: translateY(-6px) scale(.96); }
 }
 
 @keyframes tab-in {
@@ -140,12 +1401,15 @@ iframe {
 
 .animate-fade-in { animation: fade-in 150ms var(--ease-snappy); }
 .animate-slide-up { animation: slide-up 180ms var(--ease-snappy); }
-.animate-pop-in { animation: pop-in 130ms var(--ease-snappy); }
-.animate-pop-out { animation: pop-out 110ms cubic-bezier(.4, 0, 1, 1); }
 .animate-tab-in { animation: tab-in 140ms var(--ease-snappy); }
-.animate-modal-in { animation: modal-in 170ms var(--ease-snappy); }
-.animate-modal-out { animation: modal-out 120ms cubic-bezier(.4, 0, 1, 1); }
-.animate-overlay-out { animation: overlay-out 120ms cubic-bezier(.4, 0, 1, 1); }
+
+/* Radix keeps the closed state mounted only when it can read these animations. */
+.animated-popup[data-state='open'] { animation: pop-in 190ms var(--ease-snappy) both; will-change: opacity, transform, filter; }
+.animated-popup[data-state='closed'] { animation: pop-out 130ms cubic-bezier(.4, 0, 1, 1) both; }
+.animated-modal[data-state='open'] { animation: modal-in 230ms var(--ease-snappy) both; will-change: opacity, transform, filter; }
+.animated-modal[data-state='closed'] { animation: modal-out 150ms cubic-bezier(.4, 0, 1, 1) both; }
+.animated-overlay[data-state='open'] { animation: fade-in 150ms var(--ease-snappy) both; }
+.animated-overlay[data-state='closed'] { animation: overlay-out 120ms cubic-bezier(.4, 0, 1, 1); }
 
 .line-clamp-2 {
   display: -webkit-box;

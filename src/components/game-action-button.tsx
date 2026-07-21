@@ -1,5 +1,6 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
 import { CheckCircle2, Library, ThumbsUp } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { cn } from '@/lib/utils';
 
 type ActionKind = 'vote' | 'completed' | 'backlog';
@@ -17,18 +18,36 @@ export const GameActionButton = forwardRef<HTMLButtonElement, ButtonHTMLAttribut
 }>(function GameActionButton({ kind, active, label, className, ...props }, ref) {
   const config = meta[kind];
   const Icon = config.Icon;
+  const reduceMotion = useReducedMotion();
+  const stateKey = active ? 'active' : 'idle';
+  const transition = reduceMotion ? { duration: 0 } : { type: 'spring' as const, stiffness: 520, damping: 32, mass: 0.45 };
   return (
     <button
       ref={ref}
+      data-action={kind}
+      data-active={active}
       className={cn(
-        'inline-flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-3 text-[11px] font-extrabold transition duration-150 active:scale-[.97] disabled:opacity-55',
+        `game-action game-action-${kind} relative isolate inline-flex min-w-0 items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full border px-3 text-[11px] font-extrabold transition duration-150 active:scale-[.97] disabled:opacity-55`,
         active ? config.activeClass : 'border-white/10 bg-white/[.04] text-zinc-300 hover:border-white/15 hover:bg-white/[.08] hover:text-white',
         className,
       )}
       {...props}
     >
-      <Icon className={cn('size-3.5 shrink-0', active && config.fillClass)} />
-      <span className="truncate">{label || (active ? config.active : config.idle)}</span>
+      <AnimatePresence initial={false}>
+        {active && <motion.span key={`${kind}-glow`} aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-white/[.045]" initial={{ opacity: 0, scale: 0.35 }} animate={{ opacity: [0, 1, 0], scale: 1.35 }} exit={{ opacity: 0 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.36, ease: [0.22, 1, 0.36, 1] }} />}
+      </AnimatePresence>
+      <span className="relative grid size-3.5 shrink-0 place-items-center">
+        <AnimatePresence initial={false} mode="popLayout">
+          <motion.span key={`${kind}-${stateKey}-icon`} className="absolute inset-0 grid place-items-center" initial={reduceMotion ? false : { opacity: 0, scale: 0.4, rotate: active ? -24 : 24 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} exit={reduceMotion ? undefined : { opacity: 0, scale: 0.4, rotate: active ? 24 : -24 }} transition={transition}>
+            <Icon className={cn('size-3.5', active && config.fillClass)} />
+          </motion.span>
+        </AnimatePresence>
+      </span>
+      <span className="relative min-w-0 overflow-hidden">
+        <AnimatePresence initial={false} mode="popLayout">
+          <motion.span key={`${kind}-${stateKey}-${label || ''}`} className="block truncate" initial={reduceMotion ? false : { opacity: 0, y: active ? 7 : -7 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: active ? -7 : 7 }} transition={transition}>{label || (active ? config.active : config.idle)}</motion.span>
+        </AnimatePresence>
+      </span>
     </button>
   );
 });

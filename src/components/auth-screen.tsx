@@ -5,9 +5,11 @@ import { Gamepad2, Mail, LockKeyhole } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getBrowserSiteUrl } from '@/lib/site-url';
 import { Skeleton } from './ui/skeleton';
+import { useApp } from './app-provider';
 
 export function AuthScreen({ loading = false }: { loading?: boolean }) {
   const supabase = createClient();
+  const { runOperation } = useApp();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,17 +36,17 @@ export function AuthScreen({ loading = false }: { loading?: boolean }) {
     setMessage('');
     try {
       if (mode === 'login') {
-        const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+        const { error: authError } = await runOperation('Entrando na conta…', () => supabase.auth.signInWithPassword({ email, password }));
         if (authError) throw authError;
       } else {
-        const { error: authError } = await supabase.auth.signUp({
+        const { error: authError } = await runOperation('Criando conta…', () => supabase.auth.signUp({
           email,
           password,
           options: {
             data: { name: email.split('@')[0] },
             emailRedirectTo: `${getBrowserSiteUrl()}/auth/callback`,
           },
-        });
+        }));
         if (authError) throw authError;
         setMessage('Cadastro feito! Abra o link que enviamos para o seu e-mail.');
       }
