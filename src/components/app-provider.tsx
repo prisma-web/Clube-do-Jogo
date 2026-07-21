@@ -23,7 +23,7 @@ interface AppContextValue {
   setTheme: (theme: ThemeId) => void;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
-  runOperation: <T>(label: string, operation: () => Promise<T>) => Promise<T>;
+  runOperation: <T>(label: string, operation: () => PromiseLike<T>) => Promise<T>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -40,7 +40,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeId>(DEFAULT_THEME);
   const [operations, setOperations] = useState<{ id: string; label: string }[]>([]);
 
-  const runOperation = useCallback(async function runOperation<T>(label: string, operation: () => Promise<T>) {
+  const runOperation = useCallback(async function runOperation<T>(label: string, operation: () => PromiseLike<T>) {
     const id = crypto.randomUUID();
     setOperations(current => [...current, { id, label }]);
     try {

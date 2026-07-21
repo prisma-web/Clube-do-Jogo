@@ -57,7 +57,7 @@ export default function GamePage() {
   const people = peopleQuery.data || { voters: [], completed: [], votedByMe: false, completedByMe: false, inBacklog: false };
 
   useEffect(() => {
-    if (isDemo || !game?.igdb_id || (game.screenshot_urls?.length || 0) >= 3 || mediaRequested.current.has(game.id)) return;
+    if (isDemo || !game?.igdb_id || ((game.screenshot_urls?.length || 0) >= 3 && game.genres?.length && game.platforms?.length) || mediaRequested.current.has(game.id)) return;
     mediaRequested.current.add(game.id);
     void fetch(`/api/games/${game.id}/media`, { method: 'POST' })
       .then(response => response.ok ? response.json() : null)
@@ -120,6 +120,8 @@ export default function GamePage() {
       </section>
 
       <ParticipantsDialog voters={people.voters} completed={people.completed}><button className="participation-card mt-4 flex w-full min-w-0 items-center justify-between gap-2 rounded-2xl border border-white/8 bg-white/[0.025] p-4 text-left transition hover:bg-white/5"><span className="flex min-w-0 items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-violet-300"><UsersRound className="size-4" /></span><span className="min-w-0"><strong className="block text-sm">Participação</strong><span className="block truncate text-[10px] text-zinc-500 min-[360px]:text-[11px]">{people.voters.length} votos · {formatFinishedCount(people.completed.length)}</span></span></span><span className="shrink-0 text-xs font-bold text-violet-300"><span className="min-[360px]:hidden">Ver</span><span className="hidden min-[360px]:inline">Ver pessoas</span></span></button></ParticipantsDialog>
+
+      {(game.genres?.length || game.platforms?.length) && <section className="mt-8 space-y-5"><div className="border-t border-white/8" />{game.genres?.length ? <div><h2 className="text-sm font-extrabold">Gêneros</h2><div className="mt-2.5 flex flex-wrap gap-2">{game.genres.map(genre => <span key={genre} className="rounded-full bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-zinc-400">{genre}</span>)}</div></div> : null}{game.platforms?.length ? <div><h2 className="text-sm font-extrabold">Plataformas</h2><div className="mt-2.5 flex flex-wrap gap-2">{game.platforms.map(platform => <span key={platform} className="rounded-full bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-zinc-400">{platform}</span>)}</div></div> : null}</section>}
 
       {screenshots.length > 0 && <section className="mt-8"><div className="mb-3 flex items-center gap-2"><ImageIcon className="size-4 text-violet-400" /><h2 className="text-base font-extrabold">Imagens do jogo</h2></div><GameGallery title={game.title} images={screenshots} /></section>}
       {trailer && <section className="mt-8"><div className="mb-3 flex items-center gap-2"><Play className="size-4 fill-violet-400 text-violet-400" /><h2 className="text-base font-extrabold">Trailer</h2></div><div className="game-trailer-card aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"><iframe src={trailer} title={`Trailer de ${game.title}`} className="size-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen /></div></section>}
