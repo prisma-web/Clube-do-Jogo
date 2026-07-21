@@ -17,7 +17,7 @@ import { ThemeSelector } from './theme-selector';
 
 export function ProfileView({ profileId, own = false }: { profileId: string; own?: boolean }) {
   const supabase = useMemo(() => createClient(), []);
-  const { isDemo, signOut, refreshProfile } = useApp();
+  const { isDemo, signOut, refreshProfile, runOperation } = useApp();
   const query = useStaleQuery(`profile:${profileId}`, () => fetchProfileWithGames(supabase, profileId, isDemo));
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
@@ -31,7 +31,7 @@ export function ProfileView({ profileId, own = false }: { profileId: string; own
     if (!data?.profile) return;
     setSaving(true);
     const patch = { name: name.trim() || data.profile.name || 'Membro', bio: bio.trim() || null, avatar_url: avatar.trim() || null, updated_at: new Date().toISOString() };
-    if (!isDemo) await supabase.from('profiles').update(patch).eq('id', profileId);
+    if (!isDemo) await runOperation('Atualizando perfil…', () => supabase.from('profiles').update(patch).eq('id', profileId));
     query.setData({ ...data, profile: { ...data.profile, ...patch } });
     await refreshProfile();
     setSaving(false);

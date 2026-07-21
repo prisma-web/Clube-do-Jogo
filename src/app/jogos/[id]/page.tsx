@@ -21,7 +21,7 @@ export default function GamePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, selectedMonth, isHistorical } = useApp();
+  const { user, isDemo, selectedMonth, isHistorical, runOperation } = useApp();
   const voteMonth = shiftMonth(selectedMonth, 1);
   const gameQuery = useStaleQuery(`game:${params.id}`, () => fetchGame(supabase, params.id, isDemo));
   const mediaRequested = useRef(new Set<string>());
@@ -68,7 +68,7 @@ export default function GamePage() {
   async function addToBacklog() {
     if (!game || people.inBacklog) return;
     peopleQuery.setData({ ...people, inBacklog: true });
-    if (!isDemo) await supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' });
+    if (!isDemo) await runOperation('Adicionando ao backlog…', () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
   }
 
   async function toggleVote() {
@@ -76,8 +76,8 @@ export default function GamePage() {
     const mine: Profile = { id: user!.id, name: 'Você', avatar_url: null };
     peopleQuery.setData({ ...people, votedByMe: !people.votedByMe, voters: people.votedByMe ? people.voters.filter(item => item.id !== user!.id) : [...people.voters, mine] });
     if (!isDemo) {
-      if (people.votedByMe) await supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', game.id).eq('vote_month', voteMonth);
-      else await supabase.from('votes').insert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth });
+      if (people.votedByMe) await runOperation('Removendo voto…', () => supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', game.id).eq('vote_month', voteMonth));
+      else await runOperation('Registrando voto…', () => supabase.from('votes').insert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth }));
     }
   }
 
@@ -93,7 +93,7 @@ export default function GamePage() {
       const request = people.completedByMe
         ? supabase.from('completed_games').delete().eq('user_id', user!.id).eq('game_id', game.id)
         : supabase.from('completed_games').insert({ user_id: user!.id, game_id: game.id });
-      await request;
+      await runOperation(people.completedByMe ? 'Removendo finalização…' : 'Marcando como finalizado…', () => request);
     }
   }
 

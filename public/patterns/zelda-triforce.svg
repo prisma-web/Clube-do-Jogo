@@ -8,16 +8,11 @@
   </defs>
   <g fill="none" stroke="#d8bd75" stroke-linejoin="round" stroke-width="1" stroke-opacity=".14">
     <use href="#triforce" transform="translate(26 30)"/>
-    <use href="#triforce" transform="translate(91 38) rotate(180)"/>
     <use href="#triforce" transform="translate(147 35)"/>
-    <use href="#triforce" transform="translate(66 73) rotate(180)"/>
     <use href="#triforce" transform="translate(27 127)"/>
-    <use href="#triforce" transform="translate(90 132) rotate(180)"/>
     <use href="#triforce" transform="translate(145 133)"/>
   </g>
   <g fill="none" stroke="#d8bd75" stroke-linejoin="round" stroke-width=".8" stroke-opacity=".09">
-    <use href="#triforce" transform="translate(24 78) rotate(180) scale(.62)"/>
     <use href="#triforce" transform="translate(124 97) scale(.62)"/>
-    <use href="#triforce" transform="translate(165 83) rotate(180) scale(.62)"/>
   </g>
 </svg>

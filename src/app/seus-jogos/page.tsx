@@ -20,7 +20,7 @@ const animation = { duration: 160, easing: 'cubic-bezier(.22, 1, .36, 1)' };
 
 export default function YourGamesPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, selectedMonth, isHistorical } = useApp();
+  const { user, isDemo, selectedMonth, isHistorical, runOperation } = useApp();
   const voteMonth = shiftMonth(selectedMonth, 1);
   const query = useStaleQuery(`your-games:${user?.id}:${voteMonth}`, () => fetchProfileWithGames(supabase, user!.id, isDemo, voteMonth), Boolean(user));
   const data = query.data;
@@ -34,21 +34,21 @@ export default function YourGamesPage() {
   async function removeBacklog(game: Game) {
     if (!data) return;
     query.setData({ ...data, backlog: data.backlog.filter(item => item.id !== game.id) });
-    if (!isDemo) await supabase.from('backlogs').delete().eq('user_id', user!.id).eq('game_id', game.id);
+    if (!isDemo) await runOperation('Removendo do backlog…', () => supabase.from('backlogs').delete().eq('user_id', user!.id).eq('game_id', game.id));
   }
 
   async function addToBacklog(game: Game) {
     if (!data || data.backlog.some(item => item.id === game.id)) return;
     query.setData({ ...data, backlog: [game, ...data.backlog] });
-    if (!isDemo) await supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' });
+    if (!isDemo) await runOperation('Adicionando ao backlog…', () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
   }
 
   async function markFinished(game: Game, finished: boolean) {
     if (!data) return;
     query.setData({ ...data, completed: finished ? [...data.completed, game] : data.completed.filter(item => item.id !== game.id) });
     if (!isDemo) {
-      if (finished) await supabase.from('completed_games').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' });
-      else await supabase.from('completed_games').delete().eq('user_id', user!.id).eq('game_id', game.id);
+      if (finished) await runOperation('Marcando como finalizado…', () => supabase.from('completed_games').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
+      else await runOperation('Removendo finalização…', () => supabase.from('completed_games').delete().eq('user_id', user!.id).eq('game_id', game.id));
     }
   }
 
@@ -61,7 +61,7 @@ export default function YourGamesPage() {
       const request = voted
         ? supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', game.id).eq('vote_month', voteMonth)
         : supabase.from('votes').insert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth });
-      const { error } = await request;
+      const { error } = await runOperation(voted ? 'Removendo voto…' : 'Registrando voto…', () => request);
       if (!error) await query.refresh();
     }
   }

@@ -54,7 +54,7 @@ function PeopleStack({ people }: { people: RankingItem['voters'] }) {
 
 export default function RankingPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, selectedMonth, isHistorical } = useApp();
+  const { user, isDemo, selectedMonth, isHistorical, runOperation } = useApp();
   const voteMonth = shiftMonth(selectedMonth, 1);
   const [showAll, setShowAll] = useState(false);
   const [query, setQuery] = useState('');
@@ -90,7 +90,7 @@ export default function RankingPage() {
     const request = item.votedByMe
       ? supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', item.game.id).eq('vote_month', voteMonth)
       : supabase.from('votes').insert({ user_id: user!.id, game_id: item.game.id, vote_month: voteMonth });
-    const { error } = await request;
+    const { error } = await runOperation(item.votedByMe ? 'Removendo voto…' : 'Registrando voto…', () => request);
     if (!error) await refresh();
   }
 
@@ -116,7 +116,7 @@ export default function RankingPage() {
     const request = item.completedByMe
       ? supabase.from('completed_games').delete().eq('user_id', user!.id).eq('game_id', item.game.id)
       : supabase.from('completed_games').insert({ user_id: user!.id, game_id: item.game.id });
-    const { error } = await request;
+    const { error } = await runOperation(item.completedByMe ? 'Removendo finalização…' : 'Marcando como finalizado…', () => request);
     if (!error) await refresh();
   }
 
@@ -156,14 +156,14 @@ export default function RankingPage() {
       setData([...ranking, { game, votesCount: 1, completedCount: 0, voters: [{ id: user!.id, name: 'Artur Lima', avatar_url: 'https://i.pravatar.cc/160?img=12' }], completedBy: [], playtimePoints, ratingMultiplier, totalPoints: Math.round(2 * playtimePoints * ratingMultiplier * 10) / 10, votedByMe: true, completedByMe: false, inBacklog: false }].sort((a, b) => b.totalPoints - a.totalPoints));
       return;
     }
-    await supabase.from('votes').upsert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth }, { onConflict: 'user_id,game_id,vote_month' });
+    await runOperation('Registrando voto…', () => supabase.from('votes').upsert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth }, { onConflict: 'user_id,game_id,vote_month' }));
     await refresh();
   }
 
   async function addToBacklog(item: RankingItem) {
     if (item.inBacklog || isHistorical) return;
     setData(ranking.map(row => row.game.id === item.game.id ? { ...row, inBacklog: true } : row));
-    if (!isDemo) await supabase.from('backlogs').upsert({ user_id: user!.id, game_id: item.game.id }, { onConflict: 'user_id,game_id' });
+    if (!isDemo) await runOperation('Adicionando ao backlog…', () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: item.game.id }, { onConflict: 'user_id,game_id' }));
   }
 
   return (
