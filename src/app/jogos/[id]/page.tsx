@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, CalendarDays, Clock3, Gamepad2, ImageIcon, Play, Star, UsersRound } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Clock3, Gamepad2, ImageIcon, Play, Share2, Star, UsersRound } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { demoRanking } from '@/lib/demo-data';
 import { fetchGame } from '@/lib/data';
@@ -97,6 +97,16 @@ export default function GamePage() {
     }
   }
 
+  async function shareGame() {
+    if (!game) return;
+    const shareData = { title: game.title, text: `Veja ${game.title} no Clube do Jogo`, url: window.location.href };
+    if (navigator.share) {
+      await navigator.share(shareData).catch(() => undefined);
+      return;
+    }
+    await navigator.clipboard?.writeText(window.location.href).catch(() => undefined);
+  }
+
   if (gameQuery.isInitialLoading) return <div className="mx-auto max-w-4xl space-y-4"><Skeleton className="h-8 w-24" /><div className="flex gap-5"><Skeleton className="aspect-[3/4] w-36 shrink-0 rounded-2xl" /><div className="flex-1 space-y-3"><Skeleton className="h-9 w-3/4" /><Skeleton className="h-4 w-1/2" /><Skeleton className="h-24 w-full" /></div></div></div>;
   if (!game) return <div className="grid min-h-[60dvh] place-items-center text-center"><div><Gamepad2 className="mx-auto size-9 text-zinc-700" /><h1 className="mt-3 text-lg font-black">Jogo não encontrado</h1></div></div>;
   const trailer = youtubeEmbedUrl(game.trailer_url);
@@ -104,7 +114,10 @@ export default function GamePage() {
 
   return (
     <div className="mx-auto max-w-4xl animate-fade-in">
-      <button onClick={() => router.back()} className="mb-5 inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-white/5 px-3 text-xs font-bold text-zinc-400 hover:bg-white/10 hover:text-white"><ArrowLeft className="size-4" />Voltar</button>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <button onClick={() => router.back()} className="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-white/5 px-3 text-xs font-bold text-zinc-400 hover:bg-white/10 hover:text-white"><ArrowLeft className="size-4" />Voltar</button>
+        <button onClick={() => void shareGame()} className="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-white/5 px-3 text-xs font-bold text-zinc-400 transition hover:bg-white/10 hover:text-white"><Share2 className="size-3.5" />Compartilhar</button>
+      </div>
       <section className="game-detail-hero relative overflow-hidden rounded-[30px] border border-white/8 bg-white/[0.025] p-4 sm:p-7">
         <div className="game-detail-backdrop pointer-events-none absolute inset-x-0 top-0 h-64 overflow-hidden border-b border-white/[0.07] sm:h-full" aria-hidden="true">
           <img src={game.image_url} alt="" className="game-detail-backdrop-image absolute -inset-[10%] size-[120%] object-cover blur-sm brightness-[.64] saturate-[1.5]" />
