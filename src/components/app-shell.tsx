@@ -47,7 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="theme-header sticky top-0 z-50 border-b border-white/[0.06] pt-[env(safe-area-inset-top)] backdrop-blur-xl">
         <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link href="/jogo-do-mes" className="flex min-w-0 items-center gap-2.5" scroll={false}>
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg shadow-violet-950/50"><Gamepad2 className="size-5" /></span>
+            <span className="theme-logo grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg shadow-violet-950/50"><Gamepad2 className="size-5" /></span>
             <span className="hidden truncate text-sm font-black tracking-tight min-[360px]:block">Clube do Jogo</span>
           </Link>
           <div className="flex min-w-0 items-center gap-2">

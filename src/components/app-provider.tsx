@@ -66,6 +66,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
     if (isThemeId(stored)) queueMicrotask(() => setThemeState(stored));
+    else if (stored) window.localStorage.removeItem(THEME_STORAGE_KEY);
   }, []);
 
   useEffect(() => {

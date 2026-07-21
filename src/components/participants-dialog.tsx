@@ -38,7 +38,7 @@ export function ParticipantsDialog({ voters, completed, children, initialTab = '
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent title="Participantes" description="Veja quem votou e quem já terminou este jogo.">
         <Tabs.Root defaultValue={initialTab}>
-          <Tabs.List className="mx-4 mt-4 grid grid-cols-2 rounded-xl bg-black/30 p-1">
+          <Tabs.List className="participants-tabs app-tabs mx-4 mt-4 grid grid-cols-2 rounded-xl bg-black/30 p-1">
             <Tabs.Trigger value="votes" className="flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold text-zinc-500 outline-none transition data-[state=active]:bg-zinc-800 data-[state=active]:text-violet-300"><ThumbsUp className="size-3.5" />Votos · {voters.length}</Tabs.Trigger>
             <Tabs.Trigger value="completed" className="flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold text-zinc-500 outline-none transition data-[state=active]:bg-zinc-800 data-[state=active]:text-emerald-300"><CheckCircle2 className="size-3.5" />{formatFinishedCount(completed.length)}</Tabs.Trigger>
           </Tabs.List>

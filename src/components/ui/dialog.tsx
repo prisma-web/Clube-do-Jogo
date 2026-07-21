@@ -16,9 +16,9 @@ export function DialogContent({ children, className, title, description }: {
 }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="animated-overlay fixed inset-0 z-[80] bg-black/75 backdrop-blur-sm" />
-      <DialogPrimitive.Content className={cn('animated-modal fixed left-1/2 top-1/2 z-[81] max-h-[min(88dvh,760px)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[28px] border border-white/10 bg-zinc-950 shadow-2xl outline-none', className)}>
-        <div className="flex items-start justify-between gap-4 border-b border-white/8 px-5 py-4">
+      <DialogPrimitive.Overlay className="dialog-overlay animated-overlay fixed inset-0 z-[80] bg-black/75 backdrop-blur-sm" />
+      <DialogPrimitive.Content className={cn('app-dialog animated-modal fixed left-1/2 top-1/2 z-[81] max-h-[min(88dvh,760px)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[28px] border border-white/10 bg-zinc-950 shadow-2xl outline-none', className)}>
+        <div className="app-dialog-header flex items-start justify-between gap-4 border-b border-white/8 px-5 py-4">
           <div className="min-w-0">
             <DialogPrimitive.Title className="text-base font-extrabold text-zinc-50">{title}</DialogPrimitive.Title>
             {description && <DialogPrimitive.Description className="mt-0.5 text-xs text-zinc-400">{description}</DialogPrimitive.Description>}

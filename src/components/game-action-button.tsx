@@ -24,8 +24,10 @@ export const GameActionButton = forwardRef<HTMLButtonElement, ButtonHTMLAttribut
   return (
     <button
       ref={ref}
+      data-action={kind}
+      data-active={active}
       className={cn(
-        'relative isolate inline-flex min-w-0 items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap rounded-xl border px-3 text-[11px] font-extrabold transition duration-150 active:scale-[.97] disabled:opacity-55',
+        `game-action game-action-${kind} relative isolate inline-flex min-w-0 items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full border px-3 text-[11px] font-extrabold transition duration-150 active:scale-[.97] disabled:opacity-55`,
         active ? config.activeClass : 'border-white/10 bg-white/[.04] text-zinc-300 hover:border-white/15 hover:bg-white/[.08] hover:text-white',
         className,
       )}

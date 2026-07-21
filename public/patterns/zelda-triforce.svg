@@ -1,6 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="72" height="64" viewBox="0 0 72 64">
-  <g fill="none" stroke="#d8b75d" stroke-opacity=".19" stroke-width="1.1">
-    <path d="m36 11 9 16H27Z"/><path d="m27 27 9 16H18Z"/><path d="m45 27 9 16H36Z"/>
-    <circle cx="36" cy="27" r="23" stroke-opacity=".07"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="184" height="168" viewBox="0 0 184 168">
+  <defs>
+    <g id="triforce">
+      <path d="M0-16 9 0H-9Z"/>
+      <path d="m-9 0 9 16h-18Z"/>
+      <path d="m9 0 9 16H0Z"/>
+    </g>
+  </defs>
+  <g fill="none" stroke="#d8bd75" stroke-linejoin="round" stroke-width="1" stroke-opacity=".14">
+    <use href="#triforce" transform="translate(26 30)"/>
+    <use href="#triforce" transform="translate(91 38) rotate(180)"/>
+    <use href="#triforce" transform="translate(147 35)"/>
+    <use href="#triforce" transform="translate(66 73) rotate(180)"/>
+    <use href="#triforce" transform="translate(27 127)"/>
+    <use href="#triforce" transform="translate(90 132) rotate(180)"/>
+    <use href="#triforce" transform="translate(145 133)"/>
+  </g>
+  <g fill="none" stroke="#d8bd75" stroke-linejoin="round" stroke-width=".8" stroke-opacity=".09">
+    <use href="#triforce" transform="translate(24 78) rotate(180) scale(.62)"/>
+    <use href="#triforce" transform="translate(124 97) scale(.62)"/>
+    <use href="#triforce" transform="translate(165 83) rotate(180) scale(.62)"/>
   </g>
 </svg>

@@ -91,7 +91,7 @@ export function NotesChat({ game }: { game: Game }) {
   const noteImages = notes.flatMap(note => note.imageDataUrl ? [note.imageDataUrl] : []);
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/8 bg-[radial-gradient(circle_at_20%_0%,rgba(124,58,237,.08),transparent_45%),#0c0c0f]">
+    <div className="notes-panel overflow-hidden rounded-3xl border border-white/8 bg-[radial-gradient(circle_at_20%_0%,rgba(124,58,237,.08),transparent_45%),#0c0c0f]">
       <div className="border-b border-white/8 px-4 py-3"><h2 className="text-sm font-extrabold">Minhas anotações</h2><p className="mt-0.5 text-[11px] text-zinc-500">Privadas neste dispositivo, inclusive as imagens.</p></div>
       <div className="h-[min(56dvh,560px)] min-h-80">
         {notes.length === 0 ? <div className="grid h-full place-items-center px-8 text-center"><div><Pencil className="mx-auto size-7 text-zinc-700" /><p className="mt-3 text-sm font-bold text-zinc-400">Guarde ideias para a reunião</p><p className="mt-1 text-xs leading-relaxed text-zinc-600">Registre detalhes, teorias e momentos do jogo conforme avança.</p></div></div> : (
@@ -101,15 +101,15 @@ export function NotesChat({ game }: { game: Game }) {
               <div className="px-3">
                 {showDate && <div className="my-4 text-center"><span className="rounded-full border border-white/8 bg-zinc-900 px-3 py-1 text-[10px] font-bold text-zinc-500">{formatDate(note.createdAt)}</span></div>}
                 <div className="mb-2 flex justify-end">
-                  <div onPointerDown={() => { holdTimer.current = setTimeout(() => setMenuNoteId(note.id), 520); }} onPointerUp={() => { if (holdTimer.current) clearTimeout(holdTimer.current); }} onPointerCancel={() => { if (holdTimer.current) clearTimeout(holdTimer.current); }} className="relative min-w-36 max-w-[88%] overflow-hidden rounded-2xl rounded-br-md border border-violet-400/15 bg-violet-600/18 shadow-sm">
+                  <div onPointerDown={() => { holdTimer.current = setTimeout(() => setMenuNoteId(note.id), 520); }} onPointerUp={() => { if (holdTimer.current) clearTimeout(holdTimer.current); }} onPointerCancel={() => { if (holdTimer.current) clearTimeout(holdTimer.current); }} className="notes-message relative min-w-36 max-w-[88%] overflow-hidden rounded-2xl rounded-br-md border border-violet-400/15 bg-violet-600/18 shadow-sm">
                     <DropdownMenu.Root open={menuNoteId === note.id} onOpenChange={open => setMenuNoteId(open ? note.id : null)}>
                       <DropdownMenu.Trigger aria-label="Opções da anotação" className="absolute right-2 top-2 z-10 grid size-7 place-items-center rounded-full text-white/55 transition hover:text-white"><ChevronDown className="size-3.5" /></DropdownMenu.Trigger>
-                      <DropdownMenu.Portal><DropdownMenu.Content align="end" className="animated-popup z-[100] min-w-36 rounded-xl border border-white/10 bg-zinc-900 p-1 shadow-xl">
+                      <DropdownMenu.Portal><DropdownMenu.Content align="end" className="app-popup animated-popup z-[100] min-w-36 rounded-xl border border-white/10 bg-zinc-900 p-1 shadow-xl">
                         <DropdownMenu.Item onSelect={() => beginEdit(note)} className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-zinc-300 outline-none data-[highlighted]:bg-white/8"><Pencil className="size-3.5" />Editar</DropdownMenu.Item>
                         <DropdownMenu.Item onSelect={() => void remove(note.id)} className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-red-300 outline-none data-[highlighted]:bg-red-500/10"><Trash2 className="size-3.5" />Excluir</DropdownMenu.Item>
                       </DropdownMenu.Content></DropdownMenu.Portal>
                     </DropdownMenu.Root>
-                    {note.imageDataUrl && <button onClick={() => { setGalleryIndex(noteImages.indexOf(note.imageDataUrl!)); setGallerySession(session => session + 1); setGalleryOpen(true); }} onPointerDown={event => event.stopPropagation()} onPointerUp={event => event.stopPropagation()} className="group relative block w-full cursor-zoom-in overflow-hidden"><img src={note.imageDataUrl} alt="Abrir imagem anexada à anotação" className="max-h-72 w-full object-cover transition duration-200 group-hover:scale-[1.02]" /><span className="pointer-events-none absolute inset-0 bg-black/0 transition group-hover:bg-black/10" /></button>}
+                    {note.imageDataUrl && <button onClick={() => { setGalleryIndex(noteImages.indexOf(note.imageDataUrl!)); setGallerySession(session => session + 1); setGalleryOpen(true); }} onPointerDown={event => event.stopPropagation()} onPointerUp={event => event.stopPropagation()} className="notes-image group relative block w-full cursor-zoom-in overflow-hidden"><img src={note.imageDataUrl} alt="Abrir imagem anexada à anotação" className="block aspect-video max-h-72 w-full object-cover transition duration-200 group-hover:scale-[1.02]" /><span className="pointer-events-none absolute inset-0 bg-black/0 transition group-hover:bg-black/10" /></button>}
                     {(note.body || !note.imageDataUrl) && <p className="whitespace-pre-wrap break-words pb-2 pl-3 pr-12 pt-4 text-sm leading-relaxed text-zinc-100">{note.body}</p>}
                     <div className="flex items-center justify-end gap-1 px-3 pb-2 text-[9px] text-violet-200/45">{note.updatedAt !== note.createdAt && 'editada · '}{formatTime(note.createdAt)}<Check className="size-3" /></div>
                   </div>

@@ -4,7 +4,7 @@ import type { Game } from '@/lib/types';
 
 export function GameListCard({ game, action, badge }: { game: Game; action?: React.ReactNode; badge?: React.ReactNode }) {
   return (
-    <article className="group relative flex min-w-0 gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-3 transition hover:border-violet-500/25 hover:bg-white/[0.05]">
+    <article className="game-list-card group relative flex min-w-0 gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-3 transition hover:border-violet-500/25 hover:bg-white/[0.05]">
       {badge}
       <Link href={`/jogos/${game.id}`} className="relative h-[92px] w-[69px] shrink-0 overflow-hidden rounded-xl bg-zinc-900">
         <img src={game.image_url} alt={`Capa de ${game.title}`} className="size-full object-cover transition duration-300 group-hover:scale-105" />

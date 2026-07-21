@@ -131,7 +131,7 @@ export default function YourGamesPage() {
       </div>
 
       <Tabs.Root defaultValue="backlog">
-        <Tabs.List className="mb-5 grid grid-cols-2 rounded-2xl border border-white/8 bg-white/[0.025] p-1.5">
+        <Tabs.List className="app-tabs mb-5 grid grid-cols-2 rounded-2xl border border-white/8 bg-white/[0.025] p-1.5">
           <Tabs.Trigger value="backlog" className="rounded-xl px-3 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300">Backlog · {data?.backlog.length || 0}</Tabs.Trigger>
           <Tabs.Trigger value="completed" className="rounded-xl px-3 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-300">Finalizados · {data?.completed.length || 0}</Tabs.Trigger>
         </Tabs.List>
