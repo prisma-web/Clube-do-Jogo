@@ -159,25 +159,35 @@ export function ImageGalleryDialog({ title, images, open, onOpenChange, activeIn
 
 export function GameGallery({ title, images }: { title: string; images: string[] }) {
   const gallery = useUrlDialog('gallery', { source: 'game-media' });
+  const carouselRef = useRef<HTMLDivElement>(null);
   const requestedIndex = Number(gallery.getParam('image') || 0);
   const activeIndex = Number.isInteger(requestedIndex) && requestedIndex >= 0 && requestedIndex < images.length ? requestedIndex : 0;
-  const visible = images.slice(0, 2);
-  const remaining = Math.max(images.length - 2, 0);
 
   const show = (index: number) => {
     gallery.show({ image: index });
   };
   if (!images.length) return null;
 
+  const moveCarousel = (direction: 'previous' | 'next') => {
+    const carousel = carouselRef.current;
+    if (!carousel) return;
+    carousel.scrollBy({ left: (direction === 'next' ? 1 : -1) * carousel.clientWidth * .82, behavior: 'smooth' });
+  };
+
   return (
     <>
-      <div className={`grid gap-3 ${visible.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-        {visible.map((url, index) => (
-          <button key={url} onClick={() => show(index)} className="game-media-card group relative aspect-video min-w-0 overflow-hidden rounded-2xl border border-white/8 bg-zinc-900">
-            <img src={url} alt={`Cena ${index + 1} de ${title}`} className="size-full object-cover transition duration-300 group-hover:scale-105" />
-            {index === 1 && remaining > 0 && <span className="gallery-more absolute inset-0 grid place-items-center bg-black/55 text-2xl font-black text-white backdrop-blur-[2px]">+{remaining}</span>}
-          </button>
-        ))}
+      <div className="relative">
+        <div ref={carouselRef} className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {images.map((url, index) => (
+            <button key={`${url}-${index}`} onClick={() => show(index)} className="game-media-card group relative aspect-[4/3] w-[84%] shrink-0 snap-start overflow-hidden rounded-2xl border border-white/8 bg-zinc-900 sm:w-[62%]">
+              <img src={url} alt={`Cena ${index + 1} de ${title}`} className="size-full object-cover transition duration-300 group-hover:scale-105" />
+            </button>
+          ))}
+        </div>
+        {images.length > 1 && <>
+          <button onClick={() => moveCarousel('previous')} aria-label="Imagem anterior" title="Imagem anterior" className="absolute left-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-[color:var(--hairline)] bg-[color:var(--surface-deep)] text-[color:var(--foreground)] shadow-lg backdrop-blur transition hover:scale-105"><ChevronLeft className="size-5" /></button>
+          <button onClick={() => moveCarousel('next')} aria-label="Próxima imagem" title="Próxima imagem" className="absolute right-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-[color:var(--hairline)] bg-[color:var(--surface-deep)] text-[color:var(--foreground)] shadow-lg backdrop-blur transition hover:scale-105"><ChevronRight className="size-5" /></button>
+        </>}
       </div>
 
       <ImageGalleryDialog title={title} images={images} open={gallery.open} onOpenChange={open => { if (!open) gallery.close(); }} activeIndex={activeIndex} onActiveIndexChange={index => gallery.setParam('image', index)} />

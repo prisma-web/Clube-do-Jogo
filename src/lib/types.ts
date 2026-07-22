@@ -20,6 +20,16 @@ export interface Game {
   trailer_url?: string | null;
   genres?: string[] | null;
   platforms?: string[] | null;
+  platform_ids?: number[] | null;
+}
+
+export interface UserPlatform {
+  id?: string;
+  user_id?: string;
+  igdb_platform_id: number;
+  name: string;
+  abbreviation?: string | null;
+  logo_url?: string | null;
 }
 
 export interface RankingItem {
@@ -42,6 +52,7 @@ export interface ProfileWithGames {
   completed: Game[];
   votedGameIds: string[];
   rankingGameIds: string[];
+  platforms: UserPlatform[];
 }
 
 export type ProgressStatus = 'not_started' | 'started' | 'finished';

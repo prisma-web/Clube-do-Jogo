@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { demoGames, demoProfiles, demoRanking } from './demo-data';
-import type { Game, Profile, ProfileWithGames, RankingItem } from './types';
+import type { Game, Profile, ProfileWithGames, RankingItem, UserPlatform } from './types';
 import { shiftMonth } from './utils';
 
 const DEFAULT_RATING = 50;
@@ -127,6 +127,20 @@ export async function fetchGameOfMonth(supabase: SupabaseClient, month: string, 
   return data.games as unknown as Game;
 }
 
+export async function fetchUserPlatforms(supabase: SupabaseClient, userId: string, isDemo: boolean): Promise<UserPlatform[]> {
+  if (isDemo) return [
+    { igdb_platform_id: 130, name: 'Nintendo Switch', abbreviation: 'Switch' },
+    { igdb_platform_id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' },
+  ];
+  const { data, error } = await supabase
+    .from('user_platforms')
+    .select('id, user_id, igdb_platform_id, name, abbreviation, logo_url')
+    .eq('user_id', userId)
+    .order('name');
+  if (error) throw error;
+  return (data || []) as UserPlatform[];
+}
+
 export async function fetchProfileWithGames(supabase: SupabaseClient, profileId: string, isDemo: boolean, voteMonth?: string): Promise<ProfileWithGames> {
   if (isDemo) {
     const ranking = demoRanking();
@@ -136,13 +150,15 @@ export async function fetchProfileWithGames(supabase: SupabaseClient, profileId:
       completed: demoGames.slice(6, 10),
       votedGameIds: ranking.filter(item => item.votedByMe).map(item => item.game.id),
       rankingGameIds: ranking.map(item => item.game.id),
+      platforms: await fetchUserPlatforms(supabase, profileId, true),
     };
   }
-  const [{ data: profile, error: profileError }, { data: backlog, error: backlogError }, { data: completed, error: completedError }, votesResponse] = await Promise.all([
+  const [{ data: profile, error: profileError }, { data: backlog, error: backlogError }, { data: completed, error: completedError }, votesResponse, platforms] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', profileId).maybeSingle(),
     supabase.from('backlogs').select('games (*)').eq('user_id', profileId).order('created_at', { ascending: false }),
     supabase.from('completed_games').select('games (*)').eq('user_id', profileId).order('created_at', { ascending: false }),
     voteMonth ? supabase.from('votes').select('game_id, user_id').eq('vote_month', voteMonth) : Promise.resolve({ data: [], error: null }),
+    fetchUserPlatforms(supabase, profileId, false),
   ]);
   if (profileError) throw profileError;
   if (backlogError) throw backlogError;
@@ -155,5 +171,6 @@ export async function fetchProfileWithGames(supabase: SupabaseClient, profileId:
     completed: (completed || []).map(item => item.games) as unknown as Game[],
     votedGameIds: votes.filter(item => item.user_id === profileId).map(item => item.game_id),
     rankingGameIds: Array.from(new Set(votes.map(item => item.game_id))),
+    platforms,
   };
 }

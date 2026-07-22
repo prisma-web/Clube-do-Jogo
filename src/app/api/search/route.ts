@@ -64,6 +64,7 @@ export async function GET(request: Request) {
         trailer_url: game.trailer_url,
         genres: game.genres,
         platforms: game.platforms,
+        platform_ids: game.platform_ids,
       };
 
       let { data: inserted, error: insertError } = await supabase
@@ -73,14 +74,14 @@ export async function GET(request: Request) {
         .single();
 
       if (insertError && insertError.code === 'PGRST204') {
-        const { average_rating, release_year, screenshot_urls, trailer_url, genres, platforms, ...legacyPayload } = gamePayload;
+        const { average_rating, release_year, screenshot_urls, trailer_url, genres, platforms, platform_ids, ...legacyPayload } = gamePayload;
         const retry = await supabase
           .from('games')
           .insert(legacyPayload)
           .select()
           .single();
 
-        inserted = retry.data ? { ...retry.data, average_rating, release_year, screenshot_urls, trailer_url, genres, platforms } : retry.data;
+        inserted = retry.data ? { ...retry.data, average_rating, release_year, screenshot_urls, trailer_url, genres, platforms, platform_ids } : retry.data;
         insertError = retry.error;
       }
 
@@ -102,6 +103,7 @@ export async function GET(request: Request) {
             trailer_url: existing.trailer_url ?? game.trailer_url,
             genres: existing.genres?.length ? existing.genres : game.genres,
             platforms: existing.platforms?.length ? existing.platforms : game.platforms,
+            platform_ids: existing.platform_ids?.length ? existing.platform_ids : game.platform_ids,
           };
           const shouldUpdateMetadata =
             (existing.average_rating === null && game.average_rating !== null) ||
@@ -110,7 +112,8 @@ export async function GET(request: Request) {
             (!existing.screenshot_urls?.length && game.screenshot_urls.length > 0) ||
             (!existing.trailer_url && game.trailer_url) ||
             (!existing.genres?.length && game.genres.length > 0) ||
-            (!existing.platforms?.length && game.platforms.length > 0);
+            (!existing.platforms?.length && game.platforms.length > 0) ||
+            (!existing.platform_ids?.length && game.platform_ids.length > 0);
 
           if (shouldUpdateMetadata) {
             const { data: updated, error: updateError } = await supabase

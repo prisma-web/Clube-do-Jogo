@@ -25,6 +25,7 @@ export const demoGames: Game[] = [
     trailer_url: 'https://www.youtube.com/watch?v=91t0ha9x0AE',
     genres: ['Hack and slash', 'Roguelike'],
     platforms: ['Nintendo Switch', 'PC (Microsoft Windows)', 'PlayStation 5', 'Xbox Series X|S'],
+    platform_ids: [130, 6, 167, 169],
   },
   {
     id: 'hollow-knight', igdb_id: 113112, title: 'Hollow Knight', duration_hours: 27, average_rating: 91, release_year: 2017,
@@ -42,6 +43,9 @@ export const demoGames: Game[] = [
     id: 'outer-wilds', title: 'Outer Wilds', duration_hours: 17, average_rating: 92, release_year: 2019,
     image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co65ac.jpg', description: 'Um mistério de mundo aberto sobre um sistema solar preso em um loop temporal infinito.',
     screenshot_urls: [], trailer_url: 'https://www.youtube.com/watch?v=d6LGnVCL1_A',
+    genres: ['Adventure', 'Puzzle'],
+    platforms: ['Nintendo Switch', 'PC (Microsoft Windows)', 'PlayStation 4', 'Xbox One'],
+    platform_ids: [130, 6, 48, 49],
   },
   {
     id: 'celeste', title: 'Celeste', duration_hours: 8, average_rating: 91, release_year: 2018,

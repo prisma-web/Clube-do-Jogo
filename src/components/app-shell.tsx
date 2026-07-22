@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Gamepad2, Library, Trophy, UserRound } from 'lucide-react';
+import { Gamepad2, Trophy, UserRound } from 'lucide-react';
 import { useApp } from './app-provider';
 import { AuthScreen } from './auth-screen';
 import { MonthSelector } from './month-selector';
@@ -13,7 +13,6 @@ import { cn } from '@/lib/utils';
 const navigation = [
   { href: '/jogo-do-mes', label: 'Jogo do mês', icon: Gamepad2 },
   { href: '/ranking', label: 'Ranking', icon: Trophy },
-  { href: '/seus-jogos', label: 'Seus jogos', icon: Library },
   { href: '/perfil', label: 'Perfil', icon: UserRound },
 ];
 
@@ -105,7 +104,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       <main className="relative z-10 mx-auto w-full max-w-5xl overflow-x-clip px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 sm:pt-7 min-[960px]:ml-56 min-[960px]:w-[calc(100%-14rem)] min-[960px]:max-w-none min-[960px]:px-4 min-[960px]:pb-12 min-[960px]:pt-8">{children}</main>
       <nav aria-label="Navegação principal" className={cn('theme-nav fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-2xl border-t border-white/[0.08] pb-[max(.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-2xl transition-transform duration-150 ease-[cubic-bezier(.22,1,.36,1)] min-[960px]:hidden', navVisible ? 'translate-y-0' : 'translate-y-[calc(100%+env(safe-area-inset-bottom))]')}>
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-3">
           {navigation.map(item => {
             const active = isNavigationActive(pathname, item.href);
             const Icon = item.icon;

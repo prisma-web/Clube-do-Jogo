@@ -10,6 +10,14 @@ export interface IGDBGameResult {
   trailer_url: string | null;
   genres: string[];
   platforms: string[];
+  platform_ids: number[];
+}
+
+export interface IGDBPlatformResult {
+  id: number;
+  name: string;
+  abbreviation: string | null;
+  logo_url: string | null;
 }
 
 interface IGDBGame {
@@ -26,7 +34,14 @@ interface IGDBGame {
   screenshots?: Array<{ image_id?: string }>;
   videos?: Array<{ video_id?: string }>;
   genres?: Array<{ name?: string }>;
-  platforms?: Array<{ name?: string }>;
+  platforms?: Array<{ id?: number; name?: string }>;
+}
+
+interface IGDBPlatform {
+  id: number;
+  name: string;
+  abbreviation?: string;
+  platform_logo?: { image_id?: string };
 }
 
 // Cache do token de acesso em memória para evitar requisições repetidas
@@ -64,6 +79,48 @@ async function getTwitchToken(): Promise<string> {
   return cachedToken.token;
 }
 
+function escapeSearchQuery(query: string) {
+  return query.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function platformMetadata(platforms: IGDBGame['platforms']) {
+  const seen = new Set<number>();
+  const entries = (platforms || []).flatMap(platform => {
+    if (!platform.id || !platform.name || seen.has(platform.id)) return [];
+    seen.add(platform.id);
+    return [platform];
+  });
+  return {
+    platforms: entries.map(platform => platform.name!),
+    platform_ids: entries.map(platform => platform.id!),
+  };
+}
+
+export async function searchPlatformsWithIGDB(query: string): Promise<IGDBPlatformResult[]> {
+  const clientId = process.env.IGDB_CLIENT_ID;
+  if (!clientId) throw new Error('IGDB_CLIENT_ID não configurado.');
+  const token = await getTwitchToken();
+  const response = await fetch('https://api.igdb.com/v4/platforms', {
+    method: 'POST',
+    headers: {
+      'Client-ID': clientId,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'text/plain',
+    },
+    body: `search "${escapeSearchQuery(query)}"; fields name, abbreviation, platform_logo.image_id; limit 12;`,
+  });
+  if (!response.ok) throw new Error(`Erro na busca de plataformas IGDB: ${await response.text()}`);
+  const platforms: IGDBPlatform[] = await response.json();
+  return (platforms || []).map(platform => ({
+    id: platform.id,
+    name: platform.name,
+    abbreviation: platform.abbreviation ?? null,
+    logo_url: platform.platform_logo?.image_id
+      ? `https://images.igdb.com/igdb/image/upload/t_logo_med/${platform.platform_logo.image_id}.png`
+      : null,
+  }));
+}
+
 export async function searchGamesWithIGDB(query: string): Promise<IGDBGameResult[]> {
   const clientId = process.env.IGDB_CLIENT_ID;
   if (!clientId) throw new Error('IGDB_CLIENT_ID não configurado.');
@@ -79,8 +136,8 @@ export async function searchGamesWithIGDB(query: string): Promise<IGDBGameResult
       'Content-Type': 'text/plain',
     },
     body: `
-      search "${query}";
-      fields name, summary, cover.image_id, screenshots.image_id, videos.video_id, genres.name, platforms.name, game_type, first_release_date, total_rating, rating, aggregated_rating;
+      search "${escapeSearchQuery(query)}";
+      fields name, summary, cover.image_id, screenshots.image_id, videos.video_id, genres.name, platforms.id, platforms.name, game_type, first_release_date, total_rating, rating, aggregated_rating;
       where version_parent = null & cover != null;
       limit 5;
     `,
@@ -137,7 +194,7 @@ export async function searchGamesWithIGDB(query: string): Promise<IGDBGameResult
         : []);
       const trailerUrl = game.videos?.[0]?.video_id ? `https://www.youtube.com/watch?v=${game.videos[0].video_id}` : null;
       const genres = Array.from(new Set((game.genres || []).flatMap(genre => genre.name ? [genre.name] : [])));
-      const platforms = Array.from(new Set((game.platforms || []).flatMap(platform => platform.name ? [platform.name] : [])));
+      const platformData = platformMetadata(game.platforms);
 
       return {
         id: game.id,
@@ -150,7 +207,7 @@ export async function searchGamesWithIGDB(query: string): Promise<IGDBGameResult
         screenshot_urls: screenshotUrls,
         trailer_url: trailerUrl,
         genres,
-        platforms,
+        ...platformData,
       };
     })
   );
@@ -172,7 +229,7 @@ export async function getGameByIGDBId(igdbId: number): Promise<IGDBGameResult | 
       'Content-Type': 'text/plain',
     },
     body: `
-      fields name, summary, cover.image_id, screenshots.image_id, videos.video_id, genres.name, platforms.name, first_release_date, total_rating, rating, aggregated_rating;
+      fields name, summary, cover.image_id, screenshots.image_id, videos.video_id, genres.name, platforms.id, platforms.name, first_release_date, total_rating, rating, aggregated_rating;
       where id = ${igdbId};
       limit 1;
     `,
@@ -223,7 +280,7 @@ export async function getGameByIGDBId(igdbId: number): Promise<IGDBGameResult | 
     : []);
   const trailerUrl = game.videos?.[0]?.video_id ? `https://www.youtube.com/watch?v=${game.videos[0].video_id}` : null;
   const genres = Array.from(new Set((game.genres || []).flatMap(genre => genre.name ? [genre.name] : [])));
-  const platforms = Array.from(new Set((game.platforms || []).flatMap(platform => platform.name ? [platform.name] : [])));
+  const platformData = platformMetadata(game.platforms);
 
   return {
     id: game.id,
@@ -236,6 +293,6 @@ export async function getGameByIGDBId(igdbId: number): Promise<IGDBGameResult | 
     screenshot_urls: screenshotUrls,
     trailer_url: trailerUrl,
     genres,
-    platforms,
+    ...platformData,
   };
 }

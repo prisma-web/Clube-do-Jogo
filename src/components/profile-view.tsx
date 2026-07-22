@@ -15,6 +15,7 @@ import { GameListCard } from './game-list-card';
 import { ListSkeleton, Skeleton } from './ui/skeleton';
 import { ThemeSelector } from './theme-selector';
 import { useUrlDialog, useUrlTab } from '@/hooks/use-url-state';
+import { YourGamesPanel } from '@/app/seus-jogos/page';
 
 export function ProfileView({ profileId, own = false, showThemeSelector = false }: { profileId: string; own?: boolean; showThemeSelector?: boolean }) {
   const supabase = useMemo(() => createClient(), []);
@@ -72,11 +73,11 @@ export function ProfileView({ profileId, own = false, showThemeSelector = false 
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-[10px] font-bold text-zinc-500"><span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/5 px-2.5 py-1.5"><Library className="size-3" />{data.backlog.length} no backlog</span><span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/5 px-2.5 py-1.5"><CheckCircle2 className="size-3" />{formatFinishedCount(data.completed.length)}</span>{person.created_at && <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/5 px-2.5 py-1.5"><CalendarDays className="size-3" />Desde {formatDate(person.created_at)}</span>}</div>
       </section>
 
-      <Tabs.Root value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
+      {own ? <YourGamesPanel embedded /> : <Tabs.Root value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
         <Tabs.List className="app-tabs mb-5 grid grid-cols-2 rounded-2xl border border-white/8 bg-white/[0.025] p-1.5"><Tabs.Trigger value="backlog" className="whitespace-nowrap rounded-xl py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300">Backlog</Tabs.Trigger><Tabs.Trigger value="completed" className="whitespace-nowrap rounded-xl py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-300">Finalizados</Tabs.Trigger></Tabs.List>
         <Tabs.Content value="backlog" className="outline-none data-[state=active]:animate-fade-in">{data.backlog.length ? <div ref={backlogParent} className="space-y-3">{data.backlog.map(game => <GameListCard key={game.id} game={game} />)}</div> : <Empty text="Nenhum jogo no backlog." />}</Tabs.Content>
         <Tabs.Content value="completed" className="outline-none data-[state=active]:animate-fade-in">{data.completed.length ? <div ref={completedParent} className="space-y-3">{data.completed.map(game => <GameListCard key={game.id} game={game} />)}</div> : <Empty text="Nenhum jogo finalizado." />}</Tabs.Content>
-      </Tabs.Root>
+      </Tabs.Root>}
 
       {showThemeSelector && <ThemeSelector />}
       {own && <div className="mt-5 border-t border-white/8 pt-5"><button onClick={() => void signOut()} className="danger-action inline-flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-red-500/15 bg-red-500/[0.06] px-4 text-xs font-extrabold text-red-300 transition hover:bg-red-500/10"><LogOut className="size-4" />Sair da conta</button></div>}
