@@ -14,7 +14,7 @@ export function GameListCard({ game, action, badge }: { game: Game; action?: Rea
           <Link href={`/jogos/${game.id}`} className="block truncate text-sm font-extrabold text-zinc-100 hover:text-violet-300">{game.title}</Link>
           <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-zinc-500">
             <span className="inline-flex items-center gap-1 whitespace-nowrap"><Clock3 className="size-3" />{game.duration_hours} h</span>
-            {game.average_rating && <span className="inline-flex items-center gap-1 whitespace-nowrap text-amber-400"><Star className="size-3 fill-current" />{Math.round(game.average_rating / 10).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</span>}
+            {game.average_rating !== null && game.average_rating !== undefined && <span className="inline-flex items-center gap-1 whitespace-nowrap text-amber-400"><Star className="size-3 fill-current" />{(game.average_rating / 10).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</span>}
             {game.release_year && <span className="inline-flex items-center gap-1 whitespace-nowrap"><CalendarDays className="size-3" />{game.release_year}</span>}
           </div>
         </div>

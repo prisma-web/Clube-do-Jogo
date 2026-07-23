@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { CalendarDays, Clock3, Gamepad2, Library, Plus, Search, Star, Trash2 } from 'lucide-react';
+import { CalendarDays, Clock3, Flag, Gamepad2, Library, Plus, Search, Star, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchProfileWithGames } from '@/lib/data';
 import type { Game, UserPlatform } from '@/lib/types';
@@ -219,9 +219,9 @@ export function YourGamesPanel({ embedded = false }: { embedded?: boolean }) {
 
       <Tabs.Root value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
         <Tabs.List className="app-tabs grid grid-cols-3 rounded-2xl border border-white/8 bg-white/[0.025] p-1.5">
-          <Tabs.Trigger value="backlog" className="rounded-xl px-3 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300">Backlog · {data?.backlog.length || 0}</Tabs.Trigger>
-          <Tabs.Trigger value="completed" className="rounded-xl px-3 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-300">Finalizados · {data?.completed.length || 0}</Tabs.Trigger>
-          <Tabs.Trigger value="platforms" className="rounded-xl px-2 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-300">Meus Consoles</Tabs.Trigger>
+          <Tabs.Trigger value="backlog" className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300"><span className="inline-flex items-center gap-1.5 leading-none"><span className="tabular-nums">{data?.backlog.length || 0}</span><Library className="size-5 shrink-0" /></span><span className="leading-none">Backlog</span></Tabs.Trigger>
+          <Tabs.Trigger value="completed" className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-300"><span className="inline-flex items-center gap-1.5 leading-none"><span className="tabular-nums">{data?.completed.length || 0}</span><Flag className="size-5 shrink-0" /></span><span className="leading-none">Finalizados</span></Tabs.Trigger>
+          <Tabs.Trigger value="platforms" className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-300"><span className="inline-flex items-center gap-1.5 leading-none"><span className="tabular-nums">{data?.platforms.length || 0}</span><Gamepad2 className="size-5 shrink-0" /></span><span className="leading-none">Consoles</span></Tabs.Trigger>
         </Tabs.List>
         <div className="my-4 flex justify-end">
           <Dialog open={addDialog.open} onOpenChange={open => open ? addDialog.show() : addDialog.close()}>
@@ -244,7 +244,7 @@ export function YourGamesPanel({ embedded = false }: { embedded?: boolean }) {
           </>} />;
         })}</div> : <Empty title="Seu backlog está vazio" description="Adicione jogos aqui sem interferir no ranking." />}</Tabs.Content>
         <Tabs.Content value="completed" className="outline-none data-[state=active]:animate-tab-in">{query.isInitialLoading ? <ListSkeleton /> : data?.completed.length ? <div ref={completedParent} className="space-y-3">{data.completed.map(game => <GameListCard key={game.id} game={game} action={<><GameActionButton kind="completed" active onClick={() => void markFinished(game, false)} className="h-8 rounded-lg px-2.5 text-[10px]" />{voteAction(game)}</>} />)}</div> : <Empty title="Nenhum jogo finalizado" description="Os jogos concluídos aparecerão aqui." />}</Tabs.Content>
-        <Tabs.Content value="platforms" className="outline-none data-[state=active]:animate-tab-in">{query.isInitialLoading ? <ListSkeleton /> : data?.platforms.length ? <div className="flex flex-wrap gap-2">{data.platforms.map(platform => <span key={platform.igdb_platform_id} className="inline-flex h-10 items-center gap-2 rounded-lg border border-cyan-400/15 bg-cyan-500/[.07] py-1 pl-2 pr-1 text-xs font-bold text-cyan-100">{platform.logo_url ? <img src={platform.logo_url} alt="" className="size-6 object-contain" /> : <Gamepad2 className="size-4 text-cyan-300" />}<span>{platform.name}</span><button type="button" onClick={() => void removePlatform(platform)} aria-label={`Remover ${platform.name}`} title={`Remover ${platform.name}`} className="grid size-7 place-items-center rounded-md text-cyan-200 transition hover:bg-red-500/15 hover:text-red-300"><Trash2 className="size-3.5" /></button></span>)}</div> : <Empty title="Nenhum console adicionado" description="Adicione os consoles que você tem para ver quais jogos são compatíveis." />}</Tabs.Content>
+        <Tabs.Content value="platforms" className="outline-none data-[state=active]:animate-tab-in">{query.isInitialLoading ? <ListSkeleton /> : data?.platforms.length ? <div className="flex flex-wrap gap-2">{data.platforms.map(platform => <span key={platform.igdb_platform_id} className="inline-flex h-10 items-center gap-2 rounded-lg border border-cyan-400/15 bg-cyan-500/[.07] py-1 pl-3 pr-1 text-xs font-bold text-cyan-100"><span>{platform.name}</span><button type="button" onClick={() => void removePlatform(platform)} aria-label={`Remover ${platform.name}`} title={`Remover ${platform.name}`} className="grid size-7 place-items-center rounded-md text-cyan-200 transition hover:bg-red-500/15 hover:text-red-300"><Trash2 className="size-3.5" /></button></span>)}</div> : <Empty title="Nenhum console adicionado" description="Adicione os consoles que você tem para ver quais jogos são compatíveis." />}</Tabs.Content>
         </Tabs.Root>
     </div>
   );

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from 'motion/react';
-import { Check, CheckCircle2, ChevronDown, ChevronUp, CircleHelp, Clock3, Library, MoreHorizontal, Plus, Search, ThumbsUp, Trophy } from 'lucide-react';
+import { Check, CheckCircle2, ChevronDown, ChevronUp, CircleHelp, Clock3, Library, MoreHorizontal, Plus, Search, Star, ThumbsUp, Trophy } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchRankingData } from '@/lib/data';
 import type { Game, RankingItem } from '@/lib/types';
@@ -29,7 +29,7 @@ function AnimatedCount({ count, label, className }: { count: number; label: stri
       <AnimatePresence initial={false} mode="popLayout">
         <motion.span key={count} initial={{ opacity: 0, y: 7, scale: 0.72 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -7, scale: 0.72 }} transition={rankingMotion} className="inline-block tabular-nums">{count}</motion.span>
       </AnimatePresence>
-      {' '}{label}
+      <span className="ml-1">{label}</span>
     </span>
   );
 }
@@ -220,7 +220,7 @@ export default function RankingPage() {
                 <Link href={`/jogos/${item.game.id}`} className="h-[112px] w-[82px] shrink-0 overflow-hidden rounded-xl bg-zinc-900 min-[380px]:h-[120px] min-[380px]:w-[88px]"><img src={item.game.image_url} alt={`Capa de ${item.game.title}`} className="size-full object-cover" /></Link>
                 <div className={`flex min-w-0 flex-1 flex-col justify-center py-1 ${isAdmin ? 'pr-16' : 'pr-7'}`}>
                   <Link href={`/jogos/${item.game.id}`} className="block break-words text-sm font-extrabold leading-snug hover:text-violet-300">{item.game.title}</Link>
-                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-zinc-500"><span className="inline-flex items-center gap-1 whitespace-nowrap"><Clock3 className="size-3" />{item.game.duration_hours} h</span><AnimatedCount count={item.votesCount} label={item.votesCount === 1 ? 'voto' : 'votos'} className="inline-flex whitespace-nowrap" /></div>
+                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-zinc-500"><span className="inline-flex items-center gap-1 whitespace-nowrap"><Clock3 className="size-3" />{item.game.duration_hours} h</span><AnimatedCount count={item.votesCount} label={item.votesCount === 1 ? 'voto' : 'votos'} className="inline-flex whitespace-nowrap" />{item.game.average_rating !== null && item.game.average_rating !== undefined && <span className="inline-flex items-center gap-1 whitespace-nowrap text-amber-400"><Star className="size-3 fill-current" />{(item.game.average_rating / 10).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</span>}</div>
                   <div className="ranking-score mt-2.5 whitespace-nowrap text-2xl font-black leading-none text-emerald-400"><AnimatedPoints value={item.totalPoints} /><span className="ml-1 text-[10px] font-bold text-zinc-500">pts</span></div>
                 </div>
               </div>

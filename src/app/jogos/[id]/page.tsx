@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import * as Tabs from '@radix-ui/react-tabs';
 import { CalendarDays, CheckCircle2, Clock3, Flag, Gamepad2, ImageIcon, NotebookPen, Share2, Star, ThumbsUp, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { demoRanking } from '@/lib/demo-data';
@@ -155,12 +156,16 @@ export default function GamePage() {
 
   const trailer = youtubeEmbedUrl(game.trailer_url);
   const screenshots = game.screenshot_urls || [];
-  const galleryImages = screenshots.length ? screenshots : [game.image_url];
+  const galleryImages = Array.from(new Set([game.image_url, ...screenshots].filter(Boolean)));
   const playtimePoints = game.duration_hours < 8 ? 1 : game.duration_hours <= 15 ? 3 : game.duration_hours <= 20 ? 2 : 1;
   const ratingMultiplier = Number(game.average_rating ?? 50) / 100;
   const completionPenalty = people.completed.length ? people.completed.length * 2 : 1;
   const totalPoints = Math.round(((people.voters.length * 2 * playtimePoints * ratingMultiplier) / completionPenalty) * 10) / 10;
   const starCount = game.average_rating === null || game.average_rating === undefined ? null : Math.round(game.average_rating / 20);
+  const rating = game.average_rating === null || game.average_rating === undefined ? null : (game.average_rating / 10).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  const orderedPlatforms = (game.platforms || [])
+    .map((name, index) => ({ name, platformId: game.platform_ids?.[index] ?? -1, index }))
+    .sort((first, second) => Number(ownedPlatformIds.has(second.platformId)) - Number(ownedPlatformIds.has(first.platformId)) || first.index - second.index);
 
   const backlogAction = people.inBacklog ? (
     <DropdownMenu.Root>
@@ -183,7 +188,7 @@ export default function GamePage() {
         <div className="mt-4 flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-wrap gap-2 text-sm font-bold text-zinc-400">
             <span className="inline-flex items-center gap-2 rounded-lg bg-white/[.07] px-3 py-2"><Clock3 className="size-4 text-zinc-500" />{game.duration_hours}h</span>
-            <span className="inline-flex items-center gap-2 rounded-lg bg-white/[.07] px-3 py-2">{starCount === null ? <span className="text-xs text-zinc-500">Sem nota</span> : <span className="flex text-amber-300">{Array.from({ length: 5 }, (_, index) => <Star key={index} className={`size-4 ${index < starCount ? 'fill-current' : 'text-zinc-600'}`} />)}</span>}</span>
+            <span className="inline-flex items-center gap-2 rounded-lg bg-white/[.07] px-3 py-2">{starCount === null ? <span className="text-xs text-zinc-500">Sem nota</span> : <><span className="tabular-nums text-zinc-300">{rating}</span><span className="flex text-amber-300">{Array.from({ length: 5 }, (_, index) => <Star key={index} className={`size-4 ${index < starCount ? 'fill-current' : 'text-zinc-600'}`} />)}</span></>}</span>
             {game.release_year && <span className="inline-flex items-center gap-2 rounded-lg bg-white/[.07] px-3 py-2"><CalendarDays className="size-4 text-zinc-500" />{game.release_year}</span>}
           </div>
           <button onClick={() => void shareGame()} aria-label="Compartilhar jogo" title="Compartilhar jogo" className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/[.07] text-zinc-400 transition hover:bg-white/[.12] hover:text-white"><Share2 className="size-4" /></button>
@@ -200,11 +205,11 @@ export default function GamePage() {
         </div>
         <div className="mt-7 space-y-8">
           <div className="min-w-0">
-            <div className="mb-3 flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-2xl font-black" style={{ color: 'var(--support-vote)' }}><ThumbsUp className="size-6 fill-current" />Votos</h3><GameActionButton kind="vote" active={people.votedByMe} disabled={isHistorical} onClick={() => void toggleVote()} className="h-10 px-4 text-sm" /></div>
+            <div className="mb-3 flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-base font-black" style={{ color: 'var(--support-vote)' }}><ThumbsUp className="size-5 fill-current" />Votos</h3><GameActionButton kind="vote" active={people.votedByMe} disabled={isHistorical} onClick={() => void toggleVote()} className="h-10 px-4 text-sm" /></div>
             <ParticipantsDialog dialogId={`${params.id}-votes`} voters={people.voters} completed={people.completed}><button className="block w-full text-left" aria-label="Ver pessoas que votaram"><PeoplePreview people={people.voters} empty="Ainda ninguém votou." /></button></ParticipantsDialog>
           </div>
           <div className="min-w-0">
-            <div className="mb-3 flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-2xl font-black" style={{ color: 'var(--support-completed)' }}><Flag className="size-6 fill-current" />Finalizei</h3><GameActionButton kind="completed" active={people.completedByMe} disabled={isHistorical} onClick={() => void toggleCompleted()} className="h-10 px-4 text-sm" /></div>
+            <div className="mb-3 flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-base font-black" style={{ color: 'var(--support-completed)' }}><Flag className="size-5 fill-current" />Finalizei</h3><GameActionButton kind="completed" active={people.completedByMe} disabled={isHistorical} onClick={() => void toggleCompleted()} className="h-10 px-4 text-sm" /></div>
             <ParticipantsDialog dialogId={`${params.id}-completed`} voters={people.voters} completed={people.completed} initialTab="completed"><button className="block w-full text-left" aria-label="Ver pessoas que finalizaram"><PeoplePreview people={people.completed} empty="Ainda ninguém finalizou." /></button></ParticipantsDialog>
           </div>
         </div>
@@ -212,18 +217,20 @@ export default function GamePage() {
 
       {(game.genres?.length || game.platforms?.length) && <section className="mt-12 space-y-7">
         {game.genres?.length ? <div><h2 className="text-2xl font-black tracking-[-0.02em]">Gênero</h2><div className="mt-3 flex flex-wrap gap-2">{game.genres.map(genre => <span key={genre} className="rounded-lg bg-white/[.09] px-3 py-2 text-sm font-semibold text-zinc-400">{genre}</span>)}</div></div> : null}
-        {game.platforms?.length ? <div><h2 className="text-2xl font-black tracking-[-0.02em]">Plataformas</h2><div className="mt-3 flex flex-wrap gap-2">{game.platforms.map((platform, index) => { const owned = ownedPlatformIds.has(game.platform_ids?.[index] ?? -1); return <span key={platform} className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ${owned ? 'border border-emerald-400/25 bg-emerald-500/[.12] text-emerald-200' : 'bg-white/[.09] text-zinc-400'}`}>{owned && <CheckCircle2 className="size-4 shrink-0" />}{platform}</span>; })}</div></div> : null}
+        {orderedPlatforms.length ? <div><h2 className="text-2xl font-black tracking-[-0.02em]">Plataformas</h2><div className="mt-3 flex flex-wrap gap-2">{orderedPlatforms.map(platform => { const owned = ownedPlatformIds.has(platform.platformId); return <span key={platform.name} className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ${owned ? 'border border-emerald-400/25 bg-emerald-500/[.12] text-emerald-200' : 'bg-white/[.09] text-zinc-400'}`}>{owned && <CheckCircle2 className="size-4 shrink-0" />}{platform.name}</span>; })}</div></div> : null}
       </section>}
 
       <section className="mt-12"><div className="mb-4 flex items-center gap-2"><ImageIcon className="size-5 text-zinc-400" /><h2 className="text-2xl font-black tracking-[-0.02em]">Galeria</h2></div><GameGallery title={game.title} images={galleryImages} /></section>
 
       {!isPreview && <section className="mt-14 border-t border-white/8 pt-10">
-        <ProgressList game={game} />
-      </section>}
-
-      {!isPreview && <section className="mt-14 border-t border-white/8 pt-10">
-        <div className="mb-4 flex items-center gap-2"><NotebookPen className="size-5 text-violet-400" /><h2 className="text-2xl font-black tracking-[-0.02em]">Anotações</h2></div>
-        <NotesChat game={game} />
+        <Tabs.Root defaultValue="progress">
+          <Tabs.List aria-label="Detalhes do clube" className="flex w-full gap-2 border-b border-white/8">
+            <Tabs.Trigger value="progress" className="inline-flex items-center gap-2 border-b-2 border-transparent px-3 py-3 text-sm font-extrabold text-zinc-500 outline-none transition data-[state=active]:border-violet-400 data-[state=active]:text-white"><CheckCircle2 className="size-4" />Progresso</Tabs.Trigger>
+            <Tabs.Trigger value="notes" className="inline-flex items-center gap-2 border-b-2 border-transparent px-3 py-3 text-sm font-extrabold text-zinc-500 outline-none transition data-[state=active]:border-violet-400 data-[state=active]:text-white"><NotebookPen className="size-4" />Anotações</Tabs.Trigger>
+          </Tabs.List>
+          <Tabs.Content value="progress" className="pt-6 outline-none"><ProgressList game={game} /></Tabs.Content>
+          <Tabs.Content value="notes" className="pt-6 outline-none"><NotesChat game={game} /></Tabs.Content>
+        </Tabs.Root>
       </section>}
     </div>
   );

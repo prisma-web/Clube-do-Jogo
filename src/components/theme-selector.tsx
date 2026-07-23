@@ -5,15 +5,15 @@ import { motion } from 'motion/react';
 import { visibleThemes } from '@/lib/themes';
 import { useApp } from './app-provider';
 
-export function ThemeSelector() {
+export function ThemeSelector({ compact = false }: { compact?: boolean }) {
   const { theme, setTheme } = useApp();
 
   return (
-    <section className="theme-settings mt-8 border-t border-white/8 pt-5" aria-labelledby="theme-title">
-      <div className="mb-3 flex items-start gap-3">
+    <section className={compact ? '' : 'theme-settings mt-8 border-t border-white/8 pt-5'}>
+      {!compact && <div className="mb-3 flex items-start gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-violet-300"><Palette className="size-4" /></span>
-        <div><h2 id="theme-title" className="text-sm font-extrabold">Tema visual</h2><p className="mt-0.5 text-[11px] text-zinc-500">Salvo somente neste dispositivo.</p></div>
-      </div>
+        <div><h2 className="text-sm font-extrabold">Tema visual</h2><p className="mt-0.5 text-[11px] text-zinc-500">Salvo somente neste dispositivo.</p></div>
+      </div>}
       <div role="radiogroup" aria-label="Tema visual" className="grid gap-2 sm:grid-cols-2">
         {visibleThemes.map(option => {
           const selected = option.id === theme;
