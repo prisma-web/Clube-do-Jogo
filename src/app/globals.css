@@ -1562,6 +1562,17 @@ iframe {
   76% { opacity: .9; transform: translate3d(var(--light-drift), -38px, 0) scale(1.18); }
 }
 
+@keyframes ori-selected-wisps {
+  0%, 100% {
+    background-position: -32px 14px, 18px -19px, 82px 7px;
+    opacity: .44;
+  }
+  50% {
+    background-position: 84px 9px, 34px -6px, -28px 12px;
+    opacity: .82;
+  }
+}
+
 :root[data-theme='ori'] .theme-pattern {
   background-color: #030a16;
   background-image:
@@ -1608,26 +1619,32 @@ iframe {
   box-shadow: 16px 0 50px rgb(0 5 13 / 36%);
 }
 :root[data-theme='ori'] .theme-logo {
-  border: 1px solid rgb(219 251 255 / 72%);
+  border: 1px solid rgb(66 210 235 / 92%);
   border-radius: 48% 52% 46% 54% / 55% 44% 56% 45% !important;
   background:
-    radial-gradient(circle at 38% 30%, #fff 0 6%, #dffcff 18%, #63d9ed 48%, #164b71 78%, #071a35);
-  color: #02101d;
+    radial-gradient(circle at 50% 45%, #fff 0 24%, #effeff 36%, #bdf5fb 52%, #62d8e9 72%, #1788aa 100%);
+  color: #147b9d;
   box-shadow:
-    0 0 0 3px rgb(85 221 244 / 9%),
-    0 0 18px rgb(169 241 255 / 42%),
-    0 0 38px rgb(55 171 223 / 20%),
-    inset -5px -7px 12px rgb(4 38 67 / 46%);
+    0 0 0 3px rgb(85 221 244 / 11%),
+    0 0 12px 2px rgb(46 196 226 / 58%),
+    0 0 20px 3px rgb(31 161 207 / 32%),
+    inset 0 1px 2px #fff,
+    inset 0 -4px 9px rgb(13 116 151 / 24%);
 }
 :root[data-theme='ori'] :where(h1, h2, .game-month-title, .reward-title) {
   font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
   font-weight: 700;
   letter-spacing: .005em;
 }
-:root[data-theme='ori'] .theme-nav [aria-current='page'] {
-  background: linear-gradient(90deg, rgb(85 221 244 / 15%), rgb(85 221 244 / 3%)) !important;
+:root[data-theme='ori'] .theme-sidebar [aria-current='page'] {
+  background:
+    radial-gradient(ellipse at 34% 48%, rgb(151 239 252 / 17%), transparent 62%),
+    rgb(9 36 54 / 78%) !important;
   color: #bff8ff !important;
-  box-shadow: inset 2px 0 #9cf3ff, 0 0 18px rgb(85 221 244 / 6%);
+  box-shadow:
+    inset 0 0 0 1px rgb(184 244 253 / 20%),
+    inset 0 0 22px rgb(85 221 244 / 8%),
+    0 0 18px rgb(85 221 244 / 7%);
 }
 :root[data-theme='ori'] main :where(article, section[class*='border']),
 :root[data-theme='ori'] :where(
@@ -1733,12 +1750,36 @@ iframe {
 :root[data-theme='ori'] .game-action-backlog[data-active='true'] { border-color: rgb(88 201 236 / 52%) !important; background: rgb(19 77 105 / 66%) !important; color: #c8f4ff !important; }
 :root[data-theme='ori'] button.bg-violet-600:not(:disabled),
 :root[data-theme='ori'] .reward-primary {
-  border: 1px solid rgb(209 250 255 / 55%);
-  background: linear-gradient(110deg, #dffcff, #71e2f2 47%, #36bad7) !important;
-  color: #031624 !important;
-  box-shadow: 0 0 18px rgb(100 225 244 / 18%), inset 0 1px #fff;
+  border: 1px solid rgb(66 210 235 / 92%);
+  border-radius: 999px !important;
+  background:
+    radial-gradient(ellipse at 50% 44%, #fff 0 24%, #f0feff 38%, #c9f8fc 55%, #70dfed 76%, #24a8c7 100%) !important;
+  color: #147b9d !important;
+  text-shadow: 0 1px rgb(255 255 255 / 62%);
+  box-shadow:
+    0 0 0 2px rgb(85 221 244 / 8%),
+    0 0 13px 2px rgb(47 197 226 / 42%),
+    0 0 20px 3px rgb(33 166 211 / 28%),
+    inset 0 1px 2px #fff,
+    inset 0 -2px 5px rgb(13 116 151 / 20%);
 }
-:root[data-theme='ori'] button.bg-violet-600:not(:disabled):hover { filter: brightness(1.08); }
+:root[data-theme='ori'] button.bg-violet-600:not(:disabled):hover {
+  filter: brightness(1.05) saturate(1.06);
+  box-shadow:
+    0 0 0 2px rgb(85 221 244 / 12%),
+    0 0 17px 3px rgb(53 207 235 / 58%),
+    0 0 23px 3px rgb(33 166 211 / 34%),
+    inset 0 1px 2px #fff,
+    inset 0 -2px 5px rgb(13 116 151 / 17%);
+}
+:root[data-theme='ori'] .comment-composer button.bg-violet-600:disabled {
+  border: 1px solid rgb(126 207 222 / 18%);
+  background:
+    radial-gradient(ellipse at 50% 44%, rgb(103 163 175 / 20%), rgb(24 73 91 / 40%) 62%, rgb(7 35 52 / 72%)) !important;
+  color: #6f9ba5 !important;
+  opacity: 1;
+  box-shadow: inset 0 1px rgb(211 249 255 / 5%), 0 0 12px rgb(85 221 244 / 4%);
+}
 :root[data-theme='ori'] .app-tabs {
   border-color: rgb(137 224 240 / 16%) !important;
   background: rgb(3 17 31 / 82%) !important;
@@ -1772,10 +1813,15 @@ iframe {
   background: rgb(9 36 54 / 72%);
 }
 :root[data-theme='ori'] .month-popup-item[data-selected='true'] {
-  border-color: rgb(157 238 250 / 22%);
-  background: linear-gradient(90deg, rgb(85 221 244 / 16%), rgb(85 221 244 / 4%));
+  border-color: rgb(181 241 251 / 30%);
+  background:
+    radial-gradient(ellipse at 34% 48%, rgb(151 239 252 / 18%), transparent 62%),
+    rgb(9 36 54 / 82%);
   color: #dffcff;
-  box-shadow: inset 2px 0 #8cecf8;
+  box-shadow:
+    inset 0 0 0 1px rgb(184 244 253 / 12%),
+    inset 0 0 22px rgb(85 221 244 / 8%),
+    0 0 18px rgb(85 221 244 / 7%);
 }
 :root[data-theme='ori'] .game-month-hero {
   border-color: rgb(184 243 252 / 29%) !important;
@@ -1801,13 +1847,24 @@ iframe {
 }
 :root[data-theme='ori'] .game-month-tint { background: rgb(12 91 116 / 18%) !important; mix-blend-mode: color; }
 :root[data-theme='ori'] .game-month-chip {
-  border: 1px solid rgb(221 251 255 / 58%) !important;
-  background: radial-gradient(circle at 18% 30%, #effeff 0 4%, #9cecf7 18%, #2789ad 72%) !important;
-  color: #031726 !important;
-  text-shadow: 0 1px rgb(255 255 255 / 36%);
-  box-shadow: 0 0 18px rgb(111 229 247 / 28%), inset 0 1px #fff !important;
+  border: 1px solid rgb(66 210 235 / 92%) !important;
+  background:
+    radial-gradient(ellipse at 50% 44%, #fff 0 24%, #f0feff 38%, #c9f8fc 55%, #70dfed 76%, #24a8c7 100%) !important;
+  color: #147b9d !important;
+  text-shadow: 0 1px rgb(255 255 255 / 62%);
+  box-shadow:
+    0 0 0 2px rgb(85 221 244 / 8%),
+    0 0 13px 2px rgb(47 197 226 / 44%),
+    0 0 28px 5px rgb(33 166 211 / 21%),
+    inset 0 1px 2px #fff,
+    inset 0 -2px 5px rgb(13 116 151 / 20%) !important;
 }
-:root[data-theme='ori'] .game-month-chip svg { color: #05233a; fill: rgb(5 35 58 / 13%); }
+:root[data-theme='ori'] .game-month-chip svg {
+  color: #147b9d;
+  fill: currentColor !important;
+  fill-opacity: .18;
+  stroke: currentColor !important;
+}
 :root[data-theme='ori'] .game-month-cover {
   border: 2px solid rgb(215 250 255 / 48%) !important;
   border-radius: 28px 19px 27px 18px / 22px 28px 19px 27px !important;
@@ -1856,9 +1913,49 @@ iframe {
   background: rgb(2 15 29 / 54%) !important;
 }
 :root[data-theme='ori'] .theme-option[aria-checked='true'] {
-  border-color: rgb(181 241 251 / 34%) !important;
-  background: linear-gradient(110deg, rgb(85 221 244 / 15%), rgb(85 221 244 / 3%)) !important;
-  box-shadow: inset 2px 0 #baf5fc, 0 0 18px rgb(85 221 244 / 6%);
+  border-color: rgb(181 241 251 / 30%) !important;
+  background:
+    radial-gradient(ellipse at 34% 48%, rgb(151 239 252 / 18%), transparent 62%),
+    rgb(9 36 54 / 82%) !important;
+  box-shadow:
+    inset 0 0 0 1px rgb(184 244 253 / 12%),
+    inset 0 0 26px rgb(85 221 244 / 9%),
+    0 0 18px rgb(85 221 244 / 7%);
+}
+:root[data-theme='ori'] :is(
+  .theme-sidebar [aria-current='page'],
+  .month-popup-item[data-selected='true'],
+  .theme-option[aria-checked='true']
+) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+:root[data-theme='ori'] :is(
+  .theme-sidebar [aria-current='page'],
+  .month-popup-item[data-selected='true'],
+  .theme-option[aria-checked='true']
+)::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    radial-gradient(circle, #fff 0 1px, rgb(188 247 255 / 92%) 1.5px, rgb(85 221 244 / 28%) 3px, transparent 7px),
+    radial-gradient(circle, #eaffff 0 1px, rgb(93 224 245 / 72%) 2px, transparent 6px),
+    radial-gradient(circle, #fff 0 .8px, rgb(169 157 248 / 55%) 1.8px, transparent 5px);
+  background-position: -32px 14px, 18px -19px, 82px 7px;
+  background-repeat: repeat;
+  background-size: 178px 94px, 239px 123px, 317px 149px;
+  pointer-events: none;
+  content: '';
+  animation: ori-selected-wisps 8.5s ease-in-out infinite;
+}
+:root[data-theme='ori'] :is(
+  .theme-sidebar [aria-current='page'],
+  .month-popup-item[data-selected='true'],
+  .theme-option[aria-checked='true']
+) > * {
+  z-index: 1;
 }
 :root[data-theme='ori'] .admin-choice {
   border-color: rgb(137 224 240 / 13%);
@@ -1871,6 +1968,195 @@ iframe {
 :root[data-theme='ori'] .admin-choice-icon { background: rgb(85 221 244 / 12%); color: #bff7ff; }
 :root[data-theme='ori'] .admin-entry { border-color: rgb(137 224 240 / 16%) !important; background: rgb(85 221 244 / 6%) !important; }
 :root[data-theme='ori'] .danger-action { border-color: rgb(240 118 134 / 26%) !important; background: rgb(100 29 47 / 20%) !important; color: #ff9ba8 !important; }
+
+/* Shared semantic surfaces for profile management and the game detail route. */
+.game-detail-stage { position: relative; }
+.game-detail-trailer {
+  border-color: var(--hairline) !important;
+  box-shadow: 0 20px 55px rgb(0 0 0 / 32%);
+}
+.game-detail-trailer:has(.floating-trailer-frame-active) {
+  z-index: 100;
+  overflow: visible;
+}
+.game-detail-video-divider {
+  position: relative;
+  z-index: 2;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-violet-500) 18%, var(--color-violet-300) 50%, var(--color-violet-500) 82%, transparent);
+}
+.game-detail-surface,
+.profile-platforms-surface {
+  border-color: var(--hairline) !important;
+  background: var(--surface) !important;
+  box-shadow: var(--theme-shadow);
+}
+.game-detail-summary { box-shadow: 0 20px 55px rgb(0 0 0 / 20%); }
+.game-detail-tabs { overflow: hidden; }
+.game-detail-meta-chip,
+.game-detail-fact-chip,
+.game-person-chip,
+.profile-platform-chip {
+  border-color: var(--hairline) !important;
+  background: var(--surface-soft) !important;
+}
+.game-detail-fact-chip[data-owned='true'] {
+  border-color: color-mix(in srgb, var(--support-completed) 42%, transparent) !important;
+  background: color-mix(in srgb, var(--support-completed) 13%, var(--surface)) !important;
+  color: var(--color-emerald-300) !important;
+}
+.game-detail-section-icon { background: color-mix(in srgb, var(--color-violet-500) 14%, transparent) !important; color: var(--color-violet-300) !important; }
+.profile-platform-remove { color: var(--color-sky-200); }
+.profile-platform-chip > svg,
+.profile-platform-remove svg { color: currentColor !important; }
+.floating-trailer-frame-active {
+  z-index: 101 !important;
+  border-color: var(--hairline) !important;
+  box-shadow: 0 22px 70px rgb(0 0 0 / 58%);
+}
+.profile-admin-entry { margin-top: .25rem; }
+
+:root[data-theme='zelda'] :is(.game-detail-surface, .profile-platforms-surface) {
+  border: 1px solid rgb(211 181 99 / 24%) !important;
+  border-radius: 14px !important;
+  background: linear-gradient(145deg, #12140f, #0d0f0c) !important;
+  box-shadow: 0 18px 44px rgb(0 0 0 / 38%) !important;
+}
+:root[data-theme='zelda'] .game-detail-trailer {
+  border: 1px solid rgb(211 181 99 / 32%) !important;
+  border-bottom: 0 !important;
+  border-radius: 14px 14px 0 0 !important;
+  box-shadow: 0 22px 54px rgb(0 0 0 / 48%);
+}
+:root[data-theme='zelda'] .game-detail-summary {
+  border-top: 0 !important;
+  border-radius: 0 0 14px 14px !important;
+}
+:root[data-theme='zelda'] .game-detail-video-divider {
+  height: 2px;
+  background: linear-gradient(90deg, transparent 3%, #76551e 18%, #e4ca7d 50%, #76551e 82%, transparent 97%);
+}
+:root[data-theme='zelda'] :is(.game-detail-meta-chip, .game-detail-fact-chip, .game-person-chip, .profile-platform-chip) {
+  border-color: rgb(211 181 99 / 20%) !important;
+  background: #0b0d0b !important;
+  color: #b9b09c !important;
+}
+:root[data-theme='zelda'] .game-detail-fact-chip[data-owned='true'] { border-color: rgb(79 138 103 / 54%) !important; background: rgb(31 65 44 / 46%) !important; color: #b9dec3 !important; }
+:root[data-theme='zelda'] .game-participation-group { border-color: rgb(211 181 99 / 15%) !important; background: #0b0d0b !important; }
+:root[data-theme='zelda'] .game-detail-section-icon,
+:root[data-theme='zelda'] .admin-entry-icon { border-radius: 50% !important; background: rgb(211 181 99 / 13%) !important; color: #e5ce8c !important; }
+:root[data-theme='zelda'] .floating-trailer-frame-active { border-color: rgb(224 195 113 / 48%) !important; border-radius: 10px !important; box-shadow: 0 24px 70px #000; }
+:root[data-theme='zelda'] .profile-platform-remove { color: #d6b866; }
+:root[data-theme='zelda'] .profile-platform-chip :is(svg) { color: #d6b866 !important; }
+
+:root[data-theme='nier'] :is(.game-detail-surface, .profile-platforms-surface) {
+  border: 0 !important;
+  border-left: 5px solid #4b413d !important;
+  border-radius: 0 !important;
+  background: #d8d2bc !important;
+  color: #332d2a !important;
+  box-shadow: 5px 5px 0 rgb(75 65 61 / 18%) !important;
+}
+:root[data-theme='nier'] .game-detail-trailer {
+  border: 0 !important;
+  border-left: 5px solid #4b413d !important;
+  border-radius: 0 !important;
+  box-shadow: 7px 7px 0 rgb(75 65 61 / 24%);
+}
+:root[data-theme='nier'] .game-detail-video-divider {
+  height: 5px;
+  background: repeating-linear-gradient(90deg, #4b413d 0 18px, #8a8175 18px 23px, transparent 23px 28px);
+}
+:root[data-theme='nier'] :is(.game-detail-meta-chip, .game-detail-fact-chip, .game-person-chip, .profile-platform-chip) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #c9c3ad !important;
+  color: #4b413d !important;
+}
+:root[data-theme='nier'] .game-detail-fact-chip[data-owned='true'] { border-left: 3px solid #4f6956 !important; background: #bfc1aa !important; color: #405647 !important; }
+:root[data-theme='nier'] .game-participation-group { border: 0 !important; border-top: 1px solid rgb(75 65 61 / 32%) !important; border-radius: 0 !important; background: #c9c3ad !important; }
+:root[data-theme='nier'] .game-detail-people-grid { border-color: rgb(75 65 61 / 32%) !important; }
+:root[data-theme='nier'] :is(.game-detail-section-icon, .admin-entry-icon) { border-radius: 0 !important; background: #4b413d !important; color: #e3deca !important; }
+:root[data-theme='nier'] :is(.game-detail-muted, .game-detail-description, .game-people-empty, .admin-entry-copy) { color: #594e4a !important; }
+:root[data-theme='nier'] .floating-trailer-frame-active { border: 0 !important; border-left: 5px solid #4b413d !important; border-radius: 0 !important; box-shadow: 7px 7px 0 rgb(75 65 61 / 28%); }
+:root[data-theme='nier'] .profile-platform-remove { border-radius: 0 !important; color: #4b413d; }
+:root[data-theme='nier'] .profile-platform-chip :is(svg) { color: #4b413d !important; }
+
+:root[data-theme='crossing'] :is(.game-detail-surface, .profile-platforms-surface) {
+  border: 3px solid #fff8dc !important;
+  border-radius: 30px !important;
+  background: #fffaf0 !important;
+  color: #3f5f56 !important;
+  box-shadow: 0 7px 0 rgb(95 132 83 / 8%), 0 20px 45px rgb(68 101 76 / 10%) !important;
+}
+:root[data-theme='crossing'] .game-detail-trailer {
+  border: 4px solid #fff8dc !important;
+  border-bottom: 0 !important;
+  border-radius: 30px 30px 0 0 !important;
+  box-shadow: 0 8px 0 rgb(95 132 83 / 8%), 0 22px 44px rgb(69 105 77 / 12%) !important;
+}
+:root[data-theme='crossing'] .game-detail-summary {
+  border-top: 0 !important;
+  border-radius: 0 0 30px 30px !important;
+}
+:root[data-theme='crossing'] .game-detail-video-divider {
+  height: 6px;
+  background: repeating-linear-gradient(90deg, #43b8aa 0 16px, #73cec1 16px 32px);
+}
+:root[data-theme='crossing'] :is(.game-detail-meta-chip, .game-detail-fact-chip, .game-person-chip, .profile-platform-chip) {
+  border: 0 !important;
+  background: #f1e8c9 !important;
+  color: #4d685c !important;
+  box-shadow: 0 3px 0 rgb(95 132 83 / 6%);
+}
+:root[data-theme='crossing'] .game-detail-fact-chip[data-owned='true'] { background: #d9ecd0 !important; color: #397b2b !important; }
+:root[data-theme='crossing'] .game-participation-group { border: 0 !important; border-radius: 22px !important; background: #f3ecd2 !important; }
+:root[data-theme='crossing'] .game-detail-people-grid { border-color: #e1d3af !important; }
+:root[data-theme='crossing'] :is(.game-detail-section-icon, .admin-entry-icon) { border-radius: 50% !important; background: #d8eee6 !important; color: #397662 !important; }
+:root[data-theme='crossing'] :is(.game-detail-muted, .game-detail-description, .game-people-empty, .admin-entry-copy) { color: #687c71 !important; }
+:root[data-theme='crossing'] .floating-trailer-frame-active { border: 4px solid #fff8dc !important; border-radius: 24px !important; box-shadow: 0 8px 0 rgb(95 132 83 / 12%), 0 24px 58px rgb(68 101 76 / 25%); }
+:root[data-theme='crossing'] .profile-platform-remove { background: #dfd5b7; color: #397662; }
+:root[data-theme='crossing'] .profile-platform-chip :is(svg) { color: #397662 !important; }
+
+:root[data-theme='ori'] :is(.game-detail-surface, .profile-platforms-surface) {
+  border: 1px solid rgb(151 230 245 / 18%) !important;
+  border-radius: 26px 18px 28px 20px / 22px 26px 20px 28px !important;
+  background:
+    radial-gradient(circle at 10% 0%, rgb(85 221 244 / 9%), transparent 32%),
+    linear-gradient(145deg, rgb(10 40 61 / 94%), rgb(2 15 29 / 94%)) !important;
+  color: #e8fbff !important;
+  box-shadow: 0 18px 50px rgb(0 5 13 / 38%), inset 0 1px rgb(213 250 255 / 7%) !important;
+  backdrop-filter: blur(15px) saturate(1.08);
+}
+:root[data-theme='ori'] .game-detail-trailer {
+  border: 1px solid rgb(151 230 245 / 24%) !important;
+  border-bottom: 0 !important;
+  border-radius: 30px 22px 0 0 / 24px 30px 0 0 !important;
+  box-shadow: 0 24px 70px rgb(0 4 12 / 58%), 0 0 30px rgb(47 197 226 / 9%);
+}
+:root[data-theme='ori'] .game-detail-summary {
+  border-top: 0 !important;
+  border-radius: 0 0 30px 22px / 0 0 24px 30px !important;
+}
+:root[data-theme='ori'] .game-detail-video-divider {
+  height: 3px;
+  background: linear-gradient(90deg, transparent 2%, #147b9d 16%, #52d7ed 50%, #147b9d 84%, transparent 98%);
+  box-shadow: 0 0 13px 2px rgb(47 197 226 / 42%);
+}
+:root[data-theme='ori'] :is(.game-detail-meta-chip, .game-detail-fact-chip, .game-person-chip, .profile-platform-chip) {
+  border-color: rgb(137 224 240 / 15%) !important;
+  background: rgb(2 15 29 / 62%) !important;
+  color: #a8ccd3 !important;
+  box-shadow: inset 0 1px rgb(219 251 255 / 4%);
+}
+:root[data-theme='ori'] .game-detail-fact-chip[data-owned='true'] { border-color: rgb(104 223 189 / 42%) !important; background: rgb(23 93 79 / 42%) !important; color: #c5f8e8 !important; }
+:root[data-theme='ori'] .game-participation-group { border-color: rgb(137 224 240 / 11%) !important; background: rgb(2 13 26 / 52%) !important; }
+:root[data-theme='ori'] .game-detail-people-grid { border-color: rgb(137 224 240 / 12%) !important; }
+:root[data-theme='ori'] :is(.game-detail-section-icon, .admin-entry-icon) { background: rgb(85 221 244 / 12%) !important; color: #bff7ff !important; box-shadow: 0 0 16px rgb(85 221 244 / 8%); }
+:root[data-theme='ori'] :is(.game-detail-muted, .game-detail-description, .game-people-empty, .admin-entry-copy) { color: #7faab4 !important; }
+:root[data-theme='ori'] .floating-trailer-frame-active { border-color: rgb(82 215 237 / 62%) !important; border-radius: 22px 15px 24px 17px / 18px 23px 16px 25px !important; box-shadow: 0 22px 70px rgb(0 4 12 / 68%), 0 0 26px rgb(47 197 226 / 22%); }
+:root[data-theme='ori'] .profile-platform-remove { color: #9cebf7; }
+:root[data-theme='ori'] .profile-platform-chip :is(svg) { color: #73e1f2 !important; }
 
 @media (min-width: 720px) {
   :root[data-theme='ori'] .theme-pattern {
@@ -2098,6 +2384,172 @@ iframe {
 :root[data-theme='ori'] .reward-name { color: #dffcff; }
 :root[data-theme='ori'] .reward-secondary,
 :root[data-theme='ori'] .reward-close { background: rgb(85 221 244 / 7%) !important; color: #9bc7d0; }
+
+/* Participant directory: compact profile cards with a distinct material per theme. */
+.participants-people-list {
+  scrollbar-gutter: stable;
+  background: color-mix(in srgb, var(--surface-soft) 38%, transparent);
+}
+.participant-person {
+  position: relative;
+  border-color: var(--hairline) !important;
+  background: color-mix(in srgb, var(--surface-soft) 78%, transparent) !important;
+  box-shadow: inset 0 1px rgb(255 255 255 / 2%);
+}
+.participant-person:hover {
+  transform: translateX(2px);
+  border-color: color-mix(in srgb, var(--color-violet-400) 32%, var(--hairline)) !important;
+  background: color-mix(in srgb, var(--color-violet-500) 7%, var(--surface-soft)) !important;
+}
+.participant-person:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-violet-400) 68%, transparent);
+  outline-offset: 2px;
+}
+.participant-person-avatar {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--surface) 92%, transparent);
+}
+.participant-person-action {
+  border-color: var(--hairline) !important;
+  background: color-mix(in srgb, var(--surface) 70%, transparent) !important;
+}
+.participant-person:hover .participant-person-action {
+  color: var(--color-violet-300) !important;
+  transform: translate(1px, -1px);
+}
+
+:root[data-theme='zelda'] .participants-people-list { background: #0b0d0b; }
+:root[data-theme='zelda'] .participant-person {
+  border-color: rgb(211 181 99 / 16%) !important;
+  border-radius: 12px !important;
+  background: linear-gradient(90deg, rgb(211 181 99 / 4%), transparent 42%), #11130f !important;
+  box-shadow: none;
+}
+:root[data-theme='zelda'] .participant-person:hover {
+  border-color: rgb(224 195 113 / 38%) !important;
+  background: linear-gradient(90deg, rgb(211 181 99 / 9%), transparent 48%), #13150f !important;
+}
+:root[data-theme='zelda'] .participant-person-avatar {
+  border-color: rgb(224 195 113 / 34%) !important;
+  box-shadow: 0 0 0 2px #0b0d0b;
+}
+:root[data-theme='zelda'] .participant-person-name { color: #eee4cb !important; }
+:root[data-theme='zelda'] .participant-person-copy { color: #8f8878 !important; }
+:root[data-theme='zelda'] .participant-person-action {
+  border-color: rgb(211 181 99 / 18%) !important;
+  background: rgb(211 181 99 / 6%) !important;
+  color: #968249 !important;
+}
+:root[data-theme='zelda'] .participant-person:hover .participant-person-action { color: #e5ce8c !important; }
+
+:root[data-theme='nier'] .participants-people-list { gap: 1px; background: #bdb7a3; }
+:root[data-theme='nier'] .participant-person {
+  min-height: 68px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #d8d2bc !important;
+  box-shadow: none;
+}
+:root[data-theme='nier'] .participant-person::after {
+  position: absolute;
+  right: 48px;
+  bottom: 10px;
+  width: 22px;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, #4b413d 0 3px, transparent 3px 6px);
+  opacity: .28;
+  content: '';
+}
+:root[data-theme='nier'] .participant-person:hover {
+  transform: translateX(3px);
+  background: #cec8b2 !important;
+}
+:root[data-theme='nier'] .participant-person-avatar {
+  border: 2px solid #4b413d !important;
+  border-radius: 0 !important;
+  filter: sepia(.18) saturate(.72);
+  box-shadow: 3px 3px 0 rgb(75 65 61 / 18%);
+}
+:root[data-theme='nier'] .participant-person-name { color: #332d2a !important; }
+:root[data-theme='nier'] .participant-person-copy { color: #6c625c !important; }
+:root[data-theme='nier'] .participant-person-action {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #4b413d !important;
+  color: #e3deca !important;
+}
+
+:root[data-theme='crossing'] .participants-people-list { background: #e9e0c5; }
+:root[data-theme='crossing'] .participant-person {
+  border: 3px solid #fff6d8 !important;
+  border-radius: 24px !important;
+  background:
+    radial-gradient(circle at 12px 12px, rgb(83 117 69 / 5%) 1px, transparent 1.2px) 0 0 / 20px 20px,
+    #f4edda !important;
+  box-shadow: 0 4px 0 rgb(119 84 57 / 8%);
+}
+:root[data-theme='crossing'] .participant-person:hover {
+  transform: translateY(-1px);
+  border-color: #fffaf0 !important;
+  background: #f9f2df !important;
+}
+:root[data-theme='crossing'] .participant-person-avatar {
+  border: 3px solid #fff8df !important;
+  box-shadow: 0 3px 0 rgb(80 126 89 / 12%);
+}
+:root[data-theme='crossing'] .participant-person-name { color: #3d554b !important; }
+:root[data-theme='crossing'] .participant-person-copy { color: #738177 !important; }
+:root[data-theme='crossing'] .participant-person-action {
+  border: 0 !important;
+  background: #69bcae !important;
+  color: #fffdf2 !important;
+  box-shadow: 0 3px 0 rgb(73 132 95 / 12%);
+}
+
+:root[data-theme='ori'] .participants-people-list {
+  background:
+    radial-gradient(circle at 12% 18%, rgb(85 221 244 / 7%), transparent 28%),
+    rgb(1 12 25 / 72%);
+}
+:root[data-theme='ori'] .participant-person {
+  overflow: hidden;
+  border-color: rgb(137 224 240 / 13%) !important;
+  border-radius: 19px 13px 20px 14px / 14px 20px 13px 19px !important;
+  background: linear-gradient(112deg, rgb(85 221 244 / 7%), transparent 48%), rgb(4 23 39 / 76%) !important;
+  box-shadow: inset 0 1px rgb(215 251 255 / 4%);
+}
+:root[data-theme='ori'] .participant-person::before {
+  position: absolute;
+  top: 50%;
+  right: 54px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #dffcff;
+  box-shadow: 0 0 8px 2px rgb(85 221 244 / 48%);
+  opacity: .34;
+  content: '';
+}
+:root[data-theme='ori'] .participant-person:hover {
+  transform: translateX(2px);
+  border-color: rgb(173 239 250 / 29%) !important;
+  background: linear-gradient(112deg, rgb(85 221 244 / 12%), transparent 58%), rgb(5 27 45 / 82%) !important;
+  box-shadow: inset 0 0 22px rgb(85 221 244 / 5%), 0 0 16px rgb(85 221 244 / 5%);
+}
+:root[data-theme='ori'] .participant-person-avatar {
+  border-color: rgb(184 244 253 / 34%) !important;
+  box-shadow: 0 0 0 3px #04182a, 0 0 13px rgb(85 221 244 / 10%);
+}
+:root[data-theme='ori'] .participant-person-name { color: #dffcff !important; }
+:root[data-theme='ori'] .participant-person-copy { color: #789faa !important; }
+:root[data-theme='ori'] .participant-person-action {
+  border-color: rgb(137 224 240 / 14%) !important;
+  background: rgb(85 221 244 / 7%) !important;
+  color: #79afbb !important;
+}
+:root[data-theme='ori'] .participant-person:hover .participant-person-action {
+  color: #c9f8ff !important;
+  box-shadow: 0 0 12px rgb(85 221 244 / 10%);
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

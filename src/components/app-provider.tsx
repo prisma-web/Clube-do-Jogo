@@ -5,7 +5,7 @@ import type { User } from '@supabase/supabase-js';
 import { AnimatePresence, motion } from 'motion/react';
 import { CircleAlert, LoaderCircle, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { demoGames, demoMonths, demoProfiles } from '@/lib/demo-data';
+import { demoGames, demoMonths, demoProfiles, demoProgress } from '@/lib/demo-data';
 import type { AppRole, ClubCycle, Game, Profile, RewardGrant } from '@/lib/types';
 import { monthKey, shiftMonth } from '@/lib/utils';
 import { DEFAULT_THEME, isThemeId, THEME_STORAGE_KEY, type ThemeId } from '@/lib/themes';
@@ -62,9 +62,9 @@ interface ClubUndoResult {
 const AppContext = createContext<AppContextValue | null>(null);
 const MONTH_STORAGE_KEY = 'clube-do-jogo:selected-month';
 const DEMO_REWARD_STORAGE_KEY = 'clube-do-jogo:demo-reward-seen:ori';
+const ORI_REWARD_MONTH = '2026-07';
 
-function demoRewardGrant(seen: boolean): RewardGrant {
-  const clubMonth = demoMonths[1] || demoMonths[0];
+function demoRewardGrant(seen: boolean, cycle: ClubCycle): RewardGrant {
   return {
     id: 'demo-ori-reward',
     reward_id: 'demo-ori-theme',
@@ -72,14 +72,20 @@ function demoRewardGrant(seen: boolean): RewardGrant {
     seen_at: seen ? new Date().toISOString() : null,
     reward: {
       id: 'demo-ori-theme',
-      club_month: clubMonth,
-      code: `${clubMonth}-ori-theme`,
+      club_month: ORI_REWARD_MONTH,
+      code: `${ORI_REWARD_MONTH}-theme-ori`,
       kind: 'theme',
       name: 'Tema Floresta de Nibel',
       description: 'Uma floresta noturna iluminada por espíritos e vida bioluminescente.',
       theme_id: 'ori',
       image_url: null,
-      cycle: { month: clubMonth, game: { title: demoGames[0].title, image_url: demoGames[0].image_url } },
+      cycle: {
+        month: ORI_REWARD_MONTH,
+        game: {
+          title: cycle.game?.title || demoGames[0].title,
+          image_url: cycle.game?.image_url || demoGames[0].image_url,
+        },
+      },
     },
   };
 }
@@ -203,9 +209,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isDemo) return;
+    const rewardCycle = cycles.find(cycle => cycle.month === ORI_REWARD_MONTH);
+    const eligible = rewardCycle?.status === 'closed'
+      && demoProgress.some(progress =>
+        progress.user_id === user?.id
+        && progress.game_id === rewardCycle.game_id
+        && progress.status === 'finished',
+      );
+    if (!eligible) {
+      queueMicrotask(() => setRewardGrants([]));
+      return;
+    }
     const seen = window.sessionStorage.getItem(DEMO_REWARD_STORAGE_KEY) === 'true';
-    queueMicrotask(() => setRewardGrants([demoRewardGrant(seen)]));
-  }, [isDemo]);
+    queueMicrotask(() => setRewardGrants([demoRewardGrant(seen, rewardCycle)]));
+  }, [cycles, isDemo, user?.id]);
 
   useEffect(() => {
     if (isDemo) return;

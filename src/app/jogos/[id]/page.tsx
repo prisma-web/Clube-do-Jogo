@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { CalendarDays, CheckCircle2, Clock3, Flag, Gamepad2, ImageIcon, NotebookPen, Share2, Star, ThumbsUp, Trash2 } from 'lucide-react';
+import * as Tabs from '@radix-ui/react-tabs';
+import { CalendarDays, CheckCircle2, ChevronDown, Clock3, Flag, Gamepad2, ImageIcon, LayoutDashboard, ListChecks, NotebookPen, Share2, Star, ThumbsUp, Trash2, UsersRound } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { demoRanking } from '@/lib/demo-data';
 import { fetchGame, fetchUserPlatforms } from '@/lib/data';
@@ -31,9 +32,9 @@ interface GamePeople {
 
 function PeoplePreview({ people, empty }: { people: Profile[]; empty: string }) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {people.map(person => <span key={person.id} className="inline-flex max-w-full items-center gap-2 rounded-lg bg-white/[.09] py-1 pl-1 pr-3 text-sm font-semibold text-zinc-400"><Avatar src={person.avatar_url} name={person.name} className="size-7 text-[9px]" /><span className="truncate">{person.name || 'Membro'}</span></span>)}
-      {!people.length && <span className="text-sm text-zinc-600">{empty}</span>}
+    <div className="game-people-chips flex flex-wrap gap-2">
+      {people.map(person => <span key={person.id} className="game-person-chip inline-flex max-w-full items-center gap-2 rounded-full border border-white/8 bg-white/[.06] py-1 pl-1 pr-3 text-xs font-semibold text-zinc-400"><Avatar src={person.avatar_url} name={person.name} className="size-7 text-[9px]" /><span className="truncate">{person.name || 'Membro'}</span></span>)}
+      {!people.length && <span className="game-people-empty text-xs leading-relaxed text-zinc-600">{empty}</span>}
     </div>
   );
 }
@@ -79,6 +80,7 @@ export default function GamePage() {
   const people = peopleQuery.data || { voters: [], completed: [], votedByMe: false, completedByMe: false, inBacklog: false };
   const platformsQuery = useStaleQuery<UserPlatform[]>(`user-platforms:${user?.id}`, () => fetchUserPlatforms(supabase, user!.id, isDemo), Boolean(user));
   const ownedPlatformIds = new Set((platformsQuery.data || []).map(platform => platform.igdb_platform_id));
+  const [participantsOpen, setParticipantsOpen] = useState(true);
 
   useEffect(() => {
     if (isDemo || !game || ((game.screenshot_urls?.length || 0) >= 3 && game.genres?.length && game.platforms?.length && game.platform_ids?.length) || mediaRequested.current.has(game.id)) return;
@@ -173,58 +175,88 @@ export default function GamePage() {
     </DropdownMenu.Root>
   ) : <GameActionButton kind="backlog" active={false} onClick={() => void addToBacklog()} className="h-10 px-4" />;
 
-  return (
-    <div className="mx-auto max-w-3xl animate-fade-in">
-      <div className="game-trailer-card relative -mx-4 -mt-5 overflow-hidden bg-black sm:-mt-7 min-[960px]:mx-0 min-[960px]:mt-0 min-[960px]:rounded-2xl min-[960px]:border min-[960px]:border-white/10">
-        {trailer ? <FloatingTrailer src={trailer} title={`Trailer de ${game.title}`} /> : <div className="aspect-video"><img src={game.image_url} alt={`Capa de ${game.title}`} className="size-full object-cover" /></div>}
-      </div>
-      <section className="pt-6 sm:pt-8">
-        <h1 className="break-words text-4xl font-black leading-[.98] tracking-[-0.035em] sm:text-5xl">{game.title}</h1>
-        <div className="mt-4 flex items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-wrap gap-2 text-sm font-bold text-zinc-400">
-            <span className="inline-flex items-center gap-2 rounded-lg bg-white/[.07] px-3 py-2"><Clock3 className="size-4 text-zinc-500" />{game.duration_hours}h</span>
-            <span className="inline-flex items-center gap-2 rounded-lg bg-white/[.07] px-3 py-2">{starCount === null ? <span className="text-xs text-zinc-500">Sem nota</span> : <span className="flex text-amber-300">{Array.from({ length: 5 }, (_, index) => <Star key={index} className={`size-4 ${index < starCount ? 'fill-current' : 'text-zinc-600'}`} />)}</span>}</span>
-            {game.release_year && <span className="inline-flex items-center gap-2 rounded-lg bg-white/[.07] px-3 py-2"><CalendarDays className="size-4 text-zinc-500" />{game.release_year}</span>}
+  const overviewContent = (
+    <div className="space-y-5 sm:space-y-6">
+      {!isPreview && <div className="grid items-start gap-5 lg:grid-cols-[.82fr_1.18fr]">
+        <section className="game-detail-surface game-detail-score-card rounded-3xl border border-white/8 bg-white/[.035] p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <span className="game-detail-eyebrow text-[10px] font-black uppercase tracking-[.16em] text-zinc-600">Pontuação do clube</span>
+              <div className="mt-2 text-4xl font-black tracking-[-0.045em] sm:text-5xl" style={{ color: 'var(--support-completed)' }}>{totalPoints.toFixed(1)}<span className="ml-2 text-lg font-bold tracking-normal text-zinc-500">pts</span></div>
+            </div>
+            <div className="shrink-0">{backlogAction}</div>
           </div>
-          <button onClick={() => void shareGame()} aria-label="Compartilhar jogo" title="Compartilhar jogo" className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/[.07] text-zinc-400 transition hover:bg-white/[.12] hover:text-white"><Share2 className="size-4" /></button>
+          <p className="game-detail-muted mt-4 text-xs leading-relaxed text-zinc-500">Calculada a partir dos votos, duração, avaliação e pessoas que finalizaram.</p>
+        </section>
+
+        <section className="game-detail-surface game-detail-people-card overflow-hidden rounded-3xl border border-white/8 bg-white/[.035]">
+          <button type="button" aria-expanded={participantsOpen} onClick={() => setParticipantsOpen(open => !open)} className="game-detail-people-toggle flex w-full items-center gap-3 px-5 py-4 text-left sm:px-6">
+            <span className="game-detail-section-icon grid size-9 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-violet-300"><UsersRound className="size-4" /></span>
+            <span className="min-w-0 flex-1">
+              <strong className="block text-sm">Participação</strong>
+              <span className="game-detail-muted mt-0.5 block text-[11px] text-zinc-500">{people.voters.length} votos · {people.completed.length} finalizaram</span>
+            </span>
+            <ChevronDown className={`size-4 shrink-0 text-zinc-500 transition-transform ${participantsOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {participantsOpen && <div className="game-detail-people-grid grid gap-3 border-t border-white/8 p-4 animate-fade-in sm:grid-cols-2 sm:p-5">
+            <div className="participation-card game-participation-group min-w-0 rounded-2xl border border-white/8 bg-black/10 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-sm font-black" style={{ color: 'var(--support-vote)' }}><ThumbsUp className="size-4 fill-current" />Votos</h3><GameActionButton kind="vote" active={people.votedByMe} disabled={isHistorical} onClick={() => void toggleVote()} className="h-9 shrink-0 px-3 text-[11px]" /></div>
+              <ParticipantsDialog dialogId={`${params.id}-votes`} voters={people.voters} completed={people.completed}><button className="block w-full text-left" aria-label="Ver pessoas que votaram"><PeoplePreview people={people.voters} empty="Ainda ninguém votou." /></button></ParticipantsDialog>
+            </div>
+            <div className="participation-card game-participation-group min-w-0 rounded-2xl border border-white/8 bg-black/10 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-sm font-black" style={{ color: 'var(--support-completed)' }}><Flag className="size-4 fill-current" />Finalizaram</h3><GameActionButton kind="completed" active={people.completedByMe} disabled={isHistorical} onClick={() => void toggleCompleted()} className="h-9 shrink-0 px-3 text-[11px]" /></div>
+              <ParticipantsDialog dialogId={`${params.id}-completed`} voters={people.voters} completed={people.completed} initialTab="completed"><button className="block w-full text-left" aria-label="Ver pessoas que finalizaram"><PeoplePreview people={people.completed} empty="Ainda ninguém finalizou." /></button></ParticipantsDialog>
+            </div>
+          </div>}
+        </section>
+      </div>}
+
+      {(game.genres?.length || game.platforms?.length) && <section className="game-detail-surface game-detail-facts rounded-3xl border border-white/8 bg-white/[.035] p-5 sm:p-6">
+        <div className="grid gap-6 sm:grid-cols-2">
+          {game.genres?.length ? <div><h2 className="text-base font-black tracking-tight">Gêneros</h2><div className="mt-3 flex flex-wrap gap-2">{game.genres.map(genre => <span key={genre} className="game-detail-fact-chip rounded-full border border-white/8 bg-white/[.06] px-3 py-2 text-xs font-semibold text-zinc-400">{genre}</span>)}</div></div> : null}
+          {game.platforms?.length ? <div><h2 className="text-base font-black tracking-tight">Plataformas</h2><div className="mt-3 flex flex-wrap gap-2">{game.platforms.map((platform, index) => { const owned = ownedPlatformIds.has(game.platform_ids?.[index] ?? -1); return <span key={platform} data-owned={owned} className="game-detail-fact-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2 text-xs font-semibold text-zinc-400">{owned && <CheckCircle2 className="size-3.5 shrink-0" />}{platform}</span>; })}</div></div> : null}
         </div>
-        <p className="mt-4 max-w-2xl text-[15px] leading-6 text-zinc-400 sm:text-base sm:leading-7">{game.description || 'Sem descrição disponível.'}</p>
-        {!isPreview && <ClubGameAdminDialog game={game} className="mt-5" />}
+      </section>}
+
+      <section className="game-detail-surface game-detail-gallery rounded-3xl border border-white/8 bg-white/[.035] p-4 sm:p-6">
+        <div className="mb-4 flex items-center gap-2"><ImageIcon className="size-4 text-zinc-400" /><h2 className="text-base font-black tracking-tight">Galeria</h2></div>
+        <GameGallery title={game.title} images={galleryImages} />
       </section>
+    </div>
+  );
 
-      {!isPreview && <section className="mt-11">
-        <h2 className="text-2xl font-black tracking-[-0.02em]">Pontuação</h2>
-        <div className="mt-3 flex items-center justify-between gap-4">
-          <div className="text-5xl font-black tracking-[-0.045em]" style={{ color: 'var(--support-completed)' }}>{totalPoints.toFixed(1)}<span className="ml-2 text-2xl font-bold tracking-normal text-zinc-500">pts</span></div>
-          <div className="shrink-0">{backlogAction}</div>
+  return (
+    <div className="game-detail-page mx-auto max-w-4xl animate-fade-in">
+      <div className="game-detail-stage mb-6">
+        <div className="game-trailer-card game-detail-trailer relative overflow-hidden rounded-t-3xl border border-b-0 border-white/10 bg-black">
+        {trailer ? <FloatingTrailer src={trailer} title={`Trailer de ${game.title}`} /> : <div className="aspect-video"><img src={game.image_url} alt={`Capa de ${game.title}`} className="size-full object-cover" /></div>}
         </div>
-        <div className="mt-7 space-y-8">
-          <div className="min-w-0">
-            <div className="mb-3 flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-2xl font-black" style={{ color: 'var(--support-vote)' }}><ThumbsUp className="size-6 fill-current" />Votos</h3><GameActionButton kind="vote" active={people.votedByMe} disabled={isHistorical} onClick={() => void toggleVote()} className="h-10 px-4 text-sm" /></div>
-            <ParticipantsDialog dialogId={`${params.id}-votes`} voters={people.voters} completed={people.completed}><button className="block w-full text-left" aria-label="Ver pessoas que votaram"><PeoplePreview people={people.voters} empty="Ainda ninguém votou." /></button></ParticipantsDialog>
+        <div className="game-detail-video-divider" aria-hidden="true" />
+        <section className="game-detail-surface game-detail-summary rounded-b-3xl border border-t-0 border-white/10 bg-white/[.035] px-5 pb-6 pt-5 sm:px-7 sm:pb-7 sm:pt-6">
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="min-w-0 break-words text-3xl font-black leading-[1.02] tracking-[-0.035em] sm:text-5xl">{game.title}</h1>
+            <button onClick={() => void shareGame()} aria-label="Compartilhar jogo" title="Compartilhar jogo" className="game-detail-share grid size-10 shrink-0 place-items-center rounded-full border border-white/8 bg-white/[.06] text-zinc-400 transition hover:bg-white/[.12] hover:text-white"><Share2 className="size-4" /></button>
           </div>
-          <div className="min-w-0">
-            <div className="mb-3 flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-2xl font-black" style={{ color: 'var(--support-completed)' }}><Flag className="size-6 fill-current" />Finalizei</h3><GameActionButton kind="completed" active={people.completedByMe} disabled={isHistorical} onClick={() => void toggleCompleted()} className="h-10 px-4 text-sm" /></div>
-            <ParticipantsDialog dialogId={`${params.id}-completed`} voters={people.voters} completed={people.completed} initialTab="completed"><button className="block w-full text-left" aria-label="Ver pessoas que finalizaram"><PeoplePreview people={people.completed} empty="Ainda ninguém finalizou." /></button></ParticipantsDialog>
+          <div className="mt-4 flex min-w-0 flex-wrap gap-2 text-xs font-bold text-zinc-400">
+            <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2"><Clock3 className="size-3.5 text-zinc-500" />{game.duration_hours}h</span>
+            <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2">{starCount === null ? <span className="text-zinc-500">Sem nota</span> : <span className="flex text-amber-300">{Array.from({ length: 5 }, (_, index) => <Star key={index} className={`size-3.5 ${index < starCount ? 'fill-current' : 'text-zinc-600'}`} />)}</span>}</span>
+            {game.release_year && <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2"><CalendarDays className="size-3.5 text-zinc-500" />{game.release_year}</span>}
           </div>
-        </div>
-      </section>}
+          <p className="game-detail-description mt-4 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-[15px] sm:leading-7">{game.description || 'Sem descrição disponível.'}</p>
+          {!isPreview && <ClubGameAdminDialog game={game} className="mt-5" />}
+        </section>
+      </div>
 
-      {(game.genres?.length || game.platforms?.length) && <section className="mt-12 space-y-7">
-        {game.genres?.length ? <div><h2 className="text-2xl font-black tracking-[-0.02em]">Gênero</h2><div className="mt-3 flex flex-wrap gap-2">{game.genres.map(genre => <span key={genre} className="rounded-lg bg-white/[.09] px-3 py-2 text-sm font-semibold text-zinc-400">{genre}</span>)}</div></div> : null}
-        {game.platforms?.length ? <div><h2 className="text-2xl font-black tracking-[-0.02em]">Plataformas</h2><div className="mt-3 flex flex-wrap gap-2">{game.platforms.map((platform, index) => { const owned = ownedPlatformIds.has(game.platform_ids?.[index] ?? -1); return <span key={platform} className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ${owned ? 'border border-emerald-400/25 bg-emerald-500/[.12] text-emerald-200' : 'bg-white/[.09] text-zinc-400'}`}>{owned && <CheckCircle2 className="size-4 shrink-0" />}{platform}</span>; })}</div></div> : null}
-      </section>}
-
-      <section className="mt-12"><div className="mb-4 flex items-center gap-2"><ImageIcon className="size-5 text-zinc-400" /><h2 className="text-2xl font-black tracking-[-0.02em]">Galeria</h2></div><GameGallery title={game.title} images={galleryImages} /></section>
-
-      {!isPreview && <section className="mt-14 border-t border-white/8 pt-10">
-        <ProgressList game={game} />
-      </section>}
-
-      {!isPreview && <section className="mt-14 border-t border-white/8 pt-10">
-        <div className="mb-4 flex items-center gap-2"><NotebookPen className="size-5 text-violet-400" /><h2 className="text-2xl font-black tracking-[-0.02em]">Anotações</h2></div>
-        <NotesChat game={game} />
-      </section>}
+      {!isPreview ? <Tabs.Root defaultValue="overview">
+        <Tabs.List aria-label="Seções do jogo" className="app-tabs game-detail-tabs sticky top-[calc(4rem+env(safe-area-inset-top))] z-30 mb-5 grid grid-cols-3 rounded-2xl border border-white/8 bg-[#0c0c0f]/92 p-1.5 shadow-xl backdrop-blur-xl min-[960px]:top-4">
+          <Tabs.Trigger value="overview" className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[11px] font-extrabold text-zinc-500 outline-none data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300"><LayoutDashboard className="size-3.5" /><span className="truncate">Visão geral</span></Tabs.Trigger>
+          <Tabs.Trigger value="progress" className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[11px] font-extrabold text-zinc-500 outline-none data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-300"><ListChecks className="size-3.5" /><span className="truncate">Progresso</span></Tabs.Trigger>
+          <Tabs.Trigger value="notes" className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[11px] font-extrabold text-zinc-500 outline-none data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300"><NotebookPen className="size-3.5" /><span className="truncate">Anotações</span></Tabs.Trigger>
+        </Tabs.List>
+        <Tabs.Content value="overview" className="outline-none data-[state=active]:animate-tab-in">{overviewContent}</Tabs.Content>
+        <Tabs.Content value="progress" className="outline-none data-[state=active]:animate-tab-in"><section className="game-detail-surface game-detail-tab-card rounded-3xl border border-white/8 bg-white/[.035] p-5 sm:p-6"><ProgressList game={game} /></section></Tabs.Content>
+        <Tabs.Content value="notes" className="outline-none data-[state=active]:animate-tab-in"><section className="game-detail-surface game-detail-tab-card rounded-3xl border border-white/8 bg-white/[.035] p-4 sm:p-6"><div className="mb-4 flex items-center gap-2"><NotebookPen className="size-4 text-violet-400" /><h2 className="text-base font-black tracking-tight">Anotações</h2></div><NotesChat game={game} /></section></Tabs.Content>
+      </Tabs.Root> : overviewContent}
     </div>
   );
 }

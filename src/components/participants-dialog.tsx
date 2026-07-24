@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { CheckCircle2, ThumbsUp } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, ThumbsUp } from 'lucide-react';
 import type { Profile } from '@/lib/types';
 import { Dialog, DialogContent, DialogTrigger } from './ui/dialog';
 import { Avatar } from './ui/avatar';
@@ -12,16 +12,19 @@ import { useUrlDialog } from '@/hooks/use-url-state';
 
 function PeopleList({ people, empty }: { people: Profile[]; empty: string }) {
   const [parent] = useAutoAnimate<HTMLDivElement>({ duration: 150, easing: 'cubic-bezier(.22, 1, .36, 1)' });
-  if (!people.length) return <div className="grid min-h-48 place-items-center px-6 text-center text-sm text-zinc-500">{empty}</div>;
+  if (!people.length) return <div className="participants-empty grid min-h-48 place-items-center px-6 text-center text-sm text-zinc-500">{empty}</div>;
   return (
-    <div ref={parent} className="max-h-[60dvh] overflow-y-auto p-2">
+    <div ref={parent} className="participants-people-list grid max-h-[60dvh] gap-2 overflow-y-auto p-3">
       {people.map(person => (
-        <Link key={person.id} href={`/perfil/${person.id}`} className="flex items-center gap-3 rounded-2xl p-3 transition hover:bg-white/5 active:bg-white/10">
-          <Avatar src={person.avatar_url} name={person.name} />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-bold text-zinc-100">{person.name || 'Membro'}</div>
-            <div className="text-xs text-zinc-500">Ver perfil e backlog</div>
+        <Link key={person.id} href={`/perfil/${person.id}`} className="participant-person group flex min-h-16 items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-3 py-2.5 transition">
+          <Avatar src={person.avatar_url} name={person.name} className="participant-person-avatar size-11" />
+          <div className="min-w-0 flex-1 leading-tight">
+            <div className="participant-person-name truncate text-sm font-extrabold text-zinc-100">{person.name || 'Membro'}</div>
+            <div className="participant-person-copy mt-1 text-[11px] font-medium text-zinc-500">Perfil, backlog e finalizados</div>
           </div>
+          <span className="participant-person-action grid size-8 shrink-0 place-items-center rounded-full border border-white/[0.07] bg-black/15 text-zinc-500 transition group-hover:text-zinc-200" aria-hidden="true">
+            <ArrowUpRight className="size-3.5" />
+          </span>
         </Link>
       ))}
     </div>

@@ -179,7 +179,7 @@ export function GameGallery({ title, images }: { title: string; images: string[]
       <div className="relative">
         <div ref={carouselRef} className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {images.map((url, index) => (
-            <button key={`${url}-${index}`} onClick={() => show(index)} className="game-media-card group relative aspect-[4/3] w-[84%] shrink-0 snap-start overflow-hidden rounded-2xl border border-white/8 bg-zinc-900 sm:w-[62%]">
+            <button key={`${url}-${index}`} onClick={() => show(index)} className={`game-media-card group relative shrink-0 snap-start overflow-hidden rounded-2xl border border-white/8 bg-zinc-900 ${images.length === 1 ? 'aspect-video w-full' : 'aspect-[4/3] w-[84%] sm:w-[62%]'}`}>
               <img src={url} alt={`Cena ${index + 1} de ${title}`} className="size-full object-cover transition duration-300 group-hover:scale-105" />
             </button>
           ))}

@@ -92,7 +92,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <aside className="theme-nav theme-sidebar fixed inset-y-0 left-0 z-50 hidden w-56 flex-col border-r border-white/[0.08] min-[960px]:flex">
-        <Link href="/jogo-do-mes" className="flex h-20 items-center gap-3 border-b border-white/[0.08] px-5" scroll={false}>
+        <Link href="/jogo-do-mes" className="flex h-20 items-center gap-3 border-b border-white/[0.08] px-8" scroll={false}>
           <span className="theme-logo grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg shadow-violet-950/50"><Gamepad2 className="size-5" /></span>
           <span className="min-w-0"><strong className="block truncate text-sm font-black tracking-tight">Clube do Jogo</strong><span className="mt-0.5 block text-[10px] font-semibold text-zinc-500">Jogando juntos</span></span>
         </Link>
@@ -124,7 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <header className="theme-header sticky top-0 z-50 border-b border-white/[0.06] pt-[env(safe-area-inset-top)] backdrop-blur-xl min-[960px]:hidden">
-        <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-3 px-8">
           <Link href="/jogo-do-mes" className="flex min-w-0 items-center gap-2.5" scroll={false}>
             <span className="theme-logo grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg shadow-violet-950/50"><Gamepad2 className="size-5" /></span>
             <span className="hidden truncate text-sm font-black tracking-tight min-[360px]:block">Clube do Jogo</span>
@@ -135,7 +135,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="relative z-10 mx-auto w-full max-w-5xl overflow-x-clip px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 sm:pt-7 min-[960px]:ml-56 min-[960px]:w-[calc(100%-14rem)] min-[960px]:max-w-none min-[960px]:px-4 min-[960px]:pb-12 min-[960px]:pt-8">{children}</main>
+      <main className="relative z-10 mx-auto w-full max-w-5xl px-8 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 sm:pt-7 min-[960px]:ml-56 min-[960px]:w-[calc(100%-14rem)] min-[960px]:max-w-none min-[960px]:pb-12 min-[960px]:pt-8">{children}</main>
       <nav aria-label="Navegação principal" className={cn('theme-nav fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-2xl border-t border-white/[0.08] pb-[max(.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-2xl transition-transform duration-150 ease-[cubic-bezier(.22,1,.36,1)] min-[960px]:hidden', navVisible ? 'translate-y-0' : 'translate-y-[calc(100%+env(safe-area-inset-bottom))]')}>
         <div className="grid grid-cols-3">
           {navigation.map(item => {
