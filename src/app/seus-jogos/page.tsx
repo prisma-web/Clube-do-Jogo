@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as Tabs from '@radix-ui/react-tabs';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { CalendarDays, Clock3, Gamepad2, Library, Plus, Search, Star, Trash2 } from 'lucide-react';
+import { CalendarDays, Clock3, Flag, Gamepad2, Library, Plus, Search, Star, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchProfileWithGames } from '@/lib/data';
 import type { Game, UserPlatform } from '@/lib/types';
@@ -219,9 +219,9 @@ export function YourGamesPanel({ embedded = false }: { embedded?: boolean }) {
 
       <Tabs.Root value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
         <Tabs.List className="app-tabs grid grid-cols-3 rounded-2xl border border-white/8 bg-white/[0.025] p-1.5">
-          <Tabs.Trigger value="backlog" className="rounded-xl px-3 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300">Backlog · {data?.backlog.length || 0}</Tabs.Trigger>
-          <Tabs.Trigger value="completed" className="rounded-xl px-3 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-300">Finalizados · {data?.completed.length || 0}</Tabs.Trigger>
-          <Tabs.Trigger value="platforms" className="rounded-xl px-2 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-300">Meus Consoles</Tabs.Trigger>
+          <Tabs.Trigger value="backlog" className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300"><span className="inline-flex items-center gap-1.5 leading-none"><span className="tabular-nums">{data?.backlog.length || 0}</span><Library className="size-5 shrink-0" /></span><span className="leading-none">Backlog</span></Tabs.Trigger>
+          <Tabs.Trigger value="completed" className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-300"><span className="inline-flex items-center gap-1.5 leading-none"><span className="tabular-nums">{data?.completed.length || 0}</span><Flag className="size-5 shrink-0" /></span><span className="leading-none">Finalizados</span></Tabs.Trigger>
+          <Tabs.Trigger value="platforms" className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-300"><span className="inline-flex items-center gap-1.5 leading-none"><span className="tabular-nums">{data?.platforms.length || 0}</span><Gamepad2 className="size-5 shrink-0" /></span><span className="leading-none">Consoles</span></Tabs.Trigger>
         </Tabs.List>
         <div className="my-4 flex justify-end">
           <Dialog open={addDialog.open} onOpenChange={open => open ? addDialog.show() : addDialog.close()}>
@@ -262,7 +262,7 @@ function GameSearchResult({ game, added, label, onAdd }: { game: Game; added: bo
         <div className="mt-2 flex items-end justify-between gap-3">
           <div className="flex min-w-0 flex-wrap gap-1.5 text-[11px] font-semibold text-zinc-400">
             <span className="inline-flex items-center gap-1 rounded-md bg-white/[.07] px-2 py-1"><Clock3 className="size-3 text-zinc-500" />{game.duration_hours} h</span>
-            {rating && <span className="inline-flex items-center gap-1 rounded-md bg-white/[.07] px-2 py-1 text-amber-300"><Star className="size-3 fill-current" />{rating}</span>}
+            {rating && <span className="game-rating inline-flex items-center gap-1 rounded-md bg-white/[.07] px-2 py-1 text-amber-300"><Star className="size-3 fill-current" />{rating}</span>}
             {game.release_year && <span className="inline-flex items-center gap-1 rounded-md bg-white/[.07] px-2 py-1"><CalendarDays className="size-3 text-zinc-500" />{game.release_year}</span>}
           </div>
           <button disabled={added} onClick={onAdd} type="button" className="shrink-0 rounded-lg bg-violet-500/15 px-3 py-2 text-[11px] font-bold text-violet-300 transition hover:bg-violet-500 hover:text-white disabled:text-emerald-300">{label}</button>

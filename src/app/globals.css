@@ -2385,6 +2385,102 @@ iframe {
 :root[data-theme='ori'] .reward-secondary,
 :root[data-theme='ori'] .reward-close { background: rgb(85 221 244 / 7%) !important; color: #9bc7d0; }
 
+/* Profile controls and rating metadata introduced by the profile refresh. */
+.profile-hero-action {
+  border-color: var(--hairline) !important;
+  background: color-mix(in srgb, var(--color-violet-500) 10%, var(--surface-soft)) !important;
+  color: var(--color-violet-200) !important;
+  box-shadow: inset 0 1px rgb(255 255 255 / 4%);
+}
+.profile-hero-action:hover {
+  border-color: color-mix(in srgb, var(--color-violet-400) 36%, var(--hairline)) !important;
+  background: color-mix(in srgb, var(--color-violet-500) 16%, var(--surface-soft)) !important;
+}
+.profile-stat {
+  border: 1px solid var(--hairline);
+  background: var(--surface-soft) !important;
+}
+.game-rating { color: #f3bc5a !important; }
+.app-tabs [value='platforms'][data-state='active'] {
+  background: color-mix(in srgb, var(--color-cyan-500) 12%, transparent) !important;
+  color: var(--color-cyan-300) !important;
+}
+
+:root[data-theme='zelda'] .profile-hero-action {
+  border-color: rgb(211 181 99 / 35%) !important;
+  border-radius: 50% !important;
+  background: #0d0f0d !important;
+  color: #d6b866 !important;
+  box-shadow: none;
+}
+:root[data-theme='zelda'] .profile-hero-action:hover { border-color: rgb(224 195 113 / 62%) !important; background: #15170f !important; }
+:root[data-theme='zelda'] .profile-stat { border-color: rgb(211 181 99 / 18%); background: #0d0f0d !important; color: #a79f8b !important; }
+:root[data-theme='zelda'] .game-rating { color: #d6b866 !important; }
+:root[data-theme='zelda'] .app-tabs [value='platforms'][data-state='active'] { background: rgb(82 116 166 / 16%) !important; color: #a9c8f2 !important; }
+
+:root[data-theme='nier'] .profile-hero-action {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #4b413d !important;
+  color: #e3deca !important;
+  box-shadow: 3px 3px 0 rgb(75 65 61 / 18%);
+}
+:root[data-theme='nier'] .profile-hero-action:hover { background: #5a4e48 !important; }
+:root[data-theme='nier'] .profile-stat {
+  border: 0;
+  border-radius: 0 !important;
+  background: #c9c3ad !important;
+  color: #4b413d !important;
+}
+:root[data-theme='nier'] .profile-since { color: #6c625c !important; }
+:root[data-theme='nier'] .game-rating { color: #6f5148 !important; }
+:root[data-theme='nier'] .app-tabs [value='platforms'][data-state='active'] { background: #59676a !important; color: #edf0e5 !important; }
+
+:root[data-theme='crossing'] .profile-hero-action {
+  border: 3px solid #fff8dc !important;
+  border-radius: 18px !important;
+  background: #69bcae !important;
+  color: #fffdf2 !important;
+  box-shadow: 0 4px 0 rgb(73 132 95 / 11%);
+}
+:root[data-theme='crossing'] .profile-edit-action { background: #e9bb4e !important; color: #664c17 !important; }
+:root[data-theme='crossing'] .profile-hero-action:hover { filter: brightness(1.04); }
+:root[data-theme='crossing'] .profile-stat {
+  border: 2px solid #fff6d8;
+  background: #f1e8c9 !important;
+  color: #4d685c !important;
+  box-shadow: 0 3px 0 rgb(95 132 83 / 6%);
+}
+:root[data-theme='crossing'] .profile-since { color: #687c71 !important; }
+:root[data-theme='crossing'] .game-rating { color: #b67827 !important; }
+:root[data-theme='crossing'] .app-tabs [value='platforms'][data-state='active'] { background: #d8eee6 !important; color: #397662 !important; }
+
+:root[data-theme='ori'] .profile-hero-action {
+  border: 1px solid rgb(79 205 229 / 72%) !important;
+  border-radius: 50% !important;
+  background:
+    radial-gradient(circle at 43% 38%, #fff 0 22%, #e5fcff 46%, #8de9f6 72%, #29b8da 100%) !important;
+  color: #086889 !important;
+  box-shadow:
+    0 0 0 2px rgb(85 221 244 / 8%),
+    0 0 13px 2px rgb(47 197 226 / 42%),
+    0 0 20px 3px rgb(33 166 211 / 24%),
+    inset 0 1px 2px #fff !important;
+}
+:root[data-theme='ori'] .profile-hero-action:hover {
+  border-color: rgb(104 224 243 / 88%) !important;
+  filter: brightness(1.04);
+}
+:root[data-theme='ori'] .profile-stat {
+  border-color: rgb(137 224 240 / 12%);
+  background: rgb(2 15 29 / 58%) !important;
+  color: #8db5bf !important;
+  box-shadow: inset 0 1px rgb(219 251 255 / 4%);
+}
+:root[data-theme='ori'] .profile-since { color: #6f99a4 !important; }
+:root[data-theme='ori'] .game-rating { color: #bff7ff !important; text-shadow: 0 0 10px rgb(85 221 244 / 18%); }
+:root[data-theme='ori'] .app-tabs [value='platforms'][data-state='active'] { background: rgb(85 221 244 / 12%) !important; color: #bff7ff !important; }
+
 /* Participant directory: compact profile cards with a distinct material per theme. */
 .participants-people-list {
   scrollbar-gutter: stable;

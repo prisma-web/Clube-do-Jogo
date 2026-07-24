@@ -157,12 +157,21 @@ export default function GamePage() {
 
   const trailer = youtubeEmbedUrl(game.trailer_url);
   const screenshots = game.screenshot_urls || [];
-  const galleryImages = screenshots.length ? screenshots : [game.image_url];
+  const galleryImages = Array.from(new Set([game.image_url, ...screenshots].filter(Boolean)));
   const playtimePoints = game.duration_hours < 8 ? 1 : game.duration_hours <= 15 ? 3 : game.duration_hours <= 20 ? 2 : 1;
   const ratingMultiplier = Number(game.average_rating ?? 50) / 100;
   const completionPenalty = people.completed.length ? people.completed.length * 2 : 1;
   const totalPoints = Math.round(((people.voters.length * 2 * playtimePoints * ratingMultiplier) / completionPenalty) * 10) / 10;
   const starCount = game.average_rating === null || game.average_rating === undefined ? null : Math.round(game.average_rating / 20);
+  const rating = game.average_rating === null || game.average_rating === undefined
+    ? null
+    : (game.average_rating / 10).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  const orderedPlatforms = (game.platforms || [])
+    .map((name, index) => ({ name, platformId: game.platform_ids?.[index] ?? -1, index }))
+    .sort((first, second) =>
+      Number(ownedPlatformIds.has(second.platformId)) - Number(ownedPlatformIds.has(first.platformId))
+      || first.index - second.index,
+    );
 
   const backlogAction = people.inBacklog ? (
     <DropdownMenu.Root>
@@ -214,7 +223,7 @@ export default function GamePage() {
       {(game.genres?.length || game.platforms?.length) && <section className="game-detail-surface game-detail-facts rounded-3xl border border-white/8 bg-white/[.035] p-5 sm:p-6">
         <div className="grid gap-6 sm:grid-cols-2">
           {game.genres?.length ? <div><h2 className="text-base font-black tracking-tight">Gêneros</h2><div className="mt-3 flex flex-wrap gap-2">{game.genres.map(genre => <span key={genre} className="game-detail-fact-chip rounded-full border border-white/8 bg-white/[.06] px-3 py-2 text-xs font-semibold text-zinc-400">{genre}</span>)}</div></div> : null}
-          {game.platforms?.length ? <div><h2 className="text-base font-black tracking-tight">Plataformas</h2><div className="mt-3 flex flex-wrap gap-2">{game.platforms.map((platform, index) => { const owned = ownedPlatformIds.has(game.platform_ids?.[index] ?? -1); return <span key={platform} data-owned={owned} className="game-detail-fact-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2 text-xs font-semibold text-zinc-400">{owned && <CheckCircle2 className="size-3.5 shrink-0" />}{platform}</span>; })}</div></div> : null}
+          {orderedPlatforms.length ? <div><h2 className="text-base font-black tracking-tight">Plataformas</h2><div className="mt-3 flex flex-wrap gap-2">{orderedPlatforms.map(platform => { const owned = ownedPlatformIds.has(platform.platformId); return <span key={platform.name} data-owned={owned} className="game-detail-fact-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2 text-xs font-semibold text-zinc-400">{owned && <CheckCircle2 className="size-3.5 shrink-0" />}{platform.name}</span>; })}</div></div> : null}
         </div>
       </section>}
 
@@ -239,7 +248,7 @@ export default function GamePage() {
           </div>
           <div className="mt-4 flex min-w-0 flex-wrap gap-2 text-xs font-bold text-zinc-400">
             <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2"><Clock3 className="size-3.5 text-zinc-500" />{game.duration_hours}h</span>
-            <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2">{starCount === null ? <span className="text-zinc-500">Sem nota</span> : <span className="flex text-amber-300">{Array.from({ length: 5 }, (_, index) => <Star key={index} className={`size-3.5 ${index < starCount ? 'fill-current' : 'text-zinc-600'}`} />)}</span>}</span>
+            <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2">{starCount === null ? <span className="text-zinc-500">Sem nota</span> : <span className="game-rating inline-flex items-center gap-2"><span className="tabular-nums">{rating}</span><span className="flex">{Array.from({ length: 5 }, (_, index) => <Star key={index} className={`size-3.5 ${index < starCount ? 'fill-current' : 'opacity-25'}`} />)}</span></span>}</span>
             {game.release_year && <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2"><CalendarDays className="size-3.5 text-zinc-500" />{game.release_year}</span>}
           </div>
           <p className="game-detail-description mt-4 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-[15px] sm:leading-7">{game.description || 'Sem descrição disponível.'}</p>
