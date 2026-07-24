@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Nunito } from "next/font/google";
 import { AppProvider } from "@/components/app-provider";
 import { AppShell } from "@/components/app-shell";
 import { PwaRegistration } from "@/components/pwa-registration";
+import { themes } from "@/lib/themes";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -19,6 +20,8 @@ const nunito = Nunito({
   variable: "--font-nunito",
   subsets: ["latin"],
 });
+
+const themeBootColors = Object.fromEntries(themes.map(theme => [theme.id, theme.background]));
 
 export const metadata: Metadata = {
   title: {
@@ -53,7 +56,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${nunito.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-[var(--background)] text-zinc-50 font-sans">
-        <script id="theme-init" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('clube-do-jogo:theme');var c={original:'#08080a',zelda:'#070807',nier:'#c7c1aa',crossing:'#d8edce'};if(c[t]){document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=c[t]}}catch(e){}` }} />
+        <script id="theme-init" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('clube-do-jogo:theme');var c=${JSON.stringify(themeBootColors)};if(c[t]){document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=c[t]}}catch(e){}` }} />
         <AppProvider>
           <AppShell>{children}</AppShell>
           <PwaRegistration />

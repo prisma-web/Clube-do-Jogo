@@ -19,6 +19,32 @@ export interface ClubCycle {
   game?: Game | null;
 }
 
+export type RewardKind = 'theme';
+
+export interface ClubReward {
+  id: string;
+  club_month: string;
+  code: string;
+  kind: RewardKind;
+  name: string;
+  description: string | null;
+  theme_id: string | null;
+  image_url: string | null;
+}
+
+export interface RewardGrant {
+  id: string;
+  reward_id: string;
+  granted_at: string;
+  seen_at: string | null;
+  reward: ClubReward & {
+    cycle?: {
+      month: string;
+      game?: Pick<Game, 'title' | 'image_url'> | null;
+    } | null;
+  };
+}
+
 export interface AdminUser extends Profile {
   role: AppRole;
 }

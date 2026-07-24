@@ -24,12 +24,39 @@ Em um projeto novo, execute `schema.sql` no SQL Editor do Supabase. Em seguida �
 
 1. `migration_monthly_club.sql`
 2. `migration_admin_cycles_game_data.sql`
+3. `migration_rewards.sql`
 
 A segunda migração adiciona cargos, histórico administrativo, ciclos encerrados manualmente no encontro, progresso permanente por jogo e anotações privadas sincronizadas. Ao encerrar um ciclo, ela também salva fotografias imutáveis do progresso do clube e das anotações privadas para que a consulta daquele mês permaneça parada no tempo. Ela consolida os registros mensais de progresso existentes e preserva os jogos já marcados como finalizados.
 
 Como o banco antigo não guardava essas fotografias, ciclos encerrados antes da aplicação da migration recebem um backfill com o melhor estado disponível no momento da atualização. A partir do primeiro encerramento posterior à migration, o estado salvo é exatamente o estado da transação que encerrou o ciclo.
 
 Decisões administrativas de ciclo ficam registradas e podem ser desfeitas em sequência. Se o ciclo já recebeu comentários, reações ou votos, a interface informa as quantidades e exige uma confirmação destrutiva. Depois de desfazer, o administrador tem 5 minutos para refazer; qualquer nova definição manual invalida os redos pendentes.
+
+## Recompensas de ciclo
+
+As recompensas são cadastradas por migration durante o ciclo ativo. Elas pertencem ao registro de `club_months`, e não ao jogo. Quando o ciclo muda de `active` para `closed`, todas as pessoas cujo snapshot está como `finished` recebem a recompensa de forma idempotente. Desfazer o encerramento revoga essas concessões; refazê-lo concede novamente.
+
+Para publicar um tema-recompensa:
+
+1. Adicione o tema e seu `id` em `src/lib/themes.ts` com `availability: 'reward'`.
+2. Adicione os estilos `:root[data-theme='id-do-tema']` em `src/app/globals.css`.
+3. Na migration da versão, vincule a recompensa ao ciclo ativo:
+
+```sql
+INSERT INTO public.club_rewards (
+  club_month, code, kind, name, description, theme_id
+) VALUES (
+  '2026-08',
+  '2026-08-theme-exemplo',
+  'theme',
+  'Tema do jogo de agosto',
+  'Concedido a quem finalizou o jogo do clube neste ciclo.',
+  'id-do-tema'
+)
+ON CONFLICT (code) DO NOTHING;
+```
+
+O tema-recompensa só entra no seletor das contas que receberam a concessão. A escolha continua salva apenas no dispositivo. O `theme_id` do banco é texto de propósito: a migration pode preparar a recompensa na mesma versão que entrega o novo tema.
 
 Depois de criar o usuário administrativo em **Authentication → Users**, promova-o pelo SQL Editor, substituindo o e-mail:
 

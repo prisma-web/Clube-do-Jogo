@@ -6,9 +6,10 @@ import { AnimatePresence, motion } from 'motion/react';
 import { CircleAlert, LoaderCircle, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { demoGames, demoMonths, demoProfiles } from '@/lib/demo-data';
-import type { AppRole, ClubCycle, Game, Profile } from '@/lib/types';
+import type { AppRole, ClubCycle, Game, Profile, RewardGrant } from '@/lib/types';
 import { monthKey, shiftMonth } from '@/lib/utils';
 import { DEFAULT_THEME, isThemeId, THEME_STORAGE_KEY, type ThemeId } from '@/lib/themes';
+import { RewardCelebration } from './reward-celebration';
 
 interface AppContextValue {
   user: User | { id: string; email?: string } | null;
@@ -24,6 +25,7 @@ interface AppContextValue {
   clubRevision: number;
   isHistorical: boolean;
   theme: ThemeId;
+  unlockedThemeIds: ThemeId[];
   setSelectedMonth: (month: string) => void;
   setTheme: (theme: ThemeId) => void;
   signOut: () => Promise<void>;
@@ -47,6 +49,7 @@ export interface ClubUndoPreview {
   ranking_rows: number;
   progress_snapshots: number;
   note_snapshots: number;
+  reward_grants: number;
 }
 
 interface ClubUndoResult {
@@ -58,6 +61,28 @@ interface ClubUndoResult {
 
 const AppContext = createContext<AppContextValue | null>(null);
 const MONTH_STORAGE_KEY = 'clube-do-jogo:selected-month';
+const DEMO_REWARD_STORAGE_KEY = 'clube-do-jogo:demo-reward-seen';
+
+function demoRewardGrant(seen: boolean): RewardGrant {
+  const clubMonth = demoMonths[1] || demoMonths[0];
+  return {
+    id: 'demo-crossing-reward',
+    reward_id: 'demo-crossing-theme',
+    granted_at: new Date().toISOString(),
+    seen_at: seen ? new Date().toISOString() : null,
+    reward: {
+      id: 'demo-crossing-theme',
+      club_month: clubMonth,
+      code: `${clubMonth}-crossing-theme`,
+      kind: 'theme',
+      name: 'Tema Animal Crossing',
+      description: 'Um tema leve e acolhedor para celebrar sua jornada com o clube.',
+      theme_id: 'crossing',
+      image_url: null,
+      cycle: { month: clubMonth, game: { title: demoGames[0].title, image_url: demoGames[0].image_url } },
+    },
+  };
+}
 
 function getOperationError(result: unknown): Error | null {
   if (!result || typeof result !== 'object' || !('error' in result)) return null;
@@ -80,6 +105,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [cycles, setCycles] = useState<ClubCycle[]>(isDemo ? demoMonths.map((month, index) => ({ month, game_id: 'hades', status: index === 0 ? 'active' : 'closed', game: demoGames[0] })) : []);
   const [clubRevision, setClubRevision] = useState(0);
   const [theme, setThemeState] = useState<ThemeId>(DEFAULT_THEME);
+  const [rewardGrants, setRewardGrants] = useState<RewardGrant[]>([]);
   const [operations, setOperations] = useState<{ id: string; label: string }[]>([]);
   const [toasts, setToasts] = useState<{ id: string; message: string }[]>([]);
   const demoClubUndos = useRef(new Map<string, { beforeCycles: ClubCycle[]; beforeMonth: string; afterCycles: ClubCycle[]; afterMonth: string; previousEventId?: string; revertedAt?: number }>());
@@ -138,6 +164,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setRole(roleData?.role === 'admin' ? 'admin' : 'member');
   }, [supabase]);
 
+  const fetchRewards = useCallback(async (userId: string) => {
+    if (isDemo) return;
+    const { data, error } = await supabase
+      .from('user_reward_grants')
+      .select('id, reward_id, granted_at, seen_at, reward:club_rewards(id, club_month, code, kind, name, description, theme_id, image_url, cycle:club_months(month, game:games(title, image_url)))')
+      .eq('user_id', userId)
+      .order('granted_at', { ascending: false });
+    if (error) throw error;
+    setRewardGrants((data || []) as unknown as RewardGrant[]);
+  }, [isDemo, supabase]);
+
   const fetchClubState = useCallback(async () => {
     if (isDemo) return;
     const { data, error } = await supabase.from('club_months').select('month, game_id, status, started_at, closed_at, selected_by, game:games (*)').order('month', { ascending: false });
@@ -165,13 +202,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!isDemo) return;
+    const seen = window.sessionStorage.getItem(DEMO_REWARD_STORAGE_KEY) === 'true';
+    queueMicrotask(() => setRewardGrants([demoRewardGrant(seen)]));
+  }, [isDemo]);
+
+  useEffect(() => {
     if (isDemo) return;
     let alive = true;
     void supabase.auth.getSession().then(({ data }) => {
       if (!alive) return;
       setUser(data.session?.user ?? null);
       if (data.session?.user) {
-        void Promise.all([fetchProfile(data.session.user.id), fetchClubState()]).finally(() => setAuthLoading(false));
+        void Promise.all([fetchProfile(data.session.user.id), fetchClubState(), fetchRewards(data.session.user.id)]).finally(() => setAuthLoading(false));
       } else {
         setAuthLoading(false);
       }
@@ -179,9 +222,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        void Promise.all([fetchProfile(session.user.id), fetchClubState()]).finally(() => setAuthLoading(false));
+        void Promise.all([fetchProfile(session.user.id), fetchClubState(), fetchRewards(session.user.id)]).finally(() => setAuthLoading(false));
       } else {
         setProfile(null);
+        setRewardGrants([]);
         setRole('member');
         setAuthLoading(false);
       }
@@ -190,7 +234,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       alive = false;
       listener.subscription.unsubscribe();
     };
-  }, [fetchClubState, fetchProfile, isDemo, supabase]);
+  }, [fetchClubState, fetchProfile, fetchRewards, isDemo, supabase]);
+
+  useEffect(() => {
+    if (isDemo || !user) return;
+    const channel = supabase
+      .channel(`reward-grants:${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'user_reward_grants',
+        filter: `user_id=eq.${user.id}`,
+      }, () => {
+        void fetchRewards(user.id);
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [fetchRewards, isDemo, supabase, user]);
 
   const setSelectedMonth = useCallback((value: string) => {
     if (!availableMonths.includes(value)) return;
@@ -248,7 +310,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const previewClubGameUndo = useCallback(async (eventId: string): Promise<ClubUndoPreview | null> => {
     if (isDemo) {
       const undo = demoClubUndos.current.get(eventId);
-      return undo ? { event_id: eventId, cycle_month: undo.afterMonth, action: 'created', comments: 0, reactions: 0, votes: 0, ranking_rows: 0, progress_snapshots: 0, note_snapshots: 0 } : null;
+      return undo ? { event_id: eventId, cycle_month: undo.afterMonth, action: 'created', comments: 0, reactions: 0, votes: 0, ranking_rows: 0, progress_snapshots: 0, note_snapshots: 0, reward_grants: 0 } : null;
     }
     const result = await supabase.rpc('get_club_game_undo_preview', { change_event_id: eventId });
     const error = getOperationError(result);
@@ -318,9 +380,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
   }, []);
 
+  const acknowledgeReward = useCallback(async (grantId: string) => {
+    if (isDemo) {
+      window.sessionStorage.setItem(DEMO_REWARD_STORAGE_KEY, 'true');
+      setRewardGrants(current => current.map(grant => grant.id === grantId ? { ...grant, seen_at: new Date().toISOString() } : grant));
+      return;
+    }
+    const result = await supabase.rpc('acknowledge_reward_grant', { target_grant_id: grantId });
+    const error = getOperationError(result);
+    if (error) {
+      showError(error);
+      return;
+    }
+    setRewardGrants(current => current.map(grant => grant.id === grantId ? { ...grant, seen_at: new Date().toISOString() } : grant));
+  }, [isDemo, showError, supabase]);
+
   const signOut = useCallback(async () => {
     if (!isDemo) await runOperation('Saindo da conta…', () => supabase.auth.signOut());
   }, [isDemo, runOperation, supabase]);
+
+  const unlockedThemeIds = useMemo(() => {
+    const ids = rewardGrants
+      .filter(grant => grant.reward.kind === 'theme' && isThemeId(grant.reward.theme_id))
+      .map(grant => grant.reward.theme_id as ThemeId);
+    return Array.from(new Set(ids));
+  }, [rewardGrants]);
+  const pendingReward = rewardGrants.find(grant => !grant.seen_at) || null;
 
   const value = useMemo<AppContextValue>(() => ({
     user,
@@ -336,6 +421,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clubRevision,
     isHistorical: selectedMonth !== (cycles.find(item => item.status === 'active')?.month || selectedMonth),
     theme,
+    unlockedThemeIds,
     setSelectedMonth,
     setTheme,
     signOut,
@@ -349,13 +435,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshProfile: async () => {
       if (user) await fetchProfile(user.id);
     },
-  }), [authLoading, availableMonths, clubRevision, cycles, fetchClubState, fetchProfile, isDemo, previewClubGameUndo, profile, redoClubGameChange, role, runOperation, runOptimistic, selectedMonth, setClubGame, setSelectedMonth, setTheme, signOut, theme, undoClubGameChange, user]);
+  }), [authLoading, availableMonths, clubRevision, cycles, fetchClubState, fetchProfile, isDemo, previewClubGameUndo, profile, redoClubGameChange, role, runOperation, runOptimistic, selectedMonth, setClubGame, setSelectedMonth, setTheme, signOut, theme, undoClubGameChange, unlockedThemeIds, user]);
 
   const currentOperation = operations.at(-1);
 
   return (
     <AppContext.Provider value={value}>
       {children}
+      {pendingReward && (
+        <RewardCelebration
+          key={pendingReward.id}
+          grant={pendingReward}
+          onAcknowledge={() => acknowledgeReward(pendingReward.id)}
+          onUseTheme={async themeId => {
+            if (isThemeId(themeId)) setTheme(themeId);
+            await acknowledgeReward(pendingReward.id);
+          }}
+        />
+      )}
       <AnimatePresence mode="wait">
         {currentOperation && (
           <motion.div
@@ -373,7 +470,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           </motion.div>
         )}
       </AnimatePresence>
-      <div className="pointer-events-none fixed inset-x-3 top-[max(4rem,calc(env(safe-area-inset-top)+4rem))] z-[310] flex flex-col items-center gap-2" aria-live="assertive">
+      <div className="pointer-events-none fixed inset-x-3 top-[max(4rem,calc(env(safe-area-inset-top)+4rem))] z-[340] flex flex-col items-center gap-2" aria-live="assertive">
         <AnimatePresence initial={false}>
           {toasts.map(toast => (
             <motion.div
