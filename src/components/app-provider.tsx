@@ -61,23 +61,23 @@ interface ClubUndoResult {
 
 const AppContext = createContext<AppContextValue | null>(null);
 const MONTH_STORAGE_KEY = 'clube-do-jogo:selected-month';
-const DEMO_REWARD_STORAGE_KEY = 'clube-do-jogo:demo-reward-seen';
+const DEMO_REWARD_STORAGE_KEY = 'clube-do-jogo:demo-reward-seen:ori';
 
 function demoRewardGrant(seen: boolean): RewardGrant {
   const clubMonth = demoMonths[1] || demoMonths[0];
   return {
-    id: 'demo-crossing-reward',
-    reward_id: 'demo-crossing-theme',
+    id: 'demo-ori-reward',
+    reward_id: 'demo-ori-theme',
     granted_at: new Date().toISOString(),
     seen_at: seen ? new Date().toISOString() : null,
     reward: {
-      id: 'demo-crossing-theme',
+      id: 'demo-ori-theme',
       club_month: clubMonth,
-      code: `${clubMonth}-crossing-theme`,
+      code: `${clubMonth}-ori-theme`,
       kind: 'theme',
-      name: 'Tema Animal Crossing',
-      description: 'Um tema leve e acolhedor para celebrar sua jornada com o clube.',
-      theme_id: 'crossing',
+      name: 'Tema Floresta de Nibel',
+      description: 'Uma floresta noturna iluminada por espíritos e vida bioluminescente.',
+      theme_id: 'ori',
       image_url: null,
       cycle: { month: clubMonth, game: { title: demoGames[0].title, image_url: demoGames[0].image_url } },
     },

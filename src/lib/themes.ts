@@ -3,6 +3,7 @@ export const themes = [
   { id: 'zelda', name: 'Zelda Deluxe', colors: ['#d3b563', '#5274a6', '#070807'], background: '#070807', availability: 'public' },
   { id: 'nier', name: 'NieR: Automata', colors: ['#4b413d', '#6f5148', '#c7c1aa'], background: '#c7c1aa', availability: 'public' },
   { id: 'crossing', name: 'Animal Crossing', colors: ['#58b6a6', '#77b96a', '#fff6d8'], background: '#e7dcc0', availability: 'reward' },
+  { id: 'ori', name: 'Floresta de Nibel', colors: ['#ddfbff', '#55ddf4', '#071a35'], background: '#030a16', availability: 'reward' },
 ] as const;
 
 export type ThemeId = (typeof themes)[number]['id'];

@@ -16,6 +16,21 @@ const navigation = [
   { href: '/perfil', label: 'Perfil', icon: UserRound },
 ];
 
+const atmosphereLights = [
+  { left: '7%', top: '12%', size: '3px', duration: '12s', delay: '-4s', drift: '18px' },
+  { left: '15%', top: '38%', size: '5px', duration: '15s', delay: '-9s', drift: '-14px' },
+  { left: '24%', top: '71%', size: '2px', duration: '11s', delay: '-2s', drift: '22px' },
+  { left: '32%', top: '21%', size: '3px', duration: '14s', delay: '-11s', drift: '-18px' },
+  { left: '40%', top: '54%', size: '4px', duration: '16s', delay: '-5s', drift: '14px' },
+  { left: '48%', top: '84%', size: '2px', duration: '12s', delay: '-7s', drift: '-20px' },
+  { left: '56%', top: '29%', size: '4px', duration: '13s', delay: '-1s', drift: '17px' },
+  { left: '63%', top: '64%', size: '3px', duration: '17s', delay: '-13s', drift: '-16px' },
+  { left: '71%', top: '16%', size: '2px', duration: '10s', delay: '-6s', drift: '13px' },
+  { left: '79%', top: '47%', size: '5px', duration: '15s', delay: '-3s', drift: '-22px' },
+  { left: '88%', top: '76%', size: '3px', duration: '13s', delay: '-10s', drift: '16px' },
+  { left: '94%', top: '27%', size: '2px', duration: '11s', delay: '-8s', drift: '-12px' },
+] as const;
+
 function isNavigationActive(pathname: string, href: string) {
   return href === '/perfil'
     ? pathname === '/perfil'
@@ -58,6 +73,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="theme-shell relative isolate min-h-dvh text-zinc-100">
       <div className="theme-pattern pointer-events-none fixed inset-0 z-0" aria-hidden="true" />
       <div className="theme-ambient pointer-events-none fixed inset-x-0 top-0 z-0 h-80 min-[960px]:bottom-0 min-[960px]:left-56 min-[960px]:h-auto" aria-hidden="true" />
+      <div className="theme-effects pointer-events-none fixed inset-0 z-20 overflow-hidden" aria-hidden="true">
+        {atmosphereLights.map((light, index) => (
+          <i
+            key={index}
+            className="theme-light absolute rounded-full"
+            style={{
+              left: light.left,
+              top: light.top,
+              width: light.size,
+              height: light.size,
+              animationDuration: light.duration,
+              animationDelay: light.delay,
+              '--light-drift': light.drift,
+            } as React.CSSProperties}
+          />
+        ))}
+      </div>
 
       <aside className="theme-nav theme-sidebar fixed inset-y-0 left-0 z-50 hidden w-56 flex-col border-r border-white/[0.08] min-[960px]:flex">
         <Link href="/jogo-do-mes" className="flex h-20 items-center gap-3 border-b border-white/[0.08] px-5" scroll={false}>

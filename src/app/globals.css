@@ -189,6 +189,59 @@
   --color-red-600: #ac2e34;
 }
 
+:root[data-theme='ori'] {
+  --background: #030a16;
+  --foreground: #e8fbff;
+  --surface: rgb(6 24 42 / 88%);
+  --surface-soft: rgb(105 215 240 / 7%);
+  --surface-deep: rgb(1 8 18 / 52%);
+  --hairline: rgb(159 235 249 / 18%);
+  --theme-header: rgb(3 13 27 / 82%);
+  --theme-nav: rgb(3 14 27 / 91%);
+  --theme-shadow: 0 18px 55px rgb(0 5 13 / 46%), 0 0 32px rgb(52 197 230 / 5%);
+  --theme-pattern: none;
+  --theme-pattern-size: cover;
+  --theme-pattern-opacity: 1;
+  --theme-ambient: radial-gradient(circle at 50% 0%, rgb(76 215 240 / 13%), transparent 54%);
+  --primary-on: #03111e;
+  --support-vote: #958bea;
+  --support-completed: #68dfbd;
+  --support-backlog: #58c9ec;
+  --support-danger: #f07686;
+  --color-violet-200: #dffbff;
+  --color-violet-300: #b7f3fb;
+  --color-violet-400: #73e1f2;
+  --color-violet-500: #40c9e3;
+  --color-violet-600: #20aecb;
+  --color-violet-700: #147b99;
+  --color-violet-950: #08263e;
+  --color-fuchsia-600: #5d74d7;
+  --color-fuchsia-700: #4055af;
+  --color-zinc-50: #effdff;
+  --color-zinc-100: #ddf7fb;
+  --color-zinc-200: #c7e8ed;
+  --color-zinc-300: #a8ccd3;
+  --color-zinc-400: #7faab4;
+  --color-zinc-500: #648d99;
+  --color-zinc-600: #416878;
+  --color-zinc-700: #29495a;
+  --color-zinc-800: #143246;
+  --color-zinc-900: #091f33;
+  --color-zinc-950: #041321;
+  --color-emerald-300: #91f0cf;
+  --color-emerald-400: #68dfbd;
+  --color-emerald-500: #34bd97;
+  --color-amber-200: #e9fdff;
+  --color-amber-300: #bff7ff;
+  --color-amber-400: #79e5f5;
+  --color-amber-500: #45c9e1;
+  --color-sky-200: #c8f7ff;
+  --color-sky-400: #58c9ec;
+  --color-red-300: #ff9ba8;
+  --color-red-500: #f07686;
+  --color-red-600: #cc5265;
+}
+
 .theme-shell { background: var(--background); }
 .theme-header { background: var(--theme-header); }
 .theme-nav { background: var(--theme-nav); box-shadow: 0 -12px 40px rgb(0 0 0 / 20%); }
@@ -1499,6 +1552,335 @@ iframe {
   -webkit-line-clamp: 2;
 }
 
+/* Ori: a deep, hand-painted night forest carried by cool spirit light. */
+.theme-effects { display: none; }
+
+@keyframes ori-light-drift {
+  0%, 100% { opacity: .08; transform: translate3d(0, 10px, 0) scale(.72); }
+  22% { opacity: .8; transform: translate3d(var(--light-drift), -8px, 0) scale(1.08); }
+  52% { opacity: .28; transform: translate3d(-9px, -24px, 0) scale(.84); }
+  76% { opacity: .9; transform: translate3d(var(--light-drift), -38px, 0) scale(1.18); }
+}
+
+:root[data-theme='ori'] .theme-pattern {
+  background-color: #030a16;
+  background-image:
+    linear-gradient(180deg, rgb(1 7 16 / 18%), rgb(1 8 18 / 32%) 54%, rgb(1 8 18 / 56%)),
+    url('/themes/ori/forest-mobile.webp');
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: .96;
+}
+:root[data-theme='ori'] .theme-ambient {
+  background:
+    radial-gradient(circle at 50% 8%, rgb(164 244 255 / 8%), transparent 28%),
+    linear-gradient(180deg, transparent 50%, rgb(2 10 22 / 48%));
+}
+:root[data-theme='ori'] .theme-effects { display: block; }
+:root[data-theme='ori'] .theme-light {
+  --light-drift: 16px;
+  animation: ori-light-drift 13s ease-in-out infinite;
+  background: #e5fdff;
+  box-shadow:
+    0 0 4px 1px rgb(222 251 255 / 88%),
+    0 0 12px 4px rgb(85 221 244 / 48%),
+    0 0 28px 8px rgb(69 182 238 / 16%);
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+:root[data-theme='ori'] .theme-light:nth-child(3n) { background: #86eaf8; }
+:root[data-theme='ori'] .theme-light:nth-child(4n) {
+  background: #a99df8;
+  box-shadow: 0 0 5px 1px rgb(169 157 248 / 72%), 0 0 18px 5px rgb(85 221 244 / 25%);
+}
+:root[data-theme='ori'] .theme-header,
+:root[data-theme='ori'] .theme-nav {
+  border-color: rgb(159 235 249 / 12%) !important;
+  background: linear-gradient(180deg, rgb(4 19 35 / 91%), rgb(2 11 23 / 88%));
+  box-shadow: 0 12px 42px rgb(0 6 16 / 38%);
+  backdrop-filter: blur(18px) saturate(1.12);
+}
+:root[data-theme='ori'] .theme-sidebar {
+  background:
+    linear-gradient(180deg, rgb(11 38 57 / 25%), transparent 26%),
+    rgb(2 11 23 / 92%);
+  box-shadow: 16px 0 50px rgb(0 5 13 / 36%);
+}
+:root[data-theme='ori'] .theme-logo {
+  border: 1px solid rgb(219 251 255 / 72%);
+  border-radius: 48% 52% 46% 54% / 55% 44% 56% 45% !important;
+  background:
+    radial-gradient(circle at 38% 30%, #fff 0 6%, #dffcff 18%, #63d9ed 48%, #164b71 78%, #071a35);
+  color: #02101d;
+  box-shadow:
+    0 0 0 3px rgb(85 221 244 / 9%),
+    0 0 18px rgb(169 241 255 / 42%),
+    0 0 38px rgb(55 171 223 / 20%),
+    inset -5px -7px 12px rgb(4 38 67 / 46%);
+}
+:root[data-theme='ori'] :where(h1, h2, .game-month-title, .reward-title) {
+  font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  font-weight: 700;
+  letter-spacing: .005em;
+}
+:root[data-theme='ori'] .theme-nav [aria-current='page'] {
+  background: linear-gradient(90deg, rgb(85 221 244 / 15%), rgb(85 221 244 / 3%)) !important;
+  color: #bff8ff !important;
+  box-shadow: inset 2px 0 #9cf3ff, 0 0 18px rgb(85 221 244 / 6%);
+}
+:root[data-theme='ori'] main :where(article, section[class*='border']),
+:root[data-theme='ori'] :where(
+  .ranking-card,
+  .game-list-card,
+  .profile-hero,
+  .participation-card,
+  .comment-card,
+  .comment-composer,
+  .notes-panel,
+  .game-dialog-preview,
+  .theme-settings
+) {
+  border-color: rgb(151 230 245 / 17%) !important;
+  background:
+    linear-gradient(145deg, rgb(13 45 67 / 88%), rgb(3 17 33 / 91%) 58%, rgb(5 25 43 / 88%)) !important;
+  box-shadow:
+    0 18px 50px rgb(0 5 13 / 35%),
+    inset 0 1px rgb(213 250 255 / 8%),
+    inset 1px 0 rgb(87 207 232 / 5%) !important;
+  backdrop-filter: blur(15px) saturate(1.08);
+}
+:root[data-theme='ori'] :where(
+  .ranking-card,
+  .game-list-card,
+  .profile-hero,
+  .participation-card,
+  .comment-card,
+  .comment-composer,
+  .notes-panel,
+  .game-dialog-preview,
+  .theme-settings,
+  .app-dialog
+) {
+  border-radius: 26px 18px 28px 20px / 22px 26px 20px 28px !important;
+}
+:root[data-theme='ori'] .profile-hero-glow {
+  height: 9rem;
+  background: radial-gradient(ellipse at 50% 0%, rgb(115 225 242 / 21%), transparent 68%) !important;
+}
+:root[data-theme='ori'] .ranking-card {
+  overflow: visible;
+  isolation: isolate;
+}
+:root[data-theme='ori'] .ranking-card::after,
+:root[data-theme='ori'] .game-list-card::after,
+:root[data-theme='ori'] .theme-settings::after {
+  position: absolute;
+  inset: 5px;
+  z-index: -1;
+  border: 1px solid rgb(157 238 250 / 5%);
+  border-radius: inherit;
+  pointer-events: none;
+  content: '';
+}
+:root[data-theme='ori'] .ranking-card[data-rank='1'] {
+  border-color: rgb(204 249 255 / 36%) !important;
+  background:
+    radial-gradient(circle at 12% 20%, rgb(199 250 255 / 13%), transparent 26%),
+    linear-gradient(145deg, rgb(16 61 83 / 94%), rgb(3 17 33 / 92%) 64%) !important;
+  box-shadow:
+    0 18px 50px rgb(0 5 13 / 42%),
+    0 0 30px rgb(85 221 244 / 9%),
+    inset 0 1px rgb(232 253 255 / 14%) !important;
+}
+:root[data-theme='ori'] .ranking-medal {
+  border-color: rgb(225 252 255 / 40%) !important;
+  border-radius: 52% 48% 55% 45% / 43% 57% 46% 54% !important;
+  box-shadow: 0 0 16px rgb(85 221 244 / 20%), inset 0 1px rgb(255 255 255 / 48%) !important;
+}
+:root[data-theme='ori'] .ranking-medal-1 { background: radial-gradient(circle at 34% 26%, #fff, #bff7ff 28%, #36b6d1 66%, #11506d) !important; color: #042035 !important; }
+:root[data-theme='ori'] .ranking-medal-2 { background: radial-gradient(circle at 34% 26%, #e7f1ff, #91aee0 45%, #4d669d) !important; color: #07162e !important; }
+:root[data-theme='ori'] .ranking-medal-3 { background: radial-gradient(circle at 34% 26%, #dcd7ff, #8b7ddd 44%, #493f8f) !important; color: #100c2d !important; }
+:root[data-theme='ori'] .ranking-medal-number,
+:root[data-theme='ori'] .ranking-position {
+  border-color: #0a273d !important;
+  background: #dffcff !important;
+  color: #06233a !important;
+  box-shadow: 0 0 12px rgb(137 235 250 / 25%);
+}
+:root[data-theme='ori'] .ranking-participants {
+  border: 1px solid rgb(137 224 240 / 10%);
+  background: rgb(2 13 26 / 48%) !important;
+  box-shadow: inset 0 1px rgb(219 251 255 / 3%) !important;
+}
+:root[data-theme='ori'] .ranking-participants:hover {
+  border-color: rgb(137 224 240 / 24%);
+  background: rgb(7 32 50 / 72%) !important;
+}
+:root[data-theme='ori'] .game-action {
+  border-color: rgb(132 220 238 / 15%) !important;
+  background: linear-gradient(145deg, rgb(8 32 51 / 90%), rgb(3 17 32 / 92%)) !important;
+  color: #87aeb8 !important;
+  box-shadow: inset 0 1px rgb(224 252 255 / 4%) !important;
+}
+:root[data-theme='ori'] .game-action:hover {
+  border-color: rgb(144 232 247 / 34%) !important;
+  color: #d8f8fc !important;
+  box-shadow: 0 0 16px rgb(85 221 244 / 7%) !important;
+}
+:root[data-theme='ori'] .game-action-vote[data-active='true'] { border-color: rgb(169 157 248 / 54%) !important; background: rgb(63 54 122 / 62%) !important; color: #ded9ff !important; }
+:root[data-theme='ori'] .game-action-completed[data-active='true'] { border-color: rgb(104 223 189 / 50%) !important; background: rgb(23 93 79 / 62%) !important; color: #c5f8e8 !important; }
+:root[data-theme='ori'] .game-action-backlog[data-active='true'] { border-color: rgb(88 201 236 / 52%) !important; background: rgb(19 77 105 / 66%) !important; color: #c8f4ff !important; }
+:root[data-theme='ori'] button.bg-violet-600:not(:disabled),
+:root[data-theme='ori'] .reward-primary {
+  border: 1px solid rgb(209 250 255 / 55%);
+  background: linear-gradient(110deg, #dffcff, #71e2f2 47%, #36bad7) !important;
+  color: #031624 !important;
+  box-shadow: 0 0 18px rgb(100 225 244 / 18%), inset 0 1px #fff;
+}
+:root[data-theme='ori'] button.bg-violet-600:not(:disabled):hover { filter: brightness(1.08); }
+:root[data-theme='ori'] .app-tabs {
+  border-color: rgb(137 224 240 / 16%) !important;
+  background: rgb(3 17 31 / 82%) !important;
+  box-shadow: 0 14px 35px rgb(0 5 13 / 28%), inset 0 1px rgb(218 251 255 / 5%) !important;
+  backdrop-filter: blur(18px) saturate(1.15);
+}
+:root[data-theme='ori'] .app-tabs [data-state='active'] {
+  border-radius: 14px 10px 15px 11px !important;
+  box-shadow: inset 0 0 0 1px rgb(194 247 255 / 7%), 0 0 16px rgb(85 221 244 / 6%);
+}
+:root[data-theme='ori'] .app-dialog,
+:root[data-theme='ori'] .app-popup {
+  border-color: rgb(165 237 249 / 23%) !important;
+  background:
+    radial-gradient(circle at 15% 0%, rgb(85 221 244 / 9%), transparent 31%),
+    rgb(3 17 31 / 96%) !important;
+  box-shadow: 0 30px 90px rgb(0 4 12 / 72%), 0 0 32px rgb(85 221 244 / 7%), inset 0 1px rgb(226 252 255 / 9%) !important;
+  backdrop-filter: blur(22px) saturate(1.15);
+}
+:root[data-theme='ori'] .app-dialog-header {
+  border-color: rgb(143 227 242 / 13%);
+  background: linear-gradient(90deg, rgb(85 221 244 / 8%), transparent 66%);
+}
+:root[data-theme='ori'] .dialog-overlay {
+  background: radial-gradient(circle at 50% 34%, rgb(10 54 76 / 38%), rgb(0 5 13 / 88%)) !important;
+  backdrop-filter: blur(8px) saturate(.9) !important;
+}
+:root[data-theme='ori'] .month-popup { padding: 9px !important; }
+:root[data-theme='ori'] .month-popup-item {
+  border: 1px solid transparent;
+  background: rgb(9 36 54 / 72%);
+}
+:root[data-theme='ori'] .month-popup-item[data-selected='true'] {
+  border-color: rgb(157 238 250 / 22%);
+  background: linear-gradient(90deg, rgb(85 221 244 / 16%), rgb(85 221 244 / 4%));
+  color: #dffcff;
+  box-shadow: inset 2px 0 #8cecf8;
+}
+:root[data-theme='ori'] .game-month-hero {
+  border-color: rgb(184 243 252 / 29%) !important;
+  border-radius: 34px 24px 38px 26px / 28px 36px 25px 39px !important;
+  background: #041321 !important;
+  box-shadow: 0 28px 80px rgb(0 4 12 / 62%), 0 0 34px rgb(85 221 244 / 7%), inset 0 1px rgb(230 253 255 / 10%) !important;
+}
+:root[data-theme='ori'] .game-month-hero::after,
+:root[data-theme='ori'] .game-detail-hero::after {
+  position: absolute;
+  inset: 7px;
+  z-index: 1;
+  border: 1px solid rgb(176 239 249 / 10%);
+  border-radius: inherit;
+  pointer-events: none;
+  content: '';
+}
+:root[data-theme='ori'] .game-month-backdrop img { opacity: .62; filter: blur(5px) brightness(.58) saturate(1.32) hue-rotate(8deg); }
+:root[data-theme='ori'] .game-month-shade {
+  background:
+    radial-gradient(ellipse at 50% 21%, rgb(2 13 25 / 18%), rgb(2 16 31 / 55%) 52%, rgb(1 9 19 / 92%) 100%),
+    linear-gradient(90deg, rgb(3 22 36 / 70%), transparent 48%, rgb(3 22 36 / 70%)) !important;
+}
+:root[data-theme='ori'] .game-month-tint { background: rgb(12 91 116 / 18%) !important; mix-blend-mode: color; }
+:root[data-theme='ori'] .game-month-chip {
+  border: 1px solid rgb(221 251 255 / 58%) !important;
+  background: radial-gradient(circle at 18% 30%, #effeff 0 4%, #9cecf7 18%, #2789ad 72%) !important;
+  color: #031726 !important;
+  text-shadow: 0 1px rgb(255 255 255 / 36%);
+  box-shadow: 0 0 18px rgb(111 229 247 / 28%), inset 0 1px #fff !important;
+}
+:root[data-theme='ori'] .game-month-chip svg { color: #05233a; fill: rgb(5 35 58 / 13%); }
+:root[data-theme='ori'] .game-month-cover {
+  border: 2px solid rgb(215 250 255 / 48%) !important;
+  border-radius: 28px 19px 27px 18px / 22px 28px 19px 27px !important;
+  box-shadow: 0 20px 50px rgb(0 3 10 / 72%), 0 0 22px rgb(109 226 244 / 15%) !important;
+}
+:root[data-theme='ori'] .game-month-title { color: #f0fdff !important; text-shadow: 0 2px 22px rgb(103 223 242 / 35%), 0 2px 8px #000 !important; }
+:root[data-theme='ori'] .game-month-description { color: #b7d8df !important; }
+:root[data-theme='ori'] .game-detail-backdrop-image { opacity: .5; filter: blur(6px) brightness(.56) saturate(1.25) hue-rotate(8deg); }
+:root[data-theme='ori'] .game-detail-shade { background: linear-gradient(180deg, rgb(2 13 25 / 36%), rgb(2 13 25 / 94%)) !important; }
+:root[data-theme='ori'] .game-detail-tint { background: rgb(18 101 126 / 13%) !important; mix-blend-mode: color; }
+:root[data-theme='ori'] .notes-panel {
+  background:
+    radial-gradient(circle at 12% 0%, rgb(85 221 244 / 10%), transparent 35%),
+    linear-gradient(145deg, rgb(7 31 50 / 94%), rgb(2 14 28 / 94%)) !important;
+}
+:root[data-theme='ori'] .thread-branch { position: relative; }
+:root[data-theme='ori'] .thread-branch::before {
+  background: linear-gradient(#a6f1fa, rgb(85 221 244 / 22%) 48%, transparent);
+  box-shadow: 0 0 8px rgb(85 221 244 / 18%);
+}
+:root[data-theme='ori'] .thread-reply {
+  border-left-color: rgb(149 234 248 / 18%);
+  background: linear-gradient(90deg, rgb(85 221 244 / 6%), transparent 70%);
+}
+:root[data-theme='ori'] .comment-avatar {
+  box-shadow: 0 0 0 3px #061a2d, 0 0 0 4px rgb(164 239 250 / 24%), 0 0 14px rgb(85 221 244 / 10%);
+}
+:root[data-theme='ori'] .theme-settings {
+  position: relative;
+  padding: 18px;
+  border: 1px solid rgb(151 230 245 / 18%);
+}
+:root[data-theme='ori'] .theme-settings::before {
+  position: absolute;
+  top: -2px;
+  left: 22px;
+  width: 52px;
+  height: 3px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, transparent, #dffcff, transparent);
+  box-shadow: 0 0 12px #55ddf4;
+  content: '';
+}
+:root[data-theme='ori'] .theme-option {
+  border-color: rgb(137 224 240 / 12%) !important;
+  background: rgb(2 15 29 / 54%) !important;
+}
+:root[data-theme='ori'] .theme-option[aria-checked='true'] {
+  border-color: rgb(181 241 251 / 34%) !important;
+  background: linear-gradient(110deg, rgb(85 221 244 / 15%), rgb(85 221 244 / 3%)) !important;
+  box-shadow: inset 2px 0 #baf5fc, 0 0 18px rgb(85 221 244 / 6%);
+}
+:root[data-theme='ori'] .admin-choice {
+  border-color: rgb(137 224 240 / 13%);
+  background: rgb(4 23 39 / 72%);
+}
+:root[data-theme='ori'] .admin-choice[data-emphasis='primary'] {
+  border-color: rgb(169 239 250 / 30%);
+  background: linear-gradient(110deg, rgb(85 221 244 / 13%), rgb(5 25 42 / 76%));
+}
+:root[data-theme='ori'] .admin-choice-icon { background: rgb(85 221 244 / 12%); color: #bff7ff; }
+:root[data-theme='ori'] .admin-entry { border-color: rgb(137 224 240 / 16%) !important; background: rgb(85 221 244 / 6%) !important; }
+:root[data-theme='ori'] .danger-action { border-color: rgb(240 118 134 / 26%) !important; background: rgb(100 29 47 / 20%) !important; color: #ff9ba8 !important; }
+
+@media (min-width: 720px) {
+  :root[data-theme='ori'] .theme-pattern {
+    background-image:
+      linear-gradient(180deg, rgb(1 7 16 / 14%), rgb(1 8 18 / 28%) 55%, rgb(1 8 18 / 52%)),
+      url('/themes/ori/forest-desktop.webp');
+    background-position: center bottom;
+  }
+}
+
 /* Reward reveal: intentionally more theatrical than the app's utility dialogs. */
 .reward-dialog {
   --reward-accent: #a78bfa;
@@ -1666,6 +2048,56 @@ iframe {
 :root[data-theme='crossing'] .reward-primary { border: 3px solid #fff8dc; background: repeating-linear-gradient(135deg, #43b8aa 0 10px, #51c1b4 10px 20px) !important; color: #fff !important; box-shadow: 0 5px 0 rgb(73 132 95 / 10%); }
 :root[data-theme='crossing'] .reward-secondary,
 :root[data-theme='crossing'] .reward-close { background: #f1ead0 !important; color: #4d685c; }
+
+:root[data-theme='ori'] .reward-overlay {
+  background: radial-gradient(circle at 50% 36%, rgb(14 73 96 / 45%), rgb(0 5 13 / 91%)) !important;
+  backdrop-filter: blur(9px) saturate(1.08) !important;
+}
+:root[data-theme='ori'] .reward-dialog {
+  --reward-accent: #dffcff;
+  --reward-accent-soft: #55ddf4;
+  border: 1px solid rgb(205 249 255 / 42%) !important;
+  border-radius: 38px 25px 42px 29px / 31px 41px 27px 43px !important;
+  background:
+    radial-gradient(circle at 50% 8%, rgb(167 242 253 / 18%), transparent 31%),
+    linear-gradient(155deg, rgb(8 39 59 / 98%), rgb(2 14 28 / 98%) 67%) !important;
+  box-shadow: 0 34px 110px rgb(0 3 10 / 76%), 0 0 48px rgb(85 221 244 / 13%), inset 0 1px rgb(232 253 255 / 15%) !important;
+}
+:root[data-theme='ori'] .reward-dialog::before {
+  inset: 9px;
+  border-color: rgb(189 243 252 / 10%);
+  border-radius: 30px 19px 34px 22px / 24px 33px 20px 35px;
+}
+:root[data-theme='ori'] .reward-rays {
+  background:
+    radial-gradient(ellipse at 50% 32%, rgb(184 246 255 / 15%), transparent 48%),
+    repeating-conic-gradient(from 0deg at 50% 32%, rgb(141 234 248 / 4%) 0deg 7deg, transparent 7deg 20deg);
+}
+:root[data-theme='ori'] .reward-badge {
+  border-color: rgb(234 254 255 / 72%);
+  border-radius: 48% 52% 46% 54% / 55% 44% 56% 45% !important;
+  background: radial-gradient(circle at 36% 29%, #fff, #dffcff 18%, #69dff0 48%, #185b7a 82%);
+  color: #031624;
+  box-shadow: 0 0 0 4px rgb(85 221 244 / 8%), 0 0 24px rgb(138 236 250 / 40%), inset -4px -6px 9px rgb(5 57 83 / 35%);
+}
+:root[data-theme='ori'] .reward-eyebrow { color: #bff7ff; text-shadow: 0 0 12px rgb(85 221 244 / 35%); }
+:root[data-theme='ori'] .reward-title { color: #effeff; text-shadow: 0 0 22px rgb(121 229 246 / 24%); }
+:root[data-theme='ori'] .reward-description,
+:root[data-theme='ori'] .reward-copy { color: #8db5bf; }
+:root[data-theme='ori'] .reward-art {
+  border-color: rgb(171 239 250 / 24%);
+  border-radius: 31px 20px 34px 23px / 25px 32px 22px 35px !important;
+  background:
+    radial-gradient(circle, rgb(185 246 255 / 15%), transparent 48%),
+    linear-gradient(145deg, rgb(10 54 75 / 78%), rgb(2 17 32 / 84%));
+  box-shadow: inset 0 0 42px rgb(85 221 244 / 8%), 0 0 24px rgb(85 221 244 / 6%);
+}
+:root[data-theme='ori'] .reward-art img { filter: grayscale(1) sepia(1) saturate(3.5) hue-rotate(155deg) brightness(1.28) contrast(.9); }
+:root[data-theme='ori'] .reward-card { border-color: rgb(146 229 243 / 14%) !important; background: rgb(2 15 29 / 62%) !important; }
+:root[data-theme='ori'] .reward-check { background: rgb(85 221 244 / 14%); color: #bff7ff; box-shadow: 0 0 12px rgb(85 221 244 / 10%); }
+:root[data-theme='ori'] .reward-name { color: #dffcff; }
+:root[data-theme='ori'] .reward-secondary,
+:root[data-theme='ori'] .reward-close { background: rgb(85 221 244 / 7%) !important; color: #9bc7d0; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

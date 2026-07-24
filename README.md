@@ -26,6 +26,8 @@ Em um projeto novo, execute `schema.sql` no SQL Editor do Supabase. Em seguida �
 2. `migration_admin_cycles_game_data.sql`
 3. `migration_rewards.sql`
 
+Na publicação do tema Floresta de Nibel, execute também `migration_reward_ori.sql` enquanto julho de 2026 ainda for o ciclo ativo. Essa migration específica não faz parte da criação genérica de projetos futuros.
+
 A segunda migração adiciona cargos, histórico administrativo, ciclos encerrados manualmente no encontro, progresso permanente por jogo e anotações privadas sincronizadas. Ao encerrar um ciclo, ela também salva fotografias imutáveis do progresso do clube e das anotações privadas para que a consulta daquele mês permaneça parada no tempo. Ela consolida os registros mensais de progresso existentes e preserva os jogos já marcados como finalizados.
 
 Como o banco antigo não guardava essas fotografias, ciclos encerrados antes da aplicação da migration recebem um backfill com o melhor estado disponível no momento da atualização. A partir do primeiro encerramento posterior à migration, o estado salvo é exatamente o estado da transação que encerrou o ciclo.
