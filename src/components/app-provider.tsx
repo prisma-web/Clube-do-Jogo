@@ -436,7 +436,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     cycles,
     activeCycle: cycles.find(item => item.status === 'active') || null,
     clubRevision,
-    isHistorical: selectedMonth !== (cycles.find(item => item.status === 'active')?.month || selectedMonth),
+    isHistorical: selectedMonth !== cycles.find(item => item.status === 'active')?.month,
     theme,
     unlockedThemeIds,
     setSelectedMonth,

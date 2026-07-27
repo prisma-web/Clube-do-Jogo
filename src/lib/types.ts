@@ -98,6 +98,9 @@ export interface ProfileWithGames {
 }
 
 export type ProgressStatus = 'not_started' | 'started' | 'finished';
+export type RatingMode = 'simple' | 'detailed';
+export type RatingCriterion = 'graphics' | 'gameplay' | 'story' | 'music' | 'fun';
+export type RatingDetails = Partial<Record<RatingCriterion, number | null>>;
 
 export interface GameProgress {
   id: string;
@@ -105,6 +108,8 @@ export interface GameProgress {
   game_id: string;
   status: ProgressStatus;
   rating: number | null;
+  rating_mode?: RatingMode;
+  rating_details?: RatingDetails | null;
   started_at: string | null;
   finished_at: string | null;
   profile?: Profile;

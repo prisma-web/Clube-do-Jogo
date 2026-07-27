@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import EmojiPicker, { EmojiStyle, Theme, type EmojiClickData } from 'emoji-picker-react';
@@ -63,6 +63,18 @@ export function Timeline({ game }: { game: Game }) {
     return roots;
   });
   const comments = query.data || [];
+  const refreshTimeline = query.refresh;
+
+  useEffect(() => {
+    if (isDemo) return;
+    const channel = supabase
+      .channel(`timeline:${game.id}:${selectedMonth}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'club_comments', filter: `game_id=eq.${game.id}` }, () => void refreshTimeline())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_reactions', filter: `game_id=eq.${game.id}` }, () => void refreshTimeline())
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
+  }, [game.id, isDemo, refreshTimeline, selectedMonth, supabase]);
 
   async function post(parentId: string | null) {
     const text = (parentId ? replyBody : body).trim();

@@ -138,6 +138,8 @@ export default function GamePage() {
       game_id: game.id,
       status: completedNow ? 'finished' : 'not_started',
       rating: null,
+      rating_mode: 'simple',
+      rating_details: null,
       started_at: completedNow ? now : null,
       finished_at: completedNow ? now : null,
       updated_at: now,
