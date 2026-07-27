@@ -164,7 +164,7 @@ export default function GamePage() {
   const ratingMultiplier = Number(game.average_rating ?? 50) / 100;
   const completionPenalty = people.completed.length ? people.completed.length * 2 : 1;
   const totalPoints = Math.round(((people.voters.length * 2 * playtimePoints * ratingMultiplier) / completionPenalty) * 10) / 10;
-  const starCount = game.average_rating === null || game.average_rating === undefined ? null : Math.round(game.average_rating / 20);
+  const ratingFill = game.average_rating === null || game.average_rating === undefined ? null : Math.max(0, Math.min(100, game.average_rating));
   const rating = game.average_rating === null || game.average_rating === undefined
     ? null
     : (game.average_rating / 10).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
@@ -237,26 +237,24 @@ export default function GamePage() {
   );
 
   return (
-    <div className="game-detail-page mx-auto max-w-4xl animate-fade-in">
-      <div className="game-detail-stage mb-6">
-        <div className="game-trailer-card game-detail-trailer relative overflow-hidden rounded-t-3xl border border-b-0 border-white/10 bg-black">
+    <div className="game-detail-page animate-fade-in">
+      <div className="game-detail-trailer-bleed -mx-8 mb-6 bg-black">
         {trailer ? <FloatingTrailer src={trailer} title={`Trailer de ${game.title}`} /> : <div className="aspect-video"><img src={game.image_url} alt={`Capa de ${game.title}`} className="size-full object-cover" /></div>}
-        </div>
-        <div className="game-detail-video-divider" aria-hidden="true" />
-        <section className="game-detail-surface game-detail-summary rounded-b-3xl border border-t-0 border-white/10 bg-white/[.035] px-5 pb-6 pt-5 sm:px-7 sm:pb-7 sm:pt-6">
+      </div>
+      <div className="mx-auto max-w-4xl">
+        <section className="game-detail-summary px-0 pb-6 sm:pb-7">
           <div className="flex items-start justify-between gap-4">
             <h1 className="min-w-0 break-words text-3xl font-black leading-[1.02] tracking-[-0.035em] sm:text-5xl">{game.title}</h1>
             <button onClick={() => void shareGame()} aria-label="Compartilhar jogo" title="Compartilhar jogo" className="game-detail-share grid size-10 shrink-0 place-items-center rounded-full border border-white/8 bg-white/[.06] text-zinc-400 transition hover:bg-white/[.12] hover:text-white"><Share2 className="size-4" /></button>
           </div>
           <div className="mt-4 flex min-w-0 flex-wrap gap-2 text-xs font-bold text-zinc-400">
             <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2"><Clock3 className="size-3.5 text-zinc-500" />{game.duration_hours}h</span>
-            <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2">{starCount === null ? <span className="text-zinc-500">Sem nota</span> : <span className="game-rating inline-flex items-center gap-2"><span className="tabular-nums">{rating}</span><span className="flex">{Array.from({ length: 5 }, (_, index) => <Star key={index} className={`size-3.5 ${index < starCount ? 'fill-current' : 'opacity-25'}`} />)}</span></span>}</span>
+            <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2">{ratingFill === null ? <span className="text-zinc-500">Sem nota</span> : <span className="game-rating inline-flex items-center gap-2"><span className="tabular-nums">{rating}</span><span aria-label={`Nota de ${rating} de 10`} className="relative flex"><span className="flex text-amber-400/25">{Array.from({ length: 5 }, (_, index) => <Star key={index} className="size-3.5" />)}</span><span aria-hidden="true" className="pointer-events-none absolute inset-0 flex overflow-hidden text-amber-400" style={{ width: `${ratingFill}%` }}>{Array.from({ length: 5 }, (_, index) => <Star key={index} className="size-3.5 shrink-0 fill-current" />)}</span></span></span>}</span>
             {game.release_year && <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2"><CalendarDays className="size-3.5 text-zinc-500" />{game.release_year}</span>}
           </div>
           <p className="game-detail-description mt-4 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-[15px] sm:leading-7">{game.description || 'Sem descrição disponível.'}</p>
           {!isPreview && <ClubGameAdminDialog game={game} className="mt-5" />}
         </section>
-      </div>
 
       {!isPreview ? <Tabs.Root defaultValue="overview">
         <Tabs.List aria-label="Seções do jogo" className="app-tabs game-detail-tabs sticky top-[calc(4rem+env(safe-area-inset-top))] z-30 mb-5 grid grid-cols-3 rounded-2xl border border-white/8 bg-[#0c0c0f]/92 p-1.5 shadow-xl backdrop-blur-xl min-[960px]:top-4">
@@ -268,6 +266,7 @@ export default function GamePage() {
         <Tabs.Content value="progress" className="outline-none data-[state=active]:animate-tab-in"><section className="game-detail-surface game-detail-tab-card rounded-3xl border border-white/8 bg-white/[.035] p-5 sm:p-6"><ProgressList game={game} /></section></Tabs.Content>
         <Tabs.Content value="notes" className="outline-none data-[state=active]:animate-tab-in"><section className="game-detail-surface game-detail-tab-card rounded-3xl border border-white/8 bg-white/[.035] p-4 sm:p-6"><div className="mb-4 flex items-center gap-2"><NotebookPen className="size-4 text-violet-400" /><h2 className="text-base font-black tracking-tight">Anotações</h2></div><NotesChat game={game} /></section></Tabs.Content>
       </Tabs.Root> : overviewContent}
+      </div>
     </div>
   );
 }

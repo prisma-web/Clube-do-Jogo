@@ -28,7 +28,7 @@ const detailCriteria: Array<{ key: RatingCriterion; label: string }> = [
 ];
 
 function formatRating(value: number) {
-  return value.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 function detailsFrom(value: RatingDetails | null | undefined, fallback: number): RatingDetails {
@@ -120,21 +120,21 @@ export function ProgressList({ game, snapshotMonth }: { game: Game; snapshotMont
   function setDetailedMode(enabled: boolean) {
     if (!mine) return;
     if (!enabled) {
-      void saveRating(mine.rating ?? 50, 'simple', null);
+      void saveRating(mine.rating ?? 5, 'simple', null);
       return;
     }
-    let details = detailsFrom(mine.rating_details, mine.rating ?? 50);
-    if (!detailCriteria.some(({ key }) => details[key] !== null)) details = detailsFrom(null, mine.rating ?? 50);
+    let details = detailsFrom(mine.rating_details, mine.rating ?? 5);
+    if (!detailCriteria.some(({ key }) => details[key] !== null)) details = detailsFrom(null, mine.rating ?? 5);
     void saveRating(detailsAverage(details), 'detailed', details);
   }
 
   function setCriterion(key: RatingCriterion, value: number | null) {
     if (!mine) return;
-    const details = { ...detailsFrom(mine.rating_details, mine.rating ?? 50), [key]: value };
+    const details = { ...detailsFrom(mine.rating_details, mine.rating ?? 5), [key]: value };
     void saveRating(detailsAverage(details), 'detailed', details);
   }
 
-  const myDetails = detailsFrom(mine?.rating_details, mine?.rating ?? 50);
+  const myDetails = detailsFrom(mine?.rating_details, mine?.rating ?? 5);
   const enabledCriteria = detailCriteria.filter(({ key }) => myDetails[key] !== null).length;
 
   return (
@@ -145,8 +145,8 @@ export function ProgressList({ game, snapshotMonth }: { game: Game; snapshotMont
           {(Object.keys(statusMeta) as ProgressStatus[]).map(status => { const MetaIcon = statusMeta[status].icon; return <button key={status} disabled={Boolean(snapshotMonth)} data-selected={mine?.status === status} onClick={() => void updateStatus(status)} className={`progress-status-option flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-1 py-3 text-[10px] font-bold transition disabled:cursor-default ${mine?.status === status ? 'border-violet-400/35 bg-violet-500/15 text-violet-200' : 'border-white/8 bg-white/[0.025] text-zinc-500 enabled:hover:bg-white/5'}`}><MetaIcon className="size-4" /><span className="max-w-full truncate whitespace-nowrap">{statusMeta[status].label}</span></button>; })}
         </div>
         {mine?.status === 'finished' && <div className="mt-4 space-y-4 border-t border-white/8 pt-4">
-          <div className="flex flex-wrap items-center justify-between gap-3"><div><span className="block text-xs font-bold text-zinc-400">Minha nota</span><span className="mt-0.5 block text-[10px] text-zinc-600">de 0 a 100</span></div>{mine.rating_mode === 'detailed' && <span className="text-sm font-black tabular-nums text-amber-300">{formatRating(mine.rating ?? 0)}</span>}</div>
-          {mine.rating_mode !== 'detailed' && <RatingSlider value={mine.rating ?? 50} disabled={Boolean(snapshotMonth)} label="Minha nota" onCommit={rating => void saveRating(rating, 'simple', null)} />}
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><span className="block text-xs font-bold text-zinc-400">Minha nota</span><span className="mt-0.5 block text-[10px] text-zinc-600">de 0 a 10</span></div>{mine.rating_mode === 'detailed' && <span className="text-sm font-black tabular-nums text-amber-300">{formatRating(mine.rating ?? 0)}</span>}</div>
+          {mine.rating_mode !== 'detailed' && <RatingSlider value={mine.rating ?? 5} disabled={Boolean(snapshotMonth)} label="Minha nota" onCommit={rating => void saveRating(rating, 'simple', null)} />}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-3"><div><span className="block text-xs font-bold text-zinc-400">Média do clube</span><span className="mt-0.5 block text-[10px] text-zinc-600">{ratedProgress.length ? `${ratedProgress.length} ${ratedProgress.length === 1 ? 'avaliação' : 'avaliações'}` : 'Ainda sem avaliações'}</span></div>{clubAverage !== null && <span className="inline-flex items-center gap-2"><RatingStars value={clubAverage} /><strong className="text-sm tabular-nums text-amber-300">{formatRating(clubAverage)}</strong></span>}</div>
           <button type="button" onClick={() => setDetailsOpen(open => !open)} className="flex w-full items-center justify-between rounded-xl border border-white/8 bg-white/[0.025] px-3 py-2.5 text-xs font-bold text-zinc-300 transition hover:bg-white/[0.055]"><span>Nota detalhada</span><ChevronDown className={`size-4 text-zinc-500 transition ${detailsOpen ? 'rotate-180' : ''}`} /></button>
           {detailsOpen && <div className="space-y-3 rounded-xl border border-white/8 bg-black/15 p-3">
@@ -155,7 +155,7 @@ export function ProgressList({ game, snapshotMonth }: { game: Game; snapshotMont
               {detailCriteria.map(({ key, label }) => {
                 const value = myDetails[key];
                 const enabled = value !== null;
-                return <div key={key} className="space-y-2"><div className="flex items-center justify-between gap-3"><span className={`text-xs font-bold ${enabled ? 'text-zinc-300' : 'text-zinc-600'}`}>{label}</span><label className="inline-flex items-center gap-2 text-[10px] font-bold text-zinc-500"><span>Incluir</span><input type="checkbox" checked={enabled} disabled={Boolean(snapshotMonth) || mine.rating_mode !== 'detailed' || (enabled && enabledCriteria <= 1)} onChange={event => setCriterion(key, event.target.checked ? mine.rating ?? 50 : null)} className="size-3.5 accent-violet-500" /></label></div><RatingSlider value={value ?? 0} disabled={!enabled || mine.rating_mode !== 'detailed' || Boolean(snapshotMonth)} label={`Nota de ${label}`} onCommit={nextValue => setCriterion(key, nextValue)} /></div>;
+                return <div key={key} className="space-y-2"><div className="flex items-center justify-between gap-3"><span className={`text-xs font-bold ${enabled ? 'text-zinc-300' : 'text-zinc-600'}`}>{label}</span><label className="inline-flex items-center gap-2 text-[10px] font-bold text-zinc-500"><span>Incluir</span><input type="checkbox" checked={enabled} disabled={Boolean(snapshotMonth) || mine.rating_mode !== 'detailed' || (enabled && enabledCriteria <= 1)} onChange={event => setCriterion(key, event.target.checked ? mine.rating ?? 5 : null)} className="size-3.5 accent-violet-500" /></label></div><RatingSlider value={value ?? 0} disabled={!enabled || mine.rating_mode !== 'detailed' || Boolean(snapshotMonth)} label={`Nota de ${label}`} onCommit={nextValue => setCriterion(key, nextValue)} /></div>;
               })}
             </div>
           </div>}

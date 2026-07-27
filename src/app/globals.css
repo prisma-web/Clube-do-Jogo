@@ -1991,7 +1991,7 @@ iframe {
   background: var(--surface) !important;
   box-shadow: var(--theme-shadow);
 }
-.game-detail-summary { box-shadow: 0 20px 55px rgb(0 0 0 / 20%); }
+.game-detail-summary { box-shadow: none; }
 .game-detail-tabs { overflow: hidden; }
 .game-detail-meta-chip,
 .game-detail-fact-chip,

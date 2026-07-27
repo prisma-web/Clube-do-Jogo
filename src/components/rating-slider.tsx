@@ -4,10 +4,10 @@ import { useRef, useState } from 'react';
 import { Star } from 'lucide-react';
 
 function Stars({ value, size = 'size-5' }: { value: number; size?: string }) {
-  const percentage = Math.max(0, Math.min(100, value));
-  return <span aria-hidden="true" className="relative flex">
+  const percentage = Math.max(0, Math.min(100, value * 10));
+  return <span aria-hidden="true" className="relative flex w-fit">
     <span className="flex text-zinc-700">{Array.from({ length: 5 }, (_, index) => <Star key={index} className={size} strokeWidth={1.8} />)}</span>
-    <span className="pointer-events-none absolute inset-y-0 left-0 flex overflow-hidden text-amber-400" style={{ width: `${percentage}%` }}>{Array.from({ length: 5 }, (_, index) => <Star key={index} className={`${size} shrink-0 fill-current`} strokeWidth={1.8} />)}</span>
+    <span className="pointer-events-none absolute inset-0 flex text-amber-400" style={{ clipPath: `inset(0 ${100 - percentage}% 0 0)` }}>{Array.from({ length: 5 }, (_, index) => <Star key={index} className={`${size} fill-current`} strokeWidth={1.8} />)}</span>
   </span>;
 }
 
@@ -40,17 +40,17 @@ function RatingSliderControl({ initialValue, onCommit, disabled, label }: {
   }
 
   return <div className="flex min-w-0 flex-1 items-center gap-3">
-    <div className="relative h-7 w-[6.25rem] shrink-0">
-      <Stars value={draft} />
+    <div className="relative h-8 w-36 shrink-0">
+      <Stars value={draft} size="size-8 -ml-1 first:ml-0" />
       <input
         type="range"
         min="0"
-        max="100"
-        step="1"
+        max="10"
+        step="0.5"
         value={draft}
         disabled={disabled}
         aria-label={label}
-        aria-valuetext={`${draft} de 100`}
+        aria-valuetext={`${draft.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} de 10`}
         onChange={event => setDraft(Number(event.target.value))}
         onPointerUp={event => commit(Number(event.currentTarget.value))}
         onBlur={event => commit(Number(event.currentTarget.value))}
@@ -58,6 +58,6 @@ function RatingSliderControl({ initialValue, onCommit, disabled, label }: {
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
       />
     </div>
-    <output className="w-9 text-right text-sm font-black tabular-nums text-amber-300">{draft}</output>
+    <output className="w-12 text-right text-xl font-black tabular-nums text-amber-300">{draft.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</output>
   </div>;
 }
