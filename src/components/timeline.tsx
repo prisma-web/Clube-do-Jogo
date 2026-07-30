@@ -97,8 +97,26 @@ export function Timeline({ game }: { game: Game }) {
     if (isDemo) {
       query.setData(nextComments);
     } else {
-      const saved = await runOptimistic(parentId ? 'Enviando resposta…' : 'Publicando comentário…', () => query.setData(nextComments), () => query.setData(comments), () => supabase.from('club_comments').insert({ user_id: user!.id, game_id: game.id, club_month: selectedMonth, parent_id: parentId, body: text }));
-      if (saved) await query.refresh();
+      let savedCommentId: string | null = null;
+      const saved = await runOptimistic(parentId ? 'Enviando resposta…' : 'Publicando comentário…', () => query.setData(nextComments), () => query.setData(comments), async () => {
+        const result = await supabase
+          .from('club_comments')
+          .insert({ user_id: user!.id, game_id: game.id, club_month: selectedMonth, parent_id: parentId, body: text })
+          .select('id')
+          .single();
+        savedCommentId = result.data?.id || null;
+        return result;
+      });
+      if (saved) {
+        await query.refresh();
+        if (savedCommentId) {
+          void fetch('/api/push/comment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ commentId: savedCommentId }),
+          });
+        }
+      }
       else if (parentId) {
         setReplyingTo(parentId);
         setReplyBody(text);

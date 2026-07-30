@@ -9,6 +9,7 @@ import { AuthScreen } from './auth-screen';
 import { MonthSelector } from './month-selector';
 import { Avatar } from './ui/avatar';
 import { cn } from '@/lib/utils';
+import { PushNotificationButton } from './push-notification-button';
 
 const navigation = [
   { href: '/jogo-do-mes', label: 'Jogo do mês', icon: Gamepad2 },
@@ -116,10 +117,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="border-t border-white/[0.08] p-3 pb-[max(.75rem,env(safe-area-inset-bottom))]">
-          <Link href="/perfil" aria-label="Abrir perfil" scroll={false} className="flex min-w-0 items-center gap-3 rounded-xl p-2 transition hover:bg-white/5">
-            <Avatar src={profile?.avatar_url} name={profile?.name} className="size-10 shrink-0" />
-            <span className="min-w-0"><strong className="block truncate text-xs text-zinc-200">{profile?.name || 'Meu perfil'}</strong><span className="mt-0.5 block text-[10px] text-zinc-600">{isAdmin ? 'Administrador' : 'Ver perfil'}</span></span>
-          </Link>
+          <div className="flex min-w-0 items-center gap-2">
+            <Link href="/perfil" aria-label="Abrir perfil" scroll={false} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-2 transition hover:bg-white/5">
+              <Avatar src={profile?.avatar_url} name={profile?.name} className="size-10 shrink-0" />
+              <span className="min-w-0"><strong className="block truncate text-xs text-zinc-200">{profile?.name || 'Meu perfil'}</strong><span className="mt-0.5 block text-[10px] text-zinc-600">{isAdmin ? 'Administrador' : 'Ver perfil'}</span></span>
+            </Link>
+            <PushNotificationButton />
+          </div>
         </div>
       </aside>
 
@@ -131,6 +135,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="flex min-w-0 items-center gap-2">
             {!detailRoute && <MonthSelector />}
+            <PushNotificationButton />
             <Link href="/perfil" aria-label="Abrir perfil" scroll={false}><Avatar src={profile?.avatar_url} name={profile?.name} className="size-9" /></Link>
           </div>
         </div>

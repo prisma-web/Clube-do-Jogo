@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clube-do-jogo-v2';
+const CACHE_NAME = 'clube-do-jogo-v3';
 const APP_SHELL = ['/jogo-do-mes', '/manifest.webmanifest', '/icons/club-do-jogo-192.png', '/icons/club-do-jogo-512.png'];
 
 self.addEventListener('install', event => {
@@ -42,4 +42,38 @@ self.addEventListener('fetch', event => {
       })),
     );
   }
+});
+
+self.addEventListener('push', event => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = {};
+  }
+
+  const title = payload.title || 'Clube do Jogo';
+  const options = {
+    body: payload.body || 'Ha uma novidade no clube.',
+    icon: '/icons/club-do-jogo-192.png',
+    badge: '/icons/club-do-jogo-192.png',
+    tag: payload.tag || 'clube-do-jogo',
+    renotify: true,
+    data: { url: payload.url || '/jogo-do-mes?section=timeline' },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || '/jogo-do-mes?section=timeline', self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      const openClient = clientList.find(client => 'focus' in client);
+      if (openClient) return openClient.focus().then(client => client.navigate(targetUrl));
+      return self.clients.openWindow(targetUrl);
+    }),
+  );
 });
