@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
+import * as Dialog from '@radix-ui/react-dialog';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import EmojiPicker, { EmojiStyle, Theme, type EmojiClickData } from 'emoji-picker-react';
-import { CornerDownRight, MessageCircle, Send, SmilePlus } from 'lucide-react';
+import { CornerDownRight, MessageCircle, Send, SmilePlus, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { demoComments, demoProfiles } from '@/lib/demo-data';
 import type { ClubComment, CommentReaction, Game, Profile } from '@/lib/types';
@@ -29,6 +30,8 @@ export function Timeline({ game }: { game: Game }) {
   const [replyBody, setReplyBody] = useState('');
   const [sending, setSending] = useState(false);
   const [reactionNotice, setReactionNotice] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ comment: ClubComment; rootId: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [commentsParent] = useAutoAnimate<HTMLDivElement>({ duration: 160, easing: 'cubic-bezier(.22, 1, .36, 1)' });
 
   const query = useStaleQuery<ClubComment[]>(`comments:${game.id}:${selectedMonth}`, async () => {
@@ -128,6 +131,28 @@ export function Timeline({ game }: { game: Game }) {
     await runOptimistic(reaction?.reactedByMe ? 'Removendo reação…' : 'Adicionando reação…', () => query.setData(nextComments), () => query.setData(comments), () => request);
   }
 
+  async function deleteComment() {
+    if (!deleteTarget || isHistorical) return;
+    const { comment, rootId } = deleteTarget;
+    const nextComments = comment.id === rootId
+      ? comments.filter(item => item.id !== comment.id)
+      : comments.map(root => root.id === rootId ? { ...root, replies: root.replies.filter(reply => reply.id !== comment.id) } : root);
+    setDeleting(true);
+    if (isDemo) {
+      query.setData(nextComments);
+      setDeleteTarget(null);
+    } else {
+      const deleted = await runOptimistic(
+        'Apagando comentário…',
+        () => query.setData(nextComments),
+        () => query.setData(comments),
+        () => supabase.from('club_comments').delete().eq('id', comment.id).eq('user_id', user!.id),
+      );
+      if (deleted) setDeleteTarget(null);
+    }
+    setDeleting(false);
+  }
+
   function ReactionPicker({ comment, rootId }: { comment: ClubComment; rootId: string }) {
     return (
       <Popover.Root>
@@ -148,13 +173,14 @@ export function Timeline({ game }: { game: Game }) {
             {comment.reactions.map(reaction => <button key={reaction.emoji} data-active={reaction.reactedByMe} onClick={() => void toggleReaction(comment, reaction.emoji, rootId)} title={reaction.users.map(person => person.name).join(', ')} className={`comment-reaction inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs transition active:scale-95 ${reaction.reactedByMe ? 'border-violet-400/35 bg-violet-500/15 text-violet-200' : 'border-white/8 bg-white/[0.035] text-zinc-400'}`}><span>{reaction.emoji}</span><span className="text-[10px] font-bold">{reaction.users.length}</span></button>)}
             {!isHistorical && <ReactionPicker comment={comment} rootId={rootId} />}
             {!nested && !isHistorical && <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="ml-1 inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[10px] font-bold text-zinc-500 hover:bg-white/5 hover:text-zinc-300"><CornerDownRight className="size-3" />Responder</button>}
+            {!isHistorical && comment.user_id === user!.id && <button type="button" onClick={() => setDeleteTarget({ comment, rootId })} aria-label="Apagar comentário" title="Apagar comentário" className="ml-auto grid size-7 place-items-center rounded-full text-zinc-600 transition hover:bg-red-500/10 hover:text-red-300"><Trash2 className="size-3.5" /></button>}
           </div>
         </div>
       </article>
     );
   }
 
-  return (
+  return <>
     <div ref={commentsParent} className="space-y-4">
       {!isHistorical && <div className="comment-composer rounded-2xl bg-white/[0.025] p-3"><div className="flex items-start gap-3"><Avatar src={profile?.avatar_url} name={profile?.name} className="comment-avatar size-9" /><textarea value={body} onChange={event => setBody(event.target.value)} rows={2} placeholder="O que você está achando do jogo?" className="min-h-16 min-w-0 flex-1 resize-none bg-transparent py-1 text-sm leading-relaxed outline-none placeholder:text-zinc-600" /></div><div className="mt-2 flex justify-end"><button disabled={!body.trim() || sending} onClick={() => void post(null)} className="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-violet-600 px-4 text-xs font-bold transition active:scale-95 disabled:bg-zinc-800 disabled:text-zinc-600"><Send className="size-3.5" />Comentar</button></div></div>}
       {reactionNotice && <div className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{reactionNotice}</div>}
@@ -167,5 +193,15 @@ export function Timeline({ game }: { game: Game }) {
         </div>
       ))}
     </div>
-  );
+    <Dialog.Root open={Boolean(deleteTarget)} onOpenChange={open => { if (!open && !deleting) setDeleteTarget(null); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="dialog-overlay fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm" />
+        <Dialog.Content className="animated-modal fixed left-1/2 top-1/2 z-[91] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/10 bg-[#121216] p-5 shadow-2xl outline-none">
+          <Dialog.Title className="text-base font-black">Apagar comentário?</Dialog.Title>
+          <Dialog.Description className="mt-2 text-sm leading-relaxed text-zinc-400">{deleteTarget && !deleteTarget.comment.parent_id && deleteTarget.comment.replies.length > 0 ? 'As respostas também serão apagadas.' : 'Esta ação não pode ser desfeita.'}</Dialog.Description>
+          <div className="mt-5 flex justify-end gap-2"><Dialog.Close asChild><button disabled={deleting} className="h-10 rounded-xl bg-white/5 px-4 text-xs font-bold text-zinc-300 transition hover:bg-white/10 disabled:opacity-50">Cancelar</button></Dialog.Close><button disabled={deleting} onClick={() => void deleteComment()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-red-600 px-4 text-xs font-bold text-white transition hover:bg-red-500 disabled:opacity-50"><Trash2 className="size-3.5" />{deleting ? 'Apagando…' : 'Apagar'}</button></div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  </>;
 }
