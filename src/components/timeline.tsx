@@ -14,12 +14,11 @@ import { useApp } from './app-provider';
 import { Avatar } from './ui/avatar';
 import { Skeleton } from './ui/skeleton';
 
-type RawComment = Omit<ClubComment, 'profile' | 'reactions' | 'replies'> & { profiles: Profile | Profile[] };
-type RawReaction = { comment_id: string; emoji: string; user_id: string; profiles: Profile | Profile[] };
+type RawComment = Omit<ClubComment, 'profile' | 'reactions' | 'replies'>;
+type RawReaction = { comment_id: string; emoji: string; user_id: string };
 
-function relationProfile(value: Profile | Profile[] | null | undefined, userId: string): Profile {
-  const profile = Array.isArray(value) ? value[0] : value;
-  return profile || { id: userId, name: 'Membro', avatar_url: null };
+function fallbackProfile(userId: string): Profile {
+  return { id: userId, name: 'Membro', avatar_url: null };
 }
 
 export function Timeline({ game }: { game: Game }) {
@@ -35,22 +34,28 @@ export function Timeline({ game }: { game: Game }) {
   const query = useStaleQuery<ClubComment[]>(`comments:${game.id}:${selectedMonth}`, async () => {
     if (isDemo) return demoComments.map(comment => ({ ...comment, club_month: selectedMonth }));
     const [{ data: comments, error: commentsError }, { data: reactions, error: reactionsError }] = await Promise.all([
-      supabase.from('club_comments').select('*, profiles:user_id (id, name, avatar_url)').eq('game_id', game.id).eq('club_month', selectedMonth).order('created_at'),
-      supabase.from('comment_reactions').select('comment_id, emoji, user_id, profiles:user_id (id, name, avatar_url)').eq('game_id', game.id).eq('club_month', selectedMonth),
+      supabase.from('club_comments').select('*').eq('game_id', game.id).eq('club_month', selectedMonth).order('created_at'),
+      supabase.from('comment_reactions').select('comment_id, emoji, user_id').eq('game_id', game.id).eq('club_month', selectedMonth),
     ]);
     if (commentsError) throw commentsError;
     if (reactionsError) throw reactionsError;
+    const userIds = Array.from(new Set([...(comments || []).map(comment => comment.user_id), ...(reactions || []).map(reaction => reaction.user_id)]));
+    const { data: profiles, error: profilesError } = userIds.length
+      ? await supabase.from('profiles').select('id, name, avatar_url').in('id', userIds)
+      : { data: [], error: null };
+    if (profilesError) throw profilesError;
+    const profilesById = new Map((profiles || []).map(item => [item.id, item as Profile]));
     const reactionMap = new Map<string, Map<string, Profile[]>>();
     ((reactions || []) as unknown as RawReaction[]).forEach(reaction => {
       if (!reactionMap.has(reaction.comment_id)) reactionMap.set(reaction.comment_id, new Map());
       const byEmoji = reactionMap.get(reaction.comment_id)!;
       const people = byEmoji.get(reaction.emoji) || [];
-      people.push(relationProfile(reaction.profiles, reaction.user_id));
+      people.push(profilesById.get(reaction.user_id) || fallbackProfile(reaction.user_id));
       byEmoji.set(reaction.emoji, people);
     });
     const mapped = ((comments || []) as unknown as RawComment[]).map((comment): ClubComment => ({
       ...comment,
-      profile: relationProfile(comment.profiles, comment.user_id),
+      profile: profilesById.get(comment.user_id) || fallbackProfile(comment.user_id),
       reactions: Array.from(reactionMap.get(comment.id)?.entries() || []).map(([emoji, users]): CommentReaction => ({ emoji, users, reactedByMe: users.some(person => person.id === user!.id) })),
       replies: [],
     }));
