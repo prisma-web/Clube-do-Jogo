@@ -61,7 +61,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const onScroll = () => {
       const current = Math.max(window.scrollY, 0);
       const delta = current - lastScroll.current;
-      if (current <= 12) setNavVisible(true);
+      const atPageEnd = current + window.innerHeight >= document.documentElement.scrollHeight - 24;
+      if (current <= 12 || atPageEnd) setNavVisible(true);
       else if (delta > 7) setNavVisible(false);
       else if (delta < -7) setNavVisible(true);
       lastScroll.current = current;

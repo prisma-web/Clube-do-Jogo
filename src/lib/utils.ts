@@ -32,17 +32,17 @@ const shortDateFormatter = new Intl.DateTimeFormat('pt-BR', {
 });
 
 export function formatDate(value?: string | Date | null) {
-  if (!value) return '—';
+  if (!value) return '-';
   return dateFormatter.format(new Date(value)).replace('.', '');
 }
 
 export function formatShortDate(value?: string | Date | null) {
-  if (!value) return '—';
+  if (!value) return '-';
   return shortDateFormatter.format(new Date(value));
 }
 
 export function formatDateTime(value?: string | Date | null) {
-  if (!value) return '—';
+  if (!value) return '-';
   return dateTimeFormatter.format(new Date(value));
 }
 

@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import * as Tabs from '@radix-ui/react-tabs';
-import { Gamepad2, ShieldCheck, SlidersHorizontal, Star, Trophy } from 'lucide-react';
+import { Gamepad2, Megaphone, ShieldCheck, SlidersHorizontal, Star, Trophy } from 'lucide-react';
 import { useApp } from '@/components/app-provider';
 import { ThemeSelector } from '@/components/theme-selector';
 import { PushNotificationButton } from '@/components/push-notification-button';
@@ -11,6 +11,7 @@ import AdminAccessPanel from '@/app/admin/page';
 import { formatMonth } from '@/lib/utils';
 import { useUrlTab } from '@/hooks/use-url-state';
 import { useRatingScale } from '@/hooks/use-rating-scale';
+import { openCurrentProductUpdate } from '@/components/product-update-dialog';
 
 const baseTabs = [
   { value: 'preferences', label: 'Preferências', Icon: SlidersHorizontal },
@@ -27,7 +28,7 @@ export default function SettingsPage() {
       <Tabs.Content value="preferences" className="outline-none data-[state=active]:animate-tab-in">
         <SettingCard title="Tema"><ThemeSelector compact /></SettingCard>
         <SettingCard title="Notificações"><div className="flex items-center justify-between gap-4"><span className="text-sm font-bold">Notificações push</span><PushNotificationButton /></div></SettingCard>
-        <SettingCard title="Preferências"><div className="divide-y divide-white/8"><RatingScalePreference /><MotionPreference /></div></SettingCard>
+        <SettingCard title="Preferências"><div className="divide-y divide-white/8"><RatingScalePreference /><MotionPreference /><button type="button" onClick={openCurrentProductUpdate} className="flex min-h-14 w-full items-center justify-between gap-4 pt-3 text-left text-sm font-bold"><span className="inline-flex items-center gap-2"><Megaphone className="size-4 text-violet-300" />Novidades da V1.1</span><span className="text-[10px] font-black uppercase tracking-wider text-zinc-600">Ver novamente</span></button></div></SettingCard>
       </Tabs.Content>
       {isAdmin && <Tabs.Content value="club" className="outline-none data-[state=active]:animate-tab-in"><SettingCard title="Clube"><div className="flex items-center gap-3"><img src={activeCycle?.game?.image_url} alt="" className="h-20 w-14 rounded-xl object-cover" /><div className="min-w-0 flex-1"><span className="text-[10px] font-black uppercase tracking-wider text-zinc-600">{activeCycle ? formatMonth(activeCycle.month, { includeYear: true }) : 'Ciclo atual'}</span><strong className="mt-1 block truncate text-sm">{activeCycle?.game?.title || 'Nenhum jogo definido'}</strong></div></div><div className="mt-4 grid grid-cols-2 gap-2"><Link href="/jogo-do-mes" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white/5 text-xs font-bold"><Gamepad2 className="size-4" />Jogo atual</Link><Link href="/ranking" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-violet-600 text-xs font-bold text-white"><Trophy className="size-4" />Ranking</Link></div></SettingCard></Tabs.Content>}
       {isAdmin && <Tabs.Content value="access" className="mt-6 outline-none data-[state=active]:animate-tab-in"><AdminAccessPanel /></Tabs.Content>}

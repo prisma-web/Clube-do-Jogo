@@ -31,7 +31,7 @@ export default function GameOfMonthPage() {
 
   return (
     <div className="mx-auto max-w-3xl animate-fade-in">
-      <section className="game-month-hero relative mx-auto mb-4 flex overflow-hidden rounded-[28px] border border-white/[0.08] bg-zinc-950 px-4 pb-5 pt-6 text-center shadow-[0_20px_70px_rgba(0,0,0,.28)] sm:px-8 sm:pb-8 sm:pt-9">
+      <section className="game-month-hero relative mx-auto mb-5 flex overflow-hidden rounded-[28px] border border-white/[0.08] bg-zinc-950 px-4 pb-7 pt-6 text-center shadow-[0_20px_70px_rgba(0,0,0,.28)] sm:px-8 sm:pb-10 sm:pt-9">
         <div className="game-month-backdrop pointer-events-none absolute -inset-[10%] scale-110" aria-hidden="true"><img src={game.image_url} alt="" className="size-full object-cover opacity-100 blur-sm brightness-[.64] saturate-[1.5]" /></div>
         <div className="game-month-shade pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_22%,rgba(8,8,10,.22),rgba(8,8,10,.46)_48%,rgba(8,8,10,.86)_100%),linear-gradient(90deg,rgba(8,8,10,.50),transparent_50%,rgba(8,8,10,.50))]" aria-hidden="true" />
         <div className="game-month-tint pointer-events-none absolute inset-0 bg-violet-950/20 mix-blend-multiply" aria-hidden="true" />

@@ -293,9 +293,14 @@ body,
 .app-dialog,
 .app-popup,
 .app-tabs { background-color: var(--surface) !important; border-color: var(--hairline) !important; }
+.app-popup :is([role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio']) {
+  min-height: 3rem;
+  padding-block: .75rem;
+  touch-action: manipulation;
+}
 :root[data-theme] .gallery-more { background-color: rgb(0 0 0 / 58%) !important; color: #fff !important; }
 
-/* Zelda Deluxe — black collector's edition, engraved circles and metallic gold. */
+/* Zelda Deluxe: black collector's edition, engraved circles and metallic gold. */
 :root[data-theme='zelda'] main :where(article, section[class*='border']) {
   border-color: rgb(215 187 111 / 20%) !important;
   background-color: #111310 !important;
@@ -370,7 +375,7 @@ body,
 :root[data-theme='zelda'] .game-action-vote[data-active='true'] { background: linear-gradient(145deg, rgb(215 187 111 / 20%), rgb(118 83 30 / 18%)) !important; }
 :root[data-theme='zelda'] button.bg-violet-600:disabled { color: #c5b99e !important; }
 
-/* Animal Crossing — opaque paper cards, rounded prompts, dots and cheerful stripes. */
+/* Animal Crossing: opaque paper cards, rounded prompts, dots and cheerful stripes. */
 :root[data-theme='crossing'] main :where(article, section[class*='border']) {
   border-color: rgb(115 119 79 / 22%) !important;
   background: #fff9e8 !important;
@@ -855,7 +860,7 @@ body,
 :root[data-theme='crossing'] .danger-action { border: 0 !important; box-shadow: none !important; }
 :root[data-theme='crossing'] .dialog-overlay { background: radial-gradient(circle at 50% 34%, rgb(91 117 88 / 28%), rgb(45 67 50 / 58%)) !important; backdrop-filter: blur(7px) saturate(.8) !important; }
 
-/* Crossing: warm paper hierarchy — patterned media above, calm paper below. */
+/* Crossing: warm paper hierarchy, patterned media above and calm paper below. */
 :root[data-theme='crossing'] .ranking-card {
   overflow: visible;
   background: #fff9ec !important;
@@ -2690,9 +2695,9 @@ iframe {
 .library-status-finished { color: var(--support-completed); }
 .library-status-not_started { color: var(--color-zinc-500); }
 .game-month-hero {
-  width: min(75vw, 30rem);
+  width: min(80vw, 32rem);
   min-height: 0;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 5 / 7;
 }
 .game-month-hero .game-month-cover { width: clamp(7.5rem, 39vw, 13.5rem); }
 .game-detail-gallery-bleed {
@@ -2775,6 +2780,64 @@ iframe {
   background: var(--surface) !important;
   box-shadow: var(--theme-shadow);
 }
+.poster-game-grid { grid-template-columns: repeat(auto-fill, minmax(min(9.25rem, 100%), 1fr)); }
+.update-notes-dialog {
+  border-color: var(--hairline) !important;
+  background: var(--surface) !important;
+  color: var(--foreground);
+  box-shadow: var(--theme-shadow), 0 32px 100px rgb(0 0 0 / 52%) !important;
+}
+.update-notes-header,
+.update-notes-footer { border-color: var(--hairline) !important; background: color-mix(in srgb, var(--surface) 94%, transparent); }
+.update-notes-copy { background: var(--surface); }
+.update-notes-visual-wrap { background: var(--surface-deep); }
+.update-notes-mark { border: 1px solid color-mix(in srgb, var(--color-violet-400) 24%, transparent); }
+.update-notes-primary { color: var(--primary-on) !important; }
+.update-notes-progress { min-width: 6px; }
+:root[data-theme='zelda'] .update-notes-dialog {
+  border-color: rgb(211 181 99 / 38%) !important;
+  border-radius: 16px !important;
+  background: linear-gradient(145deg, #151711, #0b0d0b) !important;
+}
+:root[data-theme='zelda'] :is(.update-notes-header, .update-notes-footer, .update-notes-copy) { background: #10120f; }
+:root[data-theme='zelda'] .update-visual { border-color: rgb(211 181 99 / 25%) !important; }
+:root[data-theme='nier'] .update-notes-dialog {
+  border: 0 !important;
+  border-left: 6px solid #4b413d !important;
+  border-radius: 0 !important;
+  background: #d8d2bc !important;
+  box-shadow: 8px 8px 0 rgb(75 65 61 / 24%) !important;
+}
+:root[data-theme='nier'] :is(.update-notes-header, .update-notes-footer, .update-notes-copy) { background: #d8d2bc; }
+:root[data-theme='nier'] .update-notes-visual-wrap { background: #bdb6a0; }
+:root[data-theme='nier'] .update-visual {
+  border-color: rgb(75 65 61 / 30%) !important;
+  border-radius: 0 !important;
+  background: #c9c3ad !important;
+  color: #332d2a;
+  box-shadow: 5px 5px 0 rgb(75 65 61 / 18%) !important;
+}
+:root[data-theme='crossing'] .update-notes-dialog {
+  border: 4px solid #fff7dc !important;
+  border-radius: 38px !important;
+  background: #fff9e8 !important;
+  box-shadow: 0 8px 0 rgb(95 132 83 / 10%), 0 28px 60px rgb(69 105 77 / 20%) !important;
+}
+:root[data-theme='crossing'] :is(.update-notes-header, .update-notes-footer, .update-notes-copy) { background: #fff9e8; }
+:root[data-theme='crossing'] .update-notes-visual-wrap { background: #eee4ca; }
+:root[data-theme='crossing'] .update-visual {
+  border-color: #fff7dc !important;
+  border-radius: 28px !important;
+  background: #f1e8c9 !important;
+  box-shadow: 0 6px 0 rgb(95 132 83 / 9%), 0 15px 30px rgb(69 105 77 / 9%) !important;
+}
+:root[data-theme='ori'] .update-notes-dialog {
+  border-color: rgb(137 224 240 / 22%) !important;
+  background: linear-gradient(145deg, rgb(8 35 54 / 98%), rgb(2 15 29 / 98%)) !important;
+  box-shadow: 0 28px 90px rgb(0 5 13 / 62%), 0 0 48px rgb(52 197 230 / 10%) !important;
+}
+:root[data-theme='ori'] :is(.update-notes-header, .update-notes-footer, .update-notes-copy) { background: rgb(2 15 29 / 76%); }
+:root[data-theme='ori'] .update-visual { border-color: rgb(137 224 240 / 17%) !important; box-shadow: 0 18px 45px rgb(0 5 13 / 38%), inset 0 1px rgb(219 251 255 / 5%) !important; }
 .favorite-game-header,
 .favorite-game-footer { background: var(--surface-soft); }
 .favorite-game-cover { border-block: 1px solid var(--hairline); }

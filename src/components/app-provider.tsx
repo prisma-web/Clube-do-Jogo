@@ -10,6 +10,7 @@ import type { AppRole, ClubCycle, Game, Profile, RewardGrant } from '@/lib/types
 import { monthKey, shiftMonth } from '@/lib/utils';
 import { DEFAULT_THEME, isThemeId, THEME_STORAGE_KEY, type ThemeId } from '@/lib/themes';
 import { RewardCelebration } from './reward-celebration';
+import { ProductUpdateDialog } from './product-update-dialog';
 
 interface AppContextValue {
   user: User | { id: string; email?: string } | null;
@@ -468,6 +469,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={value}>
       {children}
+      {user && !authLoading && <ProductUpdateDialog />}
       {pendingReward && (
         <RewardCelebration
           key={pendingReward.id}
