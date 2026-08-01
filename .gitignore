@@ -44,6 +44,7 @@ yarn-error.log*
 
 # local database dumps / migration archives
 *.zip
+/supabase/.temp/
 
 # typescript
 *.tsbuildinfo

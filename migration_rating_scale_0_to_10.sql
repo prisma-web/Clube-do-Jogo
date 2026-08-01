@@ -1,21 +1,26 @@
--- Converte as notas de 0-100 para 0-10, em passos de 0,5 no aplicativo.
+-- Converte as notas legadas de 0-100 para 0-10, preservando registros que
+-- já tenham sido gravados na escala nova. Pode ser executada novamente.
 -- Execute depois de migration_detailed_ratings.sql.
 
 BEGIN;
 
 UPDATE public.game_progress
 SET rating = rating / 10
-WHERE rating IS NOT NULL;
+WHERE rating > 10;
 
 UPDATE public.cycle_progress_snapshots
 SET rating = rating / 10
-WHERE rating IS NOT NULL;
+WHERE rating > 10;
 
 UPDATE public.game_progress
 SET rating_details = (
   SELECT jsonb_object_agg(
     key,
-    CASE WHEN jsonb_typeof(value) = 'number' THEN to_jsonb((value #>> '{}')::NUMERIC / 10) ELSE value END
+    CASE
+      WHEN jsonb_typeof(value) = 'number' AND (value #>> '{}')::NUMERIC > 10
+        THEN to_jsonb((value #>> '{}')::NUMERIC / 10)
+      ELSE value
+    END
   )
   FROM jsonb_each(rating_details)
 )
@@ -25,7 +30,11 @@ UPDATE public.cycle_progress_snapshots
 SET rating_details = (
   SELECT jsonb_object_agg(
     key,
-    CASE WHEN jsonb_typeof(value) = 'number' THEN to_jsonb((value #>> '{}')::NUMERIC / 10) ELSE value END
+    CASE
+      WHEN jsonb_typeof(value) = 'number' AND (value #>> '{}')::NUMERIC > 10
+        THEN to_jsonb((value #>> '{}')::NUMERIC / 10)
+      ELSE value
+    END
   )
   FROM jsonb_each(rating_details)
 )
