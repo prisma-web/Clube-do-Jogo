@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { ArrowDownAZ, Check, ChevronDown, Circle, Filter, Flag, Gamepad2, Heart, Library, MoreHorizontal, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ArrowUpDown, Check, ChevronDown, Circle, Filter, Flag, Gamepad2, Heart, Library, MoreHorizontal, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchProfileWithGames } from '@/lib/data';
 import { transitionProgress } from '@/lib/progress';
@@ -15,9 +15,21 @@ import { ListSkeleton, Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { ProgressConfirmationDialog } from '@/components/progress-confirmation-dialog';
 import { useUrlDialog } from '@/hooks/use-url-state';
+import { usePersistentState } from '@/hooks/use-persistent-state';
 
 type QuickFilter = 'all' | 'started' | 'finished' | 'not_started' | 'favorites';
-type SortMode = 'recent' | 'title' | 'duration' | 'rating';
+type SortMode = 'updated_desc' | 'updated_asc' | 'title_asc' | 'title_desc' | 'duration_asc' | 'duration_desc' | 'rating_desc' | 'rating_asc';
+
+const sortOptions: Array<[SortMode, string]> = [
+  ['updated_desc', 'Atualizados recentemente'],
+  ['updated_asc', 'Atualizados há mais tempo'],
+  ['title_asc', 'Título: A–Z'],
+  ['title_desc', 'Título: Z–A'],
+  ['duration_asc', 'Menor duração'],
+  ['duration_desc', 'Maior duração'],
+  ['rating_desc', 'Maior nota'],
+  ['rating_asc', 'Menor nota'],
+];
 
 const quickFilters: Array<{ value: QuickFilter; label: string; Icon: typeof Library }> = [
   { value: 'all', label: 'Todos', Icon: Library },
@@ -42,16 +54,16 @@ function rebuild(data: ProfileWithGames, library: LibraryGame[]): ProfileWithGam
 export function YourGamesPanel() {
   const supabase = useMemo(() => createClient(), []);
   const { user, isDemo, runOptimistic } = useApp();
-  const query = useStaleQuery(`your-games:${user?.id}`, () => fetchProfileWithGames(supabase, user!.id, isDemo), Boolean(user), { staleTime: 60_000 });
+  const query = useStaleQuery(`profile-games:${user?.id}`, () => fetchProfileWithGames(supabase, user!.id, isDemo), Boolean(user), { staleTime: 120_000 });
   const data = query.data;
   const [listParent] = useAutoAnimate<HTMLDivElement>({ duration: 160, easing: 'cubic-bezier(.22, 1, .36, 1)' });
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
+  const [quickFilter, setQuickFilter] = usePersistentState<QuickFilter>('library:quick-filter', 'all');
   const [textFilter, setTextFilter] = useState('');
-  const [sortMode, setSortMode] = useState<SortMode>('recent');
-  const [playableOnly, setPlayableOnly] = useState(false);
-  const [shortOnly, setShortOnly] = useState(false);
-  const [ratedOnly, setRatedOnly] = useState(false);
-  const [grouped, setGrouped] = useState(false);
+  const [sortMode, setSortMode] = usePersistentState<SortMode>('library:sort:v2', 'updated_desc');
+  const [playableOnly, setPlayableOnly] = usePersistentState('library:playable', false);
+  const [shortOnly, setShortOnly] = usePersistentState('library:short', false);
+  const [ratedOnly, setRatedOnly] = usePersistentState('library:rated', false);
+  const [grouped, setGrouped] = usePersistentState('library:grouped', false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<Game[]>([]);
@@ -78,13 +90,16 @@ export function YourGamesPanel() {
       if (ratedOnly && item.game.average_rating == null) return false;
       return true;
     });
-    return matches.sort((a, b) => sortMode === 'title'
-      ? a.game.title.localeCompare(b.game.title, 'pt-BR')
-      : sortMode === 'duration'
-        ? a.game.duration_hours - b.game.duration_hours
-        : sortMode === 'rating'
-          ? Number(b.game.average_rating ?? -1) - Number(a.game.average_rating ?? -1)
-          : (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    return matches.sort((a, b) => {
+      if (sortMode === 'title_asc') return a.game.title.localeCompare(b.game.title, 'pt-BR');
+      if (sortMode === 'title_desc') return b.game.title.localeCompare(a.game.title, 'pt-BR');
+      if (sortMode === 'duration_asc') return a.game.duration_hours - b.game.duration_hours;
+      if (sortMode === 'duration_desc') return b.game.duration_hours - a.game.duration_hours;
+      if (sortMode === 'rating_desc') return Number(b.game.average_rating ?? -Infinity) - Number(a.game.average_rating ?? -Infinity);
+      if (sortMode === 'rating_asc') return Number(a.game.average_rating ?? Infinity) - Number(b.game.average_rating ?? Infinity);
+      if (sortMode === 'updated_asc') return (a.updatedAt || '').localeCompare(b.updatedAt || '');
+      return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+    });
   }, [data?.library, ownedPlatformIds, playableOnly, quickFilter, ratedOnly, shortOnly, sortMode, textFilter]);
 
   const groups = grouped ? (['started', 'not_started', 'finished'] as ProgressStatus[]).map(status => ({ status, items: visible.filter(item => (item.progress?.status || 'not_started') === status) })).filter(group => group.items.length) : [{ status: null, items: visible }];
@@ -170,7 +185,7 @@ export function YourGamesPanel() {
     <div className="-mx-4 mt-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-8 sm:px-8 [&::-webkit-scrollbar]:hidden"><div className="flex w-max gap-2">{quickFilters.map(({ value, label, Icon }) => <button key={value} onClick={() => setQuickFilter(value)} data-selected={quickFilter === value} className="library-filter-chip inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[11px] font-bold"><Icon className="size-3.5" />{label}</button>)}</div></div>
     <div className="my-4 flex items-center justify-between gap-2"><span className="text-[11px] font-bold text-zinc-500">{visible.length} {visible.length === 1 ? 'jogo' : 'jogos'}</span><div className="flex gap-2">
       <Dialog open={filterDialog.open} onOpenChange={open => open ? filterDialog.show() : filterDialog.close()}><DialogTrigger asChild><button className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/8 bg-white/[.035] px-3 text-[10px] font-bold"><Filter className="size-3.5" />Filtros</button></DialogTrigger><DialogContent title="Filtros"><div className="space-y-2 p-4">{[[playableOnly, setPlayableOnly, 'Nos meus consoles'], [shortOnly, setShortOnly, 'Até 12 horas'], [ratedOnly, setRatedOnly, 'Com nota'], [grouped, setGrouped, 'Agrupar por status']] .map(([checked, setter, label]) => <label key={label as string} className="flex items-center justify-between rounded-xl bg-white/[.035] px-3 py-3 text-sm font-bold"><span>{label as string}</span><input type="checkbox" checked={checked as boolean} onChange={event => (setter as (value: boolean) => void)(event.target.checked)} className="size-4 accent-violet-500" /></label>)}</div></DialogContent></Dialog>
-      <DropdownMenu.Root><DropdownMenu.Trigger className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/8 bg-white/[.035] px-3 text-[10px] font-bold"><ArrowDownAZ className="size-3.5" />Ordenar<ChevronDown className="size-3" /></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content align="end" className="app-popup animated-popup z-[100] min-w-44 rounded-xl border border-white/10 bg-zinc-900 p-1.5 shadow-2xl">{([['recent', 'Atualizados'], ['title', 'Título'], ['duration', 'Duração'], ['rating', 'Nota']] as Array<[SortMode, string]>).map(([value, label]) => <DropdownMenu.Item key={value} onSelect={() => setSortMode(value)} className="flex items-center justify-between rounded-lg px-3 py-2.5 text-xs font-bold outline-none data-[highlighted]:bg-white/8">{label}{sortMode === value && <Check className="size-3.5" />}</DropdownMenu.Item>)}</DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>
+      <DropdownMenu.Root><DropdownMenu.Trigger className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/8 bg-white/[.035] px-3 text-[10px] font-bold"><ArrowUpDown className="size-3.5" />Ordenar<ChevronDown className="size-3" /></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content align="end" className="app-popup animated-popup z-[100] max-h-[min(26rem,70dvh)] min-w-56 overflow-y-auto rounded-xl border border-white/10 bg-zinc-900 p-1.5 shadow-2xl">{sortOptions.map(([value, label]) => <DropdownMenu.Item key={value} onSelect={() => setSortMode(value)} className="flex items-center justify-between gap-4 rounded-lg px-3 py-2.5 text-xs font-bold outline-none data-[highlighted]:bg-white/8">{label}{sortMode === value && <Check className="size-3.5 shrink-0" />}</DropdownMenu.Item>)}</DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>
     </div></div>
 
     {query.isInitialLoading ? <ListSkeleton count={6} /> : visible.length ? <div ref={listParent} className="space-y-5">{groups.map(group => <section key={group.status || 'all'}>{group.status && <h2 className="mb-2 text-[10px] font-black uppercase tracking-[.16em] text-zinc-500">{statusLabel[group.status]}</h2>}<div className="space-y-2.5">{group.items.map(item => {

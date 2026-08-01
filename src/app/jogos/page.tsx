@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { CalendarClock, Check, Filter, Flame, Search, Sparkles, Star, Trophy, Users } from 'lucide-react';
+import { CalendarClock, Check, Filter, Flame, Search, Sparkles, Star } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { demoGames, demoProfiles } from '@/lib/demo-data';
 import { fetchProfileWithGames } from '@/lib/data';
@@ -13,14 +13,13 @@ import { DiscoverGameCard } from '@/components/discover-game-card';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { ListSkeleton } from '@/components/ui/skeleton';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { usePersistentState } from '@/hooks/use-persistent-state';
 
 const sources: Array<{ value: DiscoverSource; label: string; Icon: typeof Flame }> = [
   { value: 'popular', label: 'Populares', Icon: Flame },
   { value: 'rated', label: 'Melhores notas', Icon: Star },
   { value: 'recent', label: 'Lançamentos', Icon: Sparkles },
   { value: 'anticipated', label: 'Em breve', Icon: CalendarClock },
-  { value: 'friends', label: 'Amigos', Icon: Users },
-  { value: 'ranking', label: 'Ranking recente', Icon: Trophy },
 ];
 
 const genres = [['', 'Todos'], ['12', 'RPG'], ['31', 'Aventura'], ['32', 'Indie'], ['8', 'Plataforma'], ['9', 'Puzzle'], ['15', 'Estratégia'], ['5', 'Tiro']];
@@ -43,12 +42,12 @@ function demoDiscover(source: DiscoverSource, query: string, genre: string, plat
 export default function AllGamesPage() {
   const supabase = useMemo(() => createClient(), []);
   const { user, isDemo, selectedMonth, runOptimistic, notify } = useApp();
-  const [source, setSource] = useState<DiscoverSource>('popular');
+  const [source, setSource] = usePersistentState<DiscoverSource>('discover:source:v2', 'popular');
   const [draftSearch, setDraftSearch] = useState('');
   const search = useDebouncedValue(draftSearch.trim(), 350);
-  const [genre, setGenre] = useState('');
-  const [platform, setPlatform] = useState('');
-  const [year, setYear] = useState('');
+  const [genre, setGenre] = usePersistentState('discover:genre', '');
+  const [platform, setPlatform] = usePersistentState('discover:platform', '');
+  const [year, setYear] = usePersistentState('discover:year', '');
   const [pagination, setPagination] = useState<{ key: string; items: DiscoverItem[]; hasMore: boolean }>({ key: '', items: [], hasMore: false });
   const [loadingMore, setLoadingMore] = useState(false);
   const [localLibrary, setLocalLibrary] = useState<string[]>([]);

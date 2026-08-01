@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Compass, Gamepad2, Library, Trophy, UserRound } from 'lucide-react';
 import { useApp } from './app-provider';
 import { AuthScreen } from './auth-screen';
 import { MonthSelector } from './month-selector';
 import { UserMenu } from './user-menu';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
+import { fetchGameOfMonth, fetchProfileWithGames, fetchRankingData } from '@/lib/data';
+import { prefetchStaleQuery } from '@/hooks/use-stale-query';
 
 const navigation: Array<{ href: string; label: string; mobileLabel?: string; icon: typeof Gamepad2 }> = [
   { href: '/jogo-do-mes', label: 'Jogo do mês', icon: Gamepad2 },
@@ -41,7 +44,8 @@ function isNavigationActive(pathname: string, href: string) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, authLoading } = useApp();
+  const router = useRouter();
+  const { user, authLoading, isDemo, selectedMonth, isHistorical, clubRevision, cycles } = useApp();
   const [navVisible, setNavVisible] = useState(true);
   const lastScroll = useRef(0);
   const previousPath = useRef(pathname);
@@ -65,6 +69,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const warmApp = () => {
+      if (cancelled) return;
+      [...navigation.map(item => item.href), '/configuracoes'].forEach(route => router.prefetch(route));
+      const supabase = createClient();
+      void prefetchStaleQuery(`profile-games:${user.id}`, () => fetchProfileWithGames(supabase, user.id, isDemo), 120_000).catch(() => undefined);
+      void prefetchStaleQuery(
+        `ranking:${selectedMonth}:${isHistorical}:${user.id}:${clubRevision}`,
+        () => fetchRankingData(supabase, selectedMonth, user.id, isDemo, isHistorical),
+        60_000,
+      ).catch(() => undefined);
+      void prefetchStaleQuery(
+        `game-of-month:${selectedMonth}:${clubRevision}`,
+        () => isDemo ? Promise.resolve(cycles.find(item => item.month === selectedMonth)?.game || null) : fetchGameOfMonth(supabase, selectedMonth, false),
+        60_000,
+      ).catch(() => undefined);
+    };
+    const idleWindow = window as Window & { requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number; cancelIdleCallback?: (id: number) => void };
+    const usesIdleCallback = Boolean(idleWindow.requestIdleCallback);
+    const idleId = usesIdleCallback
+      ? idleWindow.requestIdleCallback!(warmApp, { timeout: 1_500 })
+      : window.setTimeout(warmApp, 500);
+    return () => {
+      cancelled = true;
+      if (usesIdleCallback) idleWindow.cancelIdleCallback?.(idleId);
+      else window.clearTimeout(idleId);
+    };
+  }, [clubRevision, cycles, isDemo, isHistorical, router, selectedMonth, user]);
 
   if (authLoading || !user) return <AuthScreen loading={authLoading} />;
 

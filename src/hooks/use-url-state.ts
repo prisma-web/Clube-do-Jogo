@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { usePersistentState } from './use-persistent-state';
 
 const URL_CHANGE_EVENT = 'clube-do-jogo:url-change';
 const OVERLAY_KEYS = ['modal', 'item', 'action', 'modalTab', 'source', 'image'] as const;
@@ -60,11 +61,18 @@ export function useUrlParams() {
 export function useUrlTab<T extends string>(key: string, values: readonly T[], fallback: T) {
   const params = useUrlParams();
   const candidate = params.get(key);
-  const value = values.includes(candidate as T) ? candidate as T : fallback;
+  const storageScope = typeof window === 'undefined' ? key : `${window.location.pathname}:${key}`;
+  const [stored, setStored] = usePersistentState<T>(`tab:${storageScope}`, fallback);
+  const storedValue = values.includes(stored) ? stored : fallback;
+  const value = values.includes(candidate as T) ? candidate as T : storedValue;
+  useEffect(() => {
+    if (values.includes(candidate as T) && candidate !== stored) setStored(candidate as T);
+  }, [candidate, setStored, stored, values]);
   const setValue = useCallback((next: T) => {
     if (next === value) return;
+    setStored(next);
     pushUrl({ [key]: next === fallback ? null : next }, { __clubeAppNavigation: true });
-  }, [fallback, key, value]);
+  }, [fallback, key, setStored, value]);
   return [value, setValue] as const;
 }
 

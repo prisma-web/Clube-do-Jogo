@@ -6,6 +6,23 @@ type CacheEntry = { data: unknown; updatedAt: number };
 const cache = new Map<string, CacheEntry>();
 const inflight = new Map<string, Promise<unknown>>();
 
+export async function prefetchStaleQuery<T>(key: string, fetcher: () => Promise<T>, staleTime = 60_000) {
+  const current = cache.get(key);
+  if (current && Date.now() - current.updatedAt < staleTime) return current.data as T;
+  let request = inflight.get(key) as Promise<T> | undefined;
+  if (!request) {
+    request = fetcher();
+    inflight.set(key, request);
+  }
+  try {
+    const data = await request;
+    cache.set(key, { data, updatedAt: Date.now() });
+    return data;
+  } finally {
+    inflight.delete(key);
+  }
+}
+
 export function useStaleQuery<T>(
   key: string,
   fetcher: () => Promise<T>,
@@ -34,19 +51,12 @@ export function useStaleQuery<T>(
     setIsInitialLoading(!current);
     setIsRefreshing(Boolean(current));
     try {
-      let request = inflight.get(key) as Promise<T> | undefined;
-      if (!request) {
-        request = fetcherRef.current();
-        inflight.set(key, request);
-      }
-      const next = await request;
-      cache.set(key, { data: next, updatedAt: Date.now() });
+      const next = await prefetchStaleQuery(key, fetcherRef.current, force ? 0 : staleTime);
       setData(next);
       setError(null);
     } catch (value) {
       setError(value instanceof Error ? value : new Error('Não foi possível atualizar os dados.'));
     } finally {
-      inflight.delete(key);
       setIsInitialLoading(false);
       setIsRefreshing(false);
     }

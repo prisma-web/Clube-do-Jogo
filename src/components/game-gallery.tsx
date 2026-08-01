@@ -177,16 +177,16 @@ export function GameGallery({ title, images }: { title: string; images: string[]
   return (
     <>
       <div className="relative">
-        <div ref={carouselRef} className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div ref={carouselRef} className="game-gallery-carousel flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 pb-2 [scroll-padding-inline:1rem] [scrollbar-width:none] sm:px-8 sm:[scroll-padding-inline:2rem] [&::-webkit-scrollbar]:hidden">
           {images.map((url, index) => (
-            <button key={`${url}-${index}`} onClick={() => show(index)} className={`game-media-card group relative shrink-0 snap-start overflow-hidden rounded-2xl border border-white/8 bg-zinc-900 ${images.length === 1 ? 'aspect-video w-full' : 'aspect-[4/3] w-[84%] sm:w-[62%]'}`}>
+            <button key={`${url}-${index}`} onClick={() => show(index)} className={`game-media-card group relative shrink-0 snap-start overflow-hidden rounded-2xl border border-white/8 bg-zinc-900 ${images.length === 1 ? 'aspect-video w-[calc(100%-2rem)] sm:w-[calc(100%-4rem)]' : 'aspect-[4/3] w-[84%] sm:w-[62%]'}`}>
               <img src={url} alt={`Cena ${index + 1} de ${title}`} className="size-full object-cover transition duration-300 group-hover:scale-105" />
             </button>
           ))}
         </div>
         {images.length > 1 && <>
-          <button onClick={() => moveCarousel('previous')} aria-label="Imagem anterior" title="Imagem anterior" className="absolute left-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-[color:var(--hairline)] bg-[color:var(--surface-deep)] text-[color:var(--foreground)] shadow-lg backdrop-blur transition hover:scale-105"><ChevronLeft className="size-5" /></button>
-          <button onClick={() => moveCarousel('next')} aria-label="Próxima imagem" title="Próxima imagem" className="absolute right-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-[color:var(--hairline)] bg-[color:var(--surface-deep)] text-[color:var(--foreground)] shadow-lg backdrop-blur transition hover:scale-105"><ChevronRight className="size-5" /></button>
+          <button onClick={() => moveCarousel('previous')} aria-label="Imagem anterior" title="Imagem anterior" className="absolute left-6 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-[color:var(--hairline)] bg-[color:var(--surface-deep)] text-[color:var(--foreground)] shadow-lg backdrop-blur transition hover:scale-105 sm:left-10"><ChevronLeft className="size-5" /></button>
+          <button onClick={() => moveCarousel('next')} aria-label="Próxima imagem" title="Próxima imagem" className="absolute right-6 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-[color:var(--hairline)] bg-[color:var(--surface-deep)] text-[color:var(--foreground)] shadow-lg backdrop-blur transition hover:scale-105 sm:right-10"><ChevronRight className="size-5" /></button>
         </>}
       </div>
 

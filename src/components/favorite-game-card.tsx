@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { CalendarDays, Clock3, Star } from 'lucide-react';
+import { CalendarDays, Clock3 } from 'lucide-react';
 import type { Game } from '@/lib/types';
+import { RatingDisplay } from './rating-slider';
 
 export function FavoriteGameCard({ game }: { game: Game }) {
   return (
@@ -16,7 +17,7 @@ export function FavoriteGameCard({ game }: { game: Game }) {
       <footer className="favorite-game-footer flex min-h-9 items-center justify-between gap-2 px-2 py-1.5 text-[9px] font-bold text-zinc-500">
         <span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{game.duration_hours} h</span>
         {game.average_rating != null
-          ? <span className="game-rating inline-flex items-center gap-1"><Star className="size-3 fill-current" />{(game.average_rating / 10).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}</span>
+          ? <RatingDisplay value={game.average_rating / 10} className="text-[9px]" />
           : game.release_year && <CalendarDays className="size-3" />}
       </footer>
     </article>

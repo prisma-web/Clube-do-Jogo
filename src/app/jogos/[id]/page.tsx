@@ -15,7 +15,7 @@ import { useStaleQuery } from '@/hooks/use-stale-query';
 import { useApp } from '@/components/app-provider';
 import { Skeleton } from '@/components/ui/skeleton';
 import { GameGallery } from '@/components/game-gallery';
-import { RatingStars } from '@/components/rating-slider';
+import { RatingDisplay } from '@/components/rating-slider';
 import { GameActionButton } from '@/components/game-action-button';
 import { FloatingTrailer } from '@/components/floating-trailer';
 import { ClubGameAdminDialog } from '@/components/club-game-admin-dialog';
@@ -23,6 +23,7 @@ import { ProgressList } from '@/components/progress-list';
 import { NotesChat } from '@/components/notes-chat';
 import { PreferenceParticipantsDialog } from '@/components/preference-participants-dialog';
 import { VoteReasonDialog } from '@/components/vote-reason-dialog';
+import { useUrlTab } from '@/hooks/use-url-state';
 
 interface GamePeople {
   voters: Profile[];
@@ -97,6 +98,7 @@ export default function GamePage() {
   const ownedPlatformIds = new Set((platformsQuery.data || []).map(platform => platform.igdb_platform_id));
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [reasonOpen, setReasonOpen] = useState(false);
+  const [activeTab, setActiveTab] = useUrlTab('section', ['overview', 'progress', 'notes'] as const, 'overview');
 
   useEffect(() => {
     if (isDemo || !game || ((game.screenshot_urls?.length || 0) >= 3 && game.genres?.length && game.platforms?.length && game.platform_ids?.length) || mediaRequested.current.has(game.id)) return;
@@ -168,9 +170,6 @@ export default function GamePage() {
   const choiceCounts = { would_play: people.choiceProfiles.would_play.length, would_not_play: people.choiceProfiles.would_not_play.length };
   const totalPoints = ACTIVE_RANKING_FORMULA === 'legacy' ? legacyRankingScore(game, people.voters.length, people.completed.length) : preferenceRankingScore(choiceCounts);
   const ratingValue = game.average_rating === null || game.average_rating === undefined ? null : Math.max(0, Math.min(10, game.average_rating / 10));
-  const rating = game.average_rating === null || game.average_rating === undefined
-    ? null
-    : (game.average_rating / 10).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
   const orderedPlatforms = (game.platforms || [])
     .map((name, index) => ({ name, platformId: game.platform_ids?.[index] ?? -1, index }))
     .sort((first, second) =>
@@ -204,7 +203,7 @@ export default function GamePage() {
 
         <section className="game-detail-surface game-detail-people-card rounded-3xl border border-white/8 bg-white/[.035] p-4 sm:p-5">
           <PreferenceParticipantsDialog profiles={people.choiceProfiles}>{openAt => <div className="preference-summary grid w-full grid-cols-2 gap-2">{preferenceOptions.map(option => <button type="button" onClick={() => openAt(option.value)} key={option.value} data-choice={option.value} className="preference-count flex min-w-0 flex-col items-center gap-1 rounded-xl bg-black/20 px-2 py-2.5 text-[10px] font-bold"><option.Icon className="size-4" /><span>{choiceCounts[option.value]}</span><span className="max-w-full truncate">{option.label}</span></button>)}</div>}</PreferenceParticipantsDialog>
-          <div className="preference-picker mt-3 grid grid-cols-2 gap-2">{preferenceOptions.map(option => <button key={option.value} disabled={isHistorical} data-choice={option.value} data-selected={people.myChoice === option.value} onClick={() => option.value === 'would_not_play' ? setReasonOpen(true) : void setPreference(people.myChoice === option.value ? null : option.value)} className="preference-choice flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-[10px] font-extrabold transition active:scale-[.97]"><option.Icon className="size-3.5 shrink-0" /><span className="truncate">{option.label}</span></button>)}</div>
+          <div className="preference-picker mt-3 grid grid-cols-2 gap-2">{preferenceOptions.map(option => <button key={option.value} disabled={isHistorical} data-choice={option.value} data-selected={people.myChoice === option.value} onClick={() => option.value === 'would_not_play' && people.myChoice !== option.value ? setReasonOpen(true) : void setPreference(people.myChoice === option.value ? null : option.value)} className="preference-choice flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-[10px] font-extrabold transition active:scale-[.97]"><option.Icon className="size-3.5 shrink-0" /><span className="truncate">{option.label}</span></button>)}</div>
         </section>
       </div>}
 
@@ -215,8 +214,8 @@ export default function GamePage() {
         </div>
       </section>}
 
-      <section className="game-detail-surface game-detail-gallery game-detail-gallery-bleed -mx-4 overflow-hidden border-y border-white/8 bg-white/[.035] py-4 sm:mx-0 sm:rounded-3xl sm:border sm:p-6">
-        <div className="mb-4 flex items-center gap-2 px-4 sm:px-0"><ImageIcon className="size-4 text-zinc-400" /><h2 className="text-base font-black tracking-tight">Galeria</h2></div>
+      <section className="game-detail-surface game-detail-gallery game-detail-gallery-bleed overflow-hidden border-y border-white/8 bg-white/[.035] py-4 sm:py-6">
+        <div className="mb-4 flex items-center gap-2 px-4 sm:px-8"><ImageIcon className="size-4 text-zinc-400" /><h2 className="text-base font-black tracking-tight">Galeria</h2></div>
         <GameGallery title={game.title} images={galleryImages} />
       </section>
     </div>
@@ -235,7 +234,7 @@ export default function GamePage() {
           </div>
           <div className="mt-4 flex min-w-0 flex-wrap gap-2 text-xs font-bold text-zinc-400">
             <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2"><Clock3 className="size-3.5 text-zinc-500" />{game.duration_hours}h</span>
-            <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2">{ratingValue === null ? <span className="text-zinc-500">Sem nota</span> : <span className="game-rating inline-flex items-center gap-2"><span className="tabular-nums">{rating}</span><span aria-label={`Nota de ${rating} de 10`}><RatingStars value={ratingValue} /></span></span>}</span>
+            <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2">{ratingValue === null ? <span className="text-zinc-500">Sem nota</span> : <RatingDisplay value={ratingValue} className="text-xs" />}</span>
             {game.release_year && <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2"><CalendarDays className="size-3.5 text-zinc-500" />{game.release_year}</span>}
           </div>
           <p className={`game-detail-description mt-3 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-[15px] sm:leading-7 ${descriptionExpanded ? '' : 'line-clamp-3'}`}>{game.description || 'Sem descrição disponível.'}</p>
@@ -243,7 +242,7 @@ export default function GamePage() {
           {!isPreview && <ClubGameAdminDialog game={game} className="mt-5" />}
         </section>
 
-      {!isPreview ? <Tabs.Root defaultValue="overview">
+      {!isPreview ? <Tabs.Root value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
         <Tabs.List aria-label="Seções do jogo" className="app-tabs game-detail-tabs sticky top-[calc(4rem+env(safe-area-inset-top))] z-30 mb-5 grid grid-cols-3 rounded-2xl border border-white/8 bg-[#0c0c0f]/92 p-1.5 shadow-xl backdrop-blur-xl min-[960px]:top-4">
           <Tabs.Trigger value="overview" className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[11px] font-extrabold text-zinc-500 outline-none data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300"><LayoutDashboard className="size-3.5" /><span className="truncate">Visão geral</span></Tabs.Trigger>
           <Tabs.Trigger value="progress" className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[11px] font-extrabold text-zinc-500 outline-none data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-300"><ListChecks className="size-3.5" /><span className="truncate">Progresso</span></Tabs.Trigger>

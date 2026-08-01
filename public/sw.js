@@ -1,5 +1,5 @@
-const CACHE_NAME = 'clube-do-jogo-v4';
-const APP_SHELL = ['/jogo-do-mes', '/manifest.webmanifest', '/icons/club-do-jogo-192.png', '/icons/club-do-jogo-512.png'];
+const CACHE_NAME = 'clube-do-jogo-v5';
+const APP_SHELL = ['/jogo-do-mes', '/ranking', '/jogos', '/seus-jogos', '/perfil', '/configuracoes', '/manifest.webmanifest', '/icons/club-do-jogo-192.png', '/icons/club-do-jogo-512.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
@@ -22,11 +22,20 @@ self.addEventListener('fetch', event => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).then(response => {
-        const copy = response.clone();
-        void caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-        return response;
-      }).catch(async () => (await caches.match(request)) || (await caches.match('/jogo-do-mes'))),
+      caches.match(request).then(cached => {
+        const update = fetch(request).then(response => {
+          if (response.ok) {
+            const copy = response.clone();
+            void caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+          }
+          return response;
+        });
+        if (cached) {
+          event.waitUntil(update.catch(() => undefined));
+          return cached;
+        }
+        return update.catch(async () => (await caches.match('/jogo-do-mes')));
+      }),
     );
     return;
   }

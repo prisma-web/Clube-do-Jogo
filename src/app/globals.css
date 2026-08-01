@@ -1536,6 +1536,7 @@ iframe {
 .animate-fade-in { animation: fade-in 150ms var(--ease-snappy); }
 .animate-slide-up { animation: slide-up 180ms var(--ease-snappy); }
 .animate-tab-in { animation: tab-in 140ms var(--ease-snappy); }
+.page-transition { animation: tab-in 160ms var(--ease-snappy); }
 
 /* Radix keeps the closed state mounted only when it can read these animations. */
 .animated-popup[data-state='open'] { animation: pop-in 190ms var(--ease-snappy) both; will-change: opacity, transform, filter; }
@@ -2688,8 +2689,32 @@ iframe {
 .library-status-started { color: var(--support-backlog); }
 .library-status-finished { color: var(--support-completed); }
 .library-status-not_started { color: var(--color-zinc-500); }
-.game-detail-gallery-bleed { border-radius: 0 !important; }
-.game-detail-gallery-bleed .game-media-card { border-radius: 0 1rem 1rem 0; }
+.game-month-hero {
+  width: min(75vw, 30rem);
+  min-height: 0;
+  aspect-ratio: 3 / 4;
+}
+.game-month-hero .game-month-cover { width: clamp(7.5rem, 39vw, 13.5rem); }
+.game-detail-gallery-bleed {
+  width: 100vw;
+  margin-inline: calc(50% - 50vw) !important;
+  border-inline: 0 !important;
+  border-radius: 0 !important;
+}
+:root[data-theme] .game-detail-gallery-bleed {
+  border-left: 0 !important;
+  border-right: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.game-gallery-carousel .game-media-card { max-width: 48rem; }
+@media (min-width: 960px) {
+  .game-detail-gallery-bleed {
+    width: calc(100vw - 14rem);
+    margin-left: calc(50% - 50vw + 7rem) !important;
+    margin-right: 0 !important;
+  }
+}
 .club-progress-card { background: var(--surface-soft) !important; }
 .progress-person { box-shadow: none !important; }
 .app-tabs [value='favorites'][data-state='active'] {
@@ -2757,6 +2782,57 @@ iframe {
 .discover-card-menu:hover { transform: scale(1.06); }
 .rating-control:focus-within .rating-stars { filter: drop-shadow(0 0 7px rgb(251 191 36 / 18%)); }
 .rating-stars { transition: filter 140ms ease; }
+.rating-control { --rating-accent: #fbbf24; }
+.rating-control output { color: var(--rating-accent) !important; }
+.rating-star-empty { color: rgb(251 191 36 / 38%) !important; }
+.rating-star-fill { color: #fbbf24 !important; }
+.rating-range-wrap input[type='range'] {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  width: 100%;
+  height: 22px;
+  appearance: none;
+  cursor: ew-resize;
+  background: transparent;
+  outline: none;
+}
+.rating-range-wrap input[type='range']::-webkit-slider-runnable-track {
+  height: 8px;
+  border: 1px solid color-mix(in srgb, var(--rating-accent) 22%, var(--hairline));
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--rating-accent) var(--rating-progress), var(--surface-soft) var(--rating-progress));
+}
+.rating-range-wrap input[type='range']::-moz-range-track {
+  height: 8px;
+  border: 1px solid color-mix(in srgb, var(--rating-accent) 22%, var(--hairline));
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--rating-accent) var(--rating-progress), var(--surface-soft) var(--rating-progress));
+}
+.rating-range-wrap input[type='range']::-webkit-slider-thumb {
+  width: 22px;
+  height: 22px;
+  margin-top: -8px;
+  appearance: none;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: var(--rating-accent);
+  box-shadow: 0 3px 12px rgb(0 0 0 / 45%);
+}
+.rating-range-wrap input[type='range']::-moz-range-thumb {
+  width: 17px;
+  height: 17px;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  background: var(--rating-accent);
+  box-shadow: 0 3px 12px rgb(0 0 0 / 45%);
+}
+.rating-range-wrap input[type='range']:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--color-violet-400); outline-offset: 2px; }
+.rating-ticks { color: color-mix(in srgb, var(--foreground) 25%, transparent); }
+:root[data-theme='zelda'] .rating-control { --rating-accent: #d6b866; }
+:root[data-theme='nier'] .rating-control { --rating-accent: #6f5148; }
+:root[data-theme='crossing'] .rating-control { --rating-accent: #b67827; }
+:root[data-theme='ori'] .rating-control { --rating-accent: #bff7ff; }
 .success-toast { border-color: color-mix(in srgb, var(--support-completed) 30%, transparent) !important; background: color-mix(in srgb, var(--support-completed) 12%, var(--surface)) !important; color: var(--foreground) !important; }
 
 .platform-card {

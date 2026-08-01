@@ -20,6 +20,7 @@ import { useUrlDialog } from '@/hooks/use-url-state';
 import { LoadingToast } from '@/components/ui/loading-toast';
 import { ClubGameAdminDialog } from '@/components/club-game-admin-dialog';
 import { VoteReasonDialog } from '@/components/vote-reason-dialog';
+import { usePersistentState } from '@/hooks/use-persistent-state';
 
 const preferenceOptions = [
   { value: 'would_not_play', label: 'Não', shortLabel: 'Não', Icon: ThumbsDown },
@@ -73,7 +74,7 @@ export default function RankingPage() {
   const voteMonth = shiftMonth(selectedMonth, 1);
   const [showAll, setShowAll] = useState(false);
   const [rankingSearch, setRankingSearch] = useState('');
-  const [rankingView, setRankingView] = useState<RankingView>('ranking');
+  const [rankingView, setRankingView] = usePersistentState<RankingView>('ranking:view', 'ranking');
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<Game[]>([]);
@@ -203,13 +204,21 @@ export default function RankingPage() {
   }
 
   function choose(item: RankingItem, choice: VoteChoice) {
-    if (choice === 'would_not_play') { setReasonTarget({ item }); return; }
+    if (choice === 'would_not_play') {
+      if (item.myChoice === choice) void setPreference(item, null);
+      else setReasonTarget({ item });
+      return;
+    }
     void setPreference(item, item.myChoice === choice ? null : choice);
   }
 
   function chooseSearch(game: Game, choice: VoteChoice) {
-    if (choice === 'would_not_play') { setReasonTarget({ game, item: ranking.find(row => row.game.id === game.id) }); return; }
     const existing = ranking.find(row => row.game.id === game.id);
+    if (choice === 'would_not_play') {
+      if (existing?.myChoice === choice) void setPreference(existing, null);
+      else setReasonTarget({ game, item: existing });
+      return;
+    }
     if (existing) void setPreference(existing, existing.myChoice === choice ? null : choice);
     else void chooseSearchGame(game, choice);
   }
