@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { AnimatePresence, motion } from 'motion/react';
-import { CircleAlert, LoaderCircle, X } from 'lucide-react';
+import { CheckCircle2, CircleAlert, LoaderCircle, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { demoGames, demoMonths, demoProfiles, demoProgress } from '@/lib/demo-data';
 import type { AppRole, ClubCycle, Game, Profile, RewardGrant } from '@/lib/types';
@@ -37,6 +37,7 @@ interface AppContextValue {
   redoClubGameChange: (eventId: string) => Promise<{ succeeded: boolean; undoEventId?: string }>;
   runOperation: <T>(label: string, operation: () => PromiseLike<T>) => Promise<T>;
   runOptimistic: (label: string, apply: () => void, rollback: () => void, operation: () => PromiseLike<unknown>) => Promise<boolean>;
+  notify: (message: string) => void;
 }
 
 export interface ClubUndoPreview {
@@ -114,6 +115,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [rewardGrants, setRewardGrants] = useState<RewardGrant[]>([]);
   const [operations, setOperations] = useState<{ id: string; label: string }[]>([]);
   const [toasts, setToasts] = useState<{ id: string; message: string }[]>([]);
+  const [notices, setNotices] = useState<{ id: string; message: string }[]>([]);
   const demoClubUndos = useRef(new Map<string, { beforeCycles: ClubCycle[]; beforeMonth: string; afterCycles: ClubCycle[]; afterMonth: string; previousEventId?: string; revertedAt?: number }>());
   const demoLatestClubEvent = useRef<string | undefined>(undefined);
 
@@ -125,6 +127,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       : detail;
     setToasts(current => [...current, { id, message }]);
     window.setTimeout(() => setToasts(current => current.filter(item => item.id !== id)), 5000);
+  }, []);
+
+  const notify = useCallback((message: string) => {
+    const id = crypto.randomUUID();
+    setNotices(current => [...current, { id, message }]);
+    window.setTimeout(() => setNotices(current => current.filter(item => item.id !== id)), 2600);
   }, []);
 
   const runOperation = useCallback(async function runOperation<T>(label: string, operation: () => PromiseLike<T>) {
@@ -444,6 +452,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     signOut,
     runOperation,
     runOptimistic,
+    notify,
     setClubGame,
     previewClubGameUndo,
     undoClubGameChange,
@@ -452,7 +461,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshProfile: async () => {
       if (user) await fetchProfile(user.id);
     },
-  }), [authLoading, availableMonths, clubRevision, cycles, fetchClubState, fetchProfile, isDemo, previewClubGameUndo, profile, redoClubGameChange, role, runOperation, runOptimistic, selectedMonth, setClubGame, setSelectedMonth, setTheme, signOut, theme, undoClubGameChange, unlockedThemeIds, user]);
+  }), [authLoading, availableMonths, clubRevision, cycles, fetchClubState, fetchProfile, isDemo, notify, previewClubGameUndo, profile, redoClubGameChange, role, runOperation, runOptimistic, selectedMonth, setClubGame, setSelectedMonth, setTheme, signOut, theme, undoClubGameChange, unlockedThemeIds, user]);
 
   const currentOperation = operations.at(-1);
 
@@ -503,6 +512,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               <button aria-label="Fechar aviso" onClick={() => setToasts(current => current.filter(item => item.id !== toast.id))} className="grid size-6 shrink-0 place-items-center rounded-full text-red-200/60 hover:bg-white/10 hover:text-red-100"><X className="size-3.5" /></button>
             </motion.div>
           ))}
+        </AnimatePresence>
+      </div>
+      <div className="pointer-events-none fixed inset-x-3 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-[340] flex flex-col items-center gap-2 min-[960px]:bottom-5" aria-live="polite">
+        <AnimatePresence initial={false}>
+          {notices.map(notice => <motion.div key={notice.id} role="status" initial={{ opacity: 0, y: 10, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 6, scale: 0.97 }} className="success-toast flex items-center gap-2 rounded-full border border-emerald-400/20 bg-[#102019]/95 px-4 py-2.5 text-xs font-bold text-emerald-100 shadow-2xl shadow-black/35 backdrop-blur-md"><CheckCircle2 className="size-4 text-emerald-300" />{notice.message}</motion.div>)}
         </AnimatePresence>
       </div>
     </AppContext.Provider>

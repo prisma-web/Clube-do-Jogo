@@ -2,16 +2,18 @@
 
 import { useMemo, useState } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { CheckCircle2, ChevronDown, Circle, Clock3, PlayCircle, Star } from 'lucide-react';
+import { CalendarCheck2, CalendarClock, CheckCircle2, ChevronDown, Circle, PlayCircle, Star } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { demoProgress, demoProfiles } from '@/lib/demo-data';
 import type { Game, GameProgress, ProgressStatus, Profile, RatingCriterion, RatingDetails, RatingMode } from '@/lib/types';
-import { formatDate, formatFinishedCount } from '@/lib/utils';
+import { formatFinishedCount, formatShortDate } from '@/lib/utils';
+import { transitionProgress } from '@/lib/progress';
 import { useStaleQuery } from '@/hooks/use-stale-query';
 import { useApp } from './app-provider';
 import { Avatar } from './ui/avatar';
 import { ListSkeleton } from './ui/skeleton';
 import { RatingSlider, RatingStars } from './rating-slider';
+import { ProgressConfirmationDialog } from './progress-confirmation-dialog';
 
 const statusMeta: Record<ProgressStatus, { label: string; icon: typeof Circle; color: string }> = {
   not_started: { label: 'Não iniciado', icon: Circle, color: 'text-zinc-500' },
@@ -43,13 +45,15 @@ function detailsAverage(details: RatingDetails) {
   const values = detailCriteria
     .map(({ key }) => details[key])
     .filter((value): value is number => typeof value === 'number');
+  if (!values.length) return 0;
   return values.reduce((total, value) => total + value, 0) / values.length;
 }
 
 export function ProgressList({ game, snapshotMonth }: { game: Game; snapshotMonth?: string }) {
   const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, runOptimistic } = useApp();
+  const { user, isDemo, runOptimistic, notify } = useApp();
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<ProgressStatus | null>(null);
   const query = useStaleQuery<GameProgress[]>(`progress:${game.id}:${snapshotMonth || 'latest'}`, async () => {
     if (isDemo) return demoProgress.map(item => ({ ...item, game_id: game.id }));
     if (snapshotMonth) {
@@ -91,18 +95,13 @@ export function ProgressList({ game, snapshotMonth }: { game: Game; snapshotMont
     if (snapshotMonth) return;
     const existing = progress.find(item => item.user_id === user!.id);
     const now = new Date().toISOString();
+    const values = transitionProgress(existing, status, now);
     const next: GameProgress = existing ? {
       ...existing,
-      status,
-      started_at: existing.started_at || (status === 'not_started' ? null : now),
-      finished_at: status === 'finished' ? existing.finished_at || now : null,
-      rating: status === 'finished' ? existing.rating : null,
-      rating_mode: status === 'finished' ? existing.rating_mode || 'simple' : 'simple',
-      rating_details: status === 'finished' ? existing.rating_details || null : null,
+      ...values,
     } : {
-      id: crypto.randomUUID(), user_id: user!.id, game_id: game.id, status,
-      rating: null, rating_mode: 'simple', rating_details: null,
-      started_at: status === 'not_started' ? null : now, finished_at: status === 'finished' ? now : null,
+      id: crypto.randomUUID(), user_id: user!.id, game_id: game.id,
+      ...values,
       profile: demoProfiles[0],
     };
     const nextProgress = progress.some(item => item.user_id === user!.id) ? progress.map(item => item.user_id === user!.id ? next : item) : [next, ...progress];
@@ -113,8 +112,13 @@ export function ProgressList({ game, snapshotMonth }: { game: Game; snapshotMont
   async function saveRating(rating: number, mode: RatingMode, details: RatingDetails | null) {
     if (snapshotMonth) return;
     const next = progress.map(item => item.user_id === user!.id ? { ...item, rating, rating_mode: mode, rating_details: details } : item);
-    if (isDemo) query.setData(next);
-    else await runOptimistic('Salvando nota…', () => query.setData(next), () => query.setData(progress), () => supabase.from('game_progress').update({ rating, rating_mode: mode, rating_details: details, updated_at: new Date().toISOString() }).eq('user_id', user!.id).eq('game_id', game.id));
+    if (isDemo) {
+      query.setData(next);
+      notify('Nota atualizada');
+      return;
+    }
+    const saved = await runOptimistic('Salvando nota…', () => query.setData(next), () => query.setData(progress), () => supabase.from('game_progress').update({ rating, rating_mode: mode, rating_details: details, updated_at: new Date().toISOString() }).eq('user_id', user!.id).eq('game_id', game.id));
+    if (saved) notify('Nota atualizada');
   }
 
   function setDetailedMode(enabled: boolean) {
@@ -140,9 +144,9 @@ export function ProgressList({ game, snapshotMonth }: { game: Game; snapshotMont
   return (
     <div className="space-y-4">
       <section className="progress-status-card rounded-2xl border border-white/8 bg-white/[0.025] p-4">
-        <div className="flex items-center justify-between gap-3"><div><h2 className="text-sm font-extrabold">Meu progresso</h2><p className="mt-0.5 text-[11px] text-zinc-500">{snapshotMonth ? 'Estado registrado no encerramento deste ciclo.' : 'Este status acompanha o jogo em qualquer ciclo.'}</p></div>{mine && <span className={`text-xs font-bold ${statusMeta[mine.status].color}`}>{statusMeta[mine.status].label}</span>}</div>
+        <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-extrabold">Meu progresso</h2>{mine && <span className={`text-xs font-bold ${statusMeta[mine.status].color}`}>{statusMeta[mine.status].label}</span>}</div>
         <div className="mt-4 grid grid-cols-3 gap-2">
-          {(Object.keys(statusMeta) as ProgressStatus[]).map(status => { const MetaIcon = statusMeta[status].icon; return <button key={status} disabled={Boolean(snapshotMonth)} data-selected={mine?.status === status} onClick={() => void updateStatus(status)} className={`progress-status-option flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-1 py-3 text-[10px] font-bold transition disabled:cursor-default ${mine?.status === status ? 'border-violet-400/35 bg-violet-500/15 text-violet-200' : 'border-white/8 bg-white/[0.025] text-zinc-500 enabled:hover:bg-white/5'}`}><MetaIcon className="size-4" /><span className="max-w-full truncate whitespace-nowrap">{statusMeta[status].label}</span></button>; })}
+          {(Object.keys(statusMeta) as ProgressStatus[]).map(status => { const MetaIcon = statusMeta[status].icon; return <button key={status} disabled={Boolean(snapshotMonth) || mine?.status === status} data-selected={mine?.status === status} onClick={() => setPendingStatus(status)} className={`progress-status-option flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-1 py-3 text-[10px] font-bold transition disabled:cursor-default ${mine?.status === status ? 'border-violet-400/35 bg-violet-500/15 text-violet-200' : 'border-white/8 bg-white/[0.025] text-zinc-500 enabled:hover:bg-white/5'}`}><MetaIcon className="size-4" /><span className="max-w-full truncate whitespace-nowrap">{statusMeta[status].label}</span></button>; })}
         </div>
         {mine?.status === 'finished' && <div className="mt-4 space-y-4 border-t border-white/8 pt-4">
           <div className="flex flex-wrap items-center justify-between gap-3"><div><span className="block text-xs font-bold text-zinc-400">Minha nota</span><span className="mt-0.5 block text-[10px] text-zinc-600">de 0 a 10</span></div>{mine.rating_mode === 'detailed' && <span className="text-sm font-black tabular-nums text-amber-300">{formatRating(mine.rating ?? 0)}</span>}</div>
@@ -162,12 +166,13 @@ export function ProgressList({ game, snapshotMonth }: { game: Game; snapshotMont
         </div>}
       </section>
 
-      <div className="flex items-center justify-between"><h2 className="text-sm font-extrabold">Progresso do clube</h2><span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">{formatFinishedCount(progress.filter(item => item.status === 'finished').length)}</span></div>
+      <section className="club-progress-card rounded-2xl border border-white/8 bg-white/[0.025] p-4"><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-extrabold">Progresso do clube</h2><span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">{formatFinishedCount(progress.filter(item => item.status === 'finished').length)}</span></div>
       {query.isInitialLoading ? <ListSkeleton count={4} /> : <div ref={progressParent} className="space-y-2">{progress.map(item => {
         const meta = statusMeta[item.status];
         const Icon = meta.icon;
-        return <article key={item.user_id} className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3"><Avatar src={item.profile?.avatar_url} name={item.profile?.name} className="size-10" /><div className="min-w-0 flex-1"><div className="flex min-w-0 items-center gap-2"><span className="truncate text-xs font-extrabold">{item.profile?.name || 'Membro'}</span>{item.rating !== null && <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-bold text-amber-400"><Star className="size-3 fill-current" />{formatRating(Number(item.rating))}</span>}</div><div className="mt-1 flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-[9px] text-zinc-600">{item.started_at && <span className="inline-flex items-center gap-1 whitespace-nowrap"><Clock3 className="size-2.5" />Início: {formatDate(item.started_at)}</span>}{item.finished_at && <span className="whitespace-nowrap">Fim: {formatDate(item.finished_at)}</span>}</div></div><span className={`inline-flex shrink-0 items-center gap-1 text-[10px] font-bold ${meta.color}`}><Icon className="size-3.5" /><span className="hidden min-[360px]:inline">{meta.label}</span></span></article>;
-      })}</div>}
+        return <article key={item.user_id} className="progress-person flex min-w-0 items-center gap-3 rounded-xl border border-white/[0.07] bg-black/[0.12] p-3"><Avatar src={item.profile?.avatar_url} name={item.profile?.name} className="size-10" /><div className="min-w-0 flex-1"><div className="flex min-w-0 items-center gap-2"><span className="truncate text-xs font-extrabold">{item.profile?.name || 'Membro'}</span>{item.rating !== null && <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-bold text-amber-400"><Star className="size-3 fill-current" />{formatRating(Number(item.rating))}</span>}</div><div className="mt-1.5 flex min-w-0 flex-wrap gap-x-3 gap-y-1.5 text-[10px] font-semibold text-zinc-500">{item.started_at && <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><CalendarClock className="size-3.5 text-sky-400" />{formatShortDate(item.started_at)}</span>}{item.finished_at && <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><CalendarCheck2 className="size-3.5 text-emerald-400" />{formatShortDate(item.finished_at)}</span>}</div></div><span className={`inline-flex shrink-0 items-center gap-1 text-[10px] font-bold ${meta.color}`}><Icon className="size-3.5" /><span className="hidden min-[360px]:inline">{meta.label}</span></span></article>;
+      })}</div>}</section>
+      <ProgressConfirmationDialog open={pendingStatus !== null} onOpenChange={open => { if (!open) setPendingStatus(null); }} game={game} currentStatus={mine?.status || 'not_started'} targetStatus={pendingStatus || 'not_started'} onConfirm={() => { if (pendingStatus) void updateStatus(pendingStatus); setPendingStatus(null); }} />
     </div>
   );
 }

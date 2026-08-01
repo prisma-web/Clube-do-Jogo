@@ -1,16 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { demoGames, demoProfiles, demoRanking } from './demo-data';
-import type { Game, Profile, ProfileWithGames, RankingItem, UserPlatform } from './types';
+import type { Game, LibraryGame, Profile, ProfileWithGames, ProgressStatus, RankingItem, RatingDetails, RatingMode, UserPlatform, VoteChoice, VoteParticipant, VoteReason } from './types';
+import { ACTIVE_RANKING_FORMULA, compareRankingItems, legacyPlaytimePoints, legacyRankingScore, preferenceRankingScore, voteChoices } from './ranking';
 import { shiftMonth } from './utils';
-
-const DEFAULT_RATING = 50;
-
-function playtimePoints(hours: number) {
-  if (hours < 8) return 1;
-  if (hours <= 15) return 3;
-  if (hours <= 20) return 2;
-  return 1;
-}
 
 function fallbackProfile(id: string): Profile {
   return { id, name: 'Membro', avatar_url: null };
@@ -36,9 +28,19 @@ export async function fetchRankingData(supabase: SupabaseClient, votingMonth: st
       playtime_points: number;
       rating_multiplier: number;
       total_points: number;
+      finalized_at?: string;
+      legacy_total_points?: number | null;
+      would_play_count?: number;
+      would_not_play_count?: number;
+      would_play_user_ids?: string[];
+      would_not_play_user_ids?: string[];
       games: Game;
     }>;
-    const participantIds = Array.from(new Set(snapshotRows.flatMap(row => [...row.voter_ids, ...row.completed_user_ids])));
+    const participantIds = Array.from(new Set(snapshotRows.flatMap(row => [
+      ...(row.would_play_user_ids || row.voter_ids || []),
+      ...(row.would_not_play_user_ids || []),
+      ...(row.completed_user_ids || []),
+    ])));
     let profiles: Profile[] = [];
     if (participantIds.length) {
       const response = await supabase.from('profiles').select('id, name, avatar_url').in('id', participantIds);
@@ -51,24 +53,42 @@ export async function fetchRankingData(supabase: SupabaseClient, votingMonth: st
       ? await supabase.from('backlogs').select('game_id').eq('user_id', userId).in('game_id', gameIds)
       : { data: [] as Array<{ game_id: string }> };
     const backlogIds = new Set((backlog || []).map(item => item.game_id));
-    return snapshotRows.map(row => ({
-      game: row.games,
-      votesCount: row.vote_count,
-      completedCount: row.completed_count,
-      voters: row.voter_ids.map(id => profileMap.get(id) || fallbackProfile(id)),
-      completedBy: row.completed_user_ids.map(id => profileMap.get(id) || fallbackProfile(id)),
-      playtimePoints: Number(row.playtime_points),
-      ratingMultiplier: Number(row.rating_multiplier),
-      totalPoints: Number(row.total_points),
-      votedByMe: row.voter_ids.includes(userId),
-      completedByMe: row.completed_user_ids.includes(userId),
-      inBacklog: backlogIds.has(row.game_id),
-    }));
+    return snapshotRows.map(row => {
+      const choiceIds: Record<VoteChoice, string[]> = {
+        would_play: row.would_play_user_ids || row.voter_ids || [],
+        would_not_play: row.would_not_play_user_ids || [],
+      };
+      const choiceCounts: Record<VoteChoice, number> = {
+        would_play: row.would_play_count ?? choiceIds.would_play.length,
+        would_not_play: row.would_not_play_count ?? choiceIds.would_not_play.length,
+      };
+      const myChoice = voteChoices.find(choice => choiceIds[choice].includes(userId)) || null;
+      const legacyTotalPoints = Number(row.legacy_total_points ?? row.total_points);
+      return {
+        game: row.games,
+        addedAt: row.finalized_at || `${votingMonth}-01T00:00:00.000Z`,
+        choiceCounts,
+        choiceProfiles: Object.fromEntries(voteChoices.map(choice => [choice, choiceIds[choice].map(id => profileMap.get(id) || fallbackProfile(id))])) as Record<VoteChoice, VoteParticipant[]>,
+        myChoice,
+        votesCount: row.vote_count,
+        completedCount: row.completed_count,
+        voters: (row.voter_ids || []).map(id => profileMap.get(id) || fallbackProfile(id)),
+        completedBy: (row.completed_user_ids || []).map(id => profileMap.get(id) || fallbackProfile(id)),
+        playtimePoints: Number(row.playtime_points),
+        ratingMultiplier: Number(row.rating_multiplier),
+        totalPoints: ACTIVE_RANKING_FORMULA === 'legacy' ? legacyTotalPoints : preferenceRankingScore(choiceCounts),
+        legacyTotalPoints,
+        votedByMe: myChoice !== null,
+        completedByMe: (row.completed_user_ids || []).includes(userId),
+        inBacklog: backlogIds.has(row.game_id),
+      };
+    }).sort(compareRankingItems);
   }
 
-  const { data: votes, error: votesError } = await supabase.from('votes').select('game_id, user_id').eq('vote_month', voteMonth);
+  const { data: rawVotes, error: votesError } = await supabase.from('votes').select('game_id, user_id, choice, reason, reason_text, created_at').eq('vote_month', voteMonth);
   if (votesError) throw votesError;
-  const gameIds = Array.from(new Set(votes?.map(vote => vote.game_id) || []));
+  const votes = (rawVotes || []).filter(vote => vote.choice === 'would_play' || vote.choice === 'would_not_play');
+  const gameIds = Array.from(new Set(votes.map(vote => vote.game_id)));
   if (!gameIds.length) return [];
   const [{ data: completed, error: completedError }, { data: games, error: gamesError }, { data: backlog, error: backlogError }] = await Promise.all([
     supabase.from('game_progress').select('game_id, user_id').eq('status', 'finished').in('game_id', gameIds),
@@ -88,26 +108,39 @@ export async function fetchRankingData(supabase: SupabaseClient, votingMonth: st
   }
   const profileMap = new Map(profiles.map(profile => [profile.id, profile]));
   return ((games || []) as Game[]).map(game => {
-    const gameVotes = (votes || []).filter(vote => vote.game_id === game.id);
+    const gameVotes = votes.filter(vote => vote.game_id === game.id);
     const gameCompleted = (completed || []).filter(item => item.game_id === game.id);
-    const durationPoints = playtimePoints(Number(game.duration_hours));
-    const ratingMultiplier = Number(game.average_rating || DEFAULT_RATING) / 100;
-    const penalty = gameCompleted.length ? gameCompleted.length * 2 : 1;
-    const totalPoints = Math.round(((gameVotes.length * 2 * durationPoints * ratingMultiplier) / penalty) * 10) / 10;
+    const choiceProfiles = Object.fromEntries(voteChoices.map(choice => [choice, gameVotes
+      .filter(vote => (vote.choice || 'would_play') === choice)
+      .map(vote => ({ ...(profileMap.get(vote.user_id) || fallbackProfile(vote.user_id)), reason: vote.reason as VoteReason | null, reasonText: vote.reason_text as string | null }))])) as Record<VoteChoice, VoteParticipant[]>;
+    const choiceCounts = Object.fromEntries(voteChoices.map(choice => [choice, choiceProfiles[choice].length])) as Record<VoteChoice, number>;
+    const durationPoints = legacyPlaytimePoints(Number(game.duration_hours));
+    const ratingMultiplier = Number(game.average_rating ?? 50) / 100;
+    const legacyTotalPoints = legacyRankingScore(game, gameVotes.length, gameCompleted.length);
+    const myVote = gameVotes.find(vote => vote.user_id === userId);
+    const myChoice = myVote ? (myVote.choice || 'would_play') as VoteChoice : null;
+    const addedAt = gameVotes.reduce((earliest, vote) => !earliest || vote.created_at < earliest ? vote.created_at : earliest, '');
     return {
       game,
+      addedAt,
+      choiceCounts,
+      choiceProfiles,
+      myChoice,
+      myReason: (myVote?.reason as VoteReason | null) || null,
+      myReasonText: myVote?.reason_text || null,
       votesCount: gameVotes.length,
       completedCount: gameCompleted.length,
       voters: gameVotes.map(vote => profileMap.get(vote.user_id) || fallbackProfile(vote.user_id)),
       completedBy: gameCompleted.map(item => profileMap.get(item.user_id) || fallbackProfile(item.user_id)),
       playtimePoints: durationPoints,
       ratingMultiplier,
-      totalPoints,
-      votedByMe: gameVotes.some(vote => vote.user_id === userId),
+      totalPoints: ACTIVE_RANKING_FORMULA === 'legacy' ? legacyTotalPoints : preferenceRankingScore(choiceCounts),
+      legacyTotalPoints,
+      votedByMe: myChoice !== null,
       completedByMe: gameCompleted.some(item => item.user_id === userId),
       inBacklog: backlogIds.has(game.id),
     };
-  }).sort((a, b) => b.totalPoints - a.totalPoints || a.game.title.localeCompare(b.game.title, 'pt-BR'));
+  }).sort(compareRankingItems);
 }
 
 export async function fetchGame(supabase: SupabaseClient, gameId: string, isDemo: boolean): Promise<Game | null> {
@@ -142,31 +175,85 @@ export async function fetchUserPlatforms(supabase: SupabaseClient, userId: strin
 export async function fetchProfileWithGames(supabase: SupabaseClient, profileId: string, isDemo: boolean, voteMonth?: string): Promise<ProfileWithGames> {
   if (isDemo) {
     const ranking = demoRanking();
+    const backlog = demoGames.slice(1, 6);
+    const completed = demoGames.slice(6, 10);
+    const favorites = [demoGames[1], demoGames[3], demoGames[4]];
+    const libraryGames = Array.from(new Map([...backlog, ...completed, ...favorites].map(game => [game.id, game])).values());
     return {
       profile: demoProfiles.find(profile => profile.id === profileId) || demoProfiles[0],
-      backlog: demoGames.slice(1, 6),
-      completed: demoGames.slice(6, 10),
+      backlog,
+      completed,
+      favorites,
+      library: libraryGames.map((game, index): LibraryGame => ({
+        game,
+        inBacklog: backlog.some(item => item.id === game.id),
+        favorite: favorites.some(item => item.id === game.id),
+        progress: completed.some(item => item.id === game.id)
+          ? { status: 'finished', rating: 8.5, rating_mode: 'simple', rating_details: null, started_at: new Date(Date.now() - (index + 12) * 86400000).toISOString(), finished_at: new Date(Date.now() - (index + 2) * 86400000).toISOString() }
+          : backlog.some(item => item.id === game.id) && index % 3 === 0
+            ? { status: 'started', rating: null, rating_mode: 'simple', rating_details: null, started_at: new Date(Date.now() - (index + 4) * 86400000).toISOString(), finished_at: null }
+            : null,
+        addedAt: new Date(Date.now() - index * 86400000).toISOString(),
+        updatedAt: new Date(Date.now() - index * 3600000).toISOString(),
+      })),
       votedGameIds: ranking.filter(item => item.votedByMe).map(item => item.game.id),
       rankingGameIds: ranking.map(item => item.game.id),
       platforms: await fetchUserPlatforms(supabase, profileId, true),
     };
   }
-  const [{ data: profile, error: profileError }, { data: backlog, error: backlogError }, { data: completed, error: completedError }, votesResponse, platforms] = await Promise.all([
+  const [{ data: profile, error: profileError }, { data: backlog, error: backlogError }, { data: progress, error: progressError }, { data: favorites, error: favoritesError }, votesResponse, platforms] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', profileId).maybeSingle(),
-    supabase.from('backlogs').select('games (*)').eq('user_id', profileId).order('created_at', { ascending: false }),
-    supabase.from('game_progress').select('games (*)').eq('user_id', profileId).eq('status', 'finished').order('updated_at', { ascending: false }),
+    supabase.from('backlogs').select('created_at, games (*)').eq('user_id', profileId).order('created_at', { ascending: false }),
+    supabase.from('game_progress').select('status, rating, rating_mode, rating_details, started_at, finished_at, updated_at, games (*)').eq('user_id', profileId).order('updated_at', { ascending: false }),
+    supabase.from('favorite_games').select('created_at, games (*)').eq('user_id', profileId).order('created_at', { ascending: false }),
     voteMonth ? supabase.from('votes').select('game_id, user_id').eq('vote_month', voteMonth) : Promise.resolve({ data: [], error: null }),
     fetchUserPlatforms(supabase, profileId, false),
   ]);
   if (profileError) throw profileError;
   if (backlogError) throw backlogError;
-  if (completedError) throw completedError;
+  if (progressError) throw progressError;
+  if (favoritesError) throw favoritesError;
   if (votesResponse.error) throw votesResponse.error;
   const votes = votesResponse.data || [];
+  const backlogGames = (backlog || []).map(item => item.games) as unknown as Game[];
+  const progressRows = (progress || []) as unknown as Array<{
+    status: ProgressStatus;
+    rating: number | null;
+    rating_mode: RatingMode;
+    rating_details: RatingDetails | null;
+    started_at: string | null;
+    finished_at: string | null;
+    updated_at: string;
+    games: Game;
+  }>;
+  const favoriteGames = (favorites || []).map(item => item.games) as unknown as Game[];
+  const gameMap = new Map<string, LibraryGame>();
+  (backlog || []).forEach(row => {
+    const game = row.games as unknown as Game;
+    gameMap.set(game.id, { game, inBacklog: true, favorite: false, progress: null, addedAt: row.created_at, updatedAt: row.created_at });
+  });
+  progressRows.forEach(row => {
+    const current = gameMap.get(row.games.id);
+    gameMap.set(row.games.id, {
+      game: row.games,
+      inBacklog: current?.inBacklog || false,
+      favorite: current?.favorite || false,
+      progress: { status: row.status, rating: row.rating, rating_mode: row.rating_mode, rating_details: row.rating_details, started_at: row.started_at, finished_at: row.finished_at },
+      addedAt: current?.addedAt || row.started_at || row.updated_at,
+      updatedAt: row.updated_at,
+    });
+  });
+  (favorites || []).forEach(row => {
+    const game = row.games as unknown as Game;
+    const current = gameMap.get(game.id);
+    gameMap.set(game.id, { game, inBacklog: current?.inBacklog || false, favorite: true, progress: current?.progress || null, addedAt: current?.addedAt || row.created_at, updatedAt: current?.updatedAt || row.created_at });
+  });
   return {
     profile: profile as Profile | null,
-    backlog: (backlog || []).map(item => item.games) as unknown as Game[],
-    completed: (completed || []).map(item => item.games) as unknown as Game[],
+    backlog: backlogGames,
+    completed: progressRows.filter(item => item.status === 'finished').map(item => item.games),
+    favorites: favoriteGames,
+    library: Array.from(gameMap.values()).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')),
     votedGameIds: votes.filter(item => item.user_id === profileId).map(item => item.game_id),
     rankingGameIds: Array.from(new Set(votes.map(item => item.game_id))),
     platforms,

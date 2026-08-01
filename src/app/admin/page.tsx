@@ -12,7 +12,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ListSkeleton } from '@/components/ui/skeleton';
 
-export default function AdminPage() {
+export default function AdminAccessPanel() {
   const supabase = useMemo(() => createClient(), []);
   const { user, isAdmin, isDemo, runOptimistic, refreshProfile } = useApp();
   const [search, setSearch] = useState('');

@@ -20,7 +20,7 @@ function PeopleList({ people, empty }: { people: Profile[]; empty: string }) {
           <Avatar src={person.avatar_url} name={person.name} className="participant-person-avatar size-11" />
           <div className="min-w-0 flex-1 leading-tight">
             <div className="participant-person-name truncate text-sm font-extrabold text-zinc-100">{person.name || 'Membro'}</div>
-            <div className="participant-person-copy mt-1 text-[11px] font-medium text-zinc-500">Perfil, backlog e finalizados</div>
+            <div className="participant-person-copy mt-1 text-[11px] font-medium text-zinc-500">Perfil, jogos e finalizados</div>
           </div>
           <span className="participant-person-action grid size-8 shrink-0 place-items-center rounded-full border border-white/[0.07] bg-black/15 text-zinc-500 transition group-hover:text-zinc-200" aria-hidden="true">
             <ArrowUpRight className="size-3.5" />

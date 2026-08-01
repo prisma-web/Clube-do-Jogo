@@ -41,7 +41,12 @@ export async function POST(request: Request) {
   if (subscriptionsError) return NextResponse.json({ error: 'Nao foi possivel carregar as assinaturas.' }, { status: 500 });
   if (!subscriptions?.length) return NextResponse.json({ sent: 0, configured: true });
 
-  webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+  try {
+    webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+  } catch (error) {
+    console.error('Configuracao VAPID invalida:', error);
+    return NextResponse.json({ sent: 0, configured: false });
+  }
   const gameTitle = game?.title || 'o jogo do mes';
   const authorName = author?.name || 'Um membro';
   const preview = comment.body.replace(/\s+/g, ' ').trim().slice(0, 120);

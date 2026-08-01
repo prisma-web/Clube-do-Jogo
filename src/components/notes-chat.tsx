@@ -129,7 +129,7 @@ export function NotesChat({ game, snapshotMonth }: { game: Game; snapshotMonth?:
 
   return (
     <div className="notes-panel overflow-hidden rounded-3xl border border-white/8 bg-[radial-gradient(circle_at_20%_0%,rgba(124,58,237,.08),transparent_45%),#0c0c0f]">
-      <div className="border-b border-white/8 px-4 py-3"><h2 className="text-sm font-extrabold">Minhas anotações</h2><p className="mt-0.5 text-[11px] text-zinc-500">{snapshotMonth ? 'Estado registrado no encerramento deste ciclo.' : 'Privadas, sincronizadas e vinculadas a este jogo.'}</p></div>
+      <div className="border-b border-white/8 px-4 py-3"><h2 className="text-sm font-extrabold">Minhas anotações</h2></div>
       <div className="h-[min(56dvh,560px)] min-h-80">
         {notes.length === 0 ? <div className="grid h-full place-items-center px-8 text-center"><div><Pencil className="mx-auto size-7 text-zinc-700" /><p className="mt-3 text-sm font-bold text-zinc-400">{snapshotMonth ? 'Nenhuma anotação neste ciclo' : 'Guarde ideias para a reunião'}</p><p className="mt-1 text-xs leading-relaxed text-zinc-600">{snapshotMonth ? 'Não havia anotações registradas quando o ciclo foi encerrado.' : 'Registre detalhes, teorias e momentos do jogo conforme avança.'}</p></div></div> : (
           <Virtuoso ref={virtuosoRef} data={notes} followOutput="smooth" itemContent={(index, note) => {

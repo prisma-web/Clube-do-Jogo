@@ -2014,7 +2014,7 @@ iframe {
   border-color: var(--hairline) !important;
   box-shadow: 0 22px 70px rgb(0 0 0 / 58%);
 }
-.profile-admin-entry { margin-top: .25rem; }
+.profile-admin-entry { margin-top: 1.75rem; }
 
 :root[data-theme='zelda'] :is(.game-detail-surface, .profile-platforms-surface) {
   border: 1px solid rgb(211 181 99 / 24%) !important;
@@ -2647,6 +2647,84 @@ iframe {
   box-shadow: 0 0 12px rgb(85 221 244 / 10%);
 }
 
+/* Preference voting, personal library and the flatter game-detail composition. */
+.preference-choice {
+  border-color: var(--hairline);
+  background: var(--surface-soft);
+  color: var(--color-zinc-500);
+}
+.preference-choice:hover { background: color-mix(in srgb, var(--surface-soft) 72%, var(--foreground) 4%); color: var(--foreground); }
+.preference-choice[data-choice='would_play'][data-selected='true'] {
+  border-color: color-mix(in srgb, var(--support-completed) 46%, transparent);
+  background: color-mix(in srgb, var(--support-completed) 15%, transparent);
+  color: var(--support-completed);
+}
+.preference-choice[data-choice='would_not_play'][data-selected='true'] {
+  border-color: color-mix(in srgb, var(--support-danger) 46%, transparent);
+  background: color-mix(in srgb, var(--support-danger) 14%, transparent);
+  color: var(--support-danger);
+}
+.preference-choice[data-choice='unavailable'][data-selected='true'] {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--support-backlog) 42%, transparent);
+  background: color-mix(in srgb, var(--support-backlog) 10%, transparent);
+  color: var(--support-backlog);
+}
+.preference-count[data-choice='would_play'] { color: var(--support-completed); }
+.preference-count[data-choice='would_not_play'] { color: var(--support-danger); }
+.preference-count[data-choice='unavailable'] { color: var(--support-backlog); }
+.ranking-card[data-my-choice='unavailable'] { border-style: dashed; }
+
+.library-filter-chip {
+  border-color: var(--hairline);
+  background: var(--surface-soft);
+  color: var(--color-zinc-500);
+}
+.library-filter-chip[data-selected='true'] {
+  border-color: color-mix(in srgb, var(--color-violet-400) 35%, transparent);
+  background: color-mix(in srgb, var(--color-violet-500) 14%, transparent);
+  color: var(--color-violet-300);
+}
+.library-status-started { color: var(--support-backlog); }
+.library-status-finished { color: var(--support-completed); }
+.library-status-not_started { color: var(--color-zinc-500); }
+.game-detail-gallery-bleed { border-radius: 0 !important; }
+.game-detail-gallery-bleed .game-media-card { border-radius: 0 1rem 1rem 0; }
+.club-progress-card { background: var(--surface-soft) !important; }
+.progress-person { box-shadow: none !important; }
+.app-tabs [value='favorites'][data-state='active'] {
+  background: color-mix(in srgb, #ec4899 12%, transparent) !important;
+  color: #f472b6 !important;
+}
+
+:root[data-theme='zelda'] .preference-choice[data-selected='true'],
+:root[data-theme='zelda'] .library-filter-chip[data-selected='true'] {
+  background-image: linear-gradient(145deg, rgb(211 181 99 / 13%), rgb(0 0 0 / 8%));
+  box-shadow: inset 0 1px rgb(255 241 190 / 7%);
+}
+:root[data-theme='zelda'] .club-progress-card { border-color: rgb(211 181 99 / 18%) !important; background: #10120f !important; }
+
+:root[data-theme='nier'] :where(.preference-choice, .library-filter-chip, .club-progress-card, .progress-person) { border-radius: 0 !important; }
+:root[data-theme='nier'] .preference-choice[data-selected='true'],
+:root[data-theme='nier'] .library-filter-chip[data-selected='true'] { border-color: #4b413d !important; background: #4b413d !important; color: #e3deca !important; }
+:root[data-theme='nier'] .ranking-card[data-my-choice='unavailable'] { border-style: solid; border-left-style: dashed !important; }
+
+:root[data-theme='crossing'] :where(.preference-choice, .library-filter-chip) {
+  border: 0 !important;
+  background: #eee4ca !important;
+  color: #6f6654 !important;
+  box-shadow: none !important;
+}
+:root[data-theme='crossing'] .preference-choice[data-choice='would_play'][data-selected='true'] { background: #83bd73 !important; color: #fff !important; }
+:root[data-theme='crossing'] .preference-choice[data-choice='would_not_play'][data-selected='true'] { background: #d57972 !important; color: #fff !important; }
+:root[data-theme='crossing'] .preference-choice[data-choice='unavailable'][data-selected='true'] { background: #77aeba !important; color: #fff !important; }
+:root[data-theme='crossing'] .library-filter-chip[data-selected='true'] { background: #955138 !important; color: #fff !important; }
+:root[data-theme='crossing'] .club-progress-card { border: 0 !important; background: #fffaf0 !important; box-shadow: 0 5px 14px rgb(78 112 83 / 6%) !important; }
+
+:root[data-theme='ori'] .preference-choice[data-selected='true'],
+:root[data-theme='ori'] .library-filter-chip[data-selected='true'] { box-shadow: inset 0 0 20px rgb(85 221 244 / 7%), 0 0 13px rgb(85 221 244 / 7%); }
+:root[data-theme='ori'] .club-progress-card { border-color: rgb(137 224 240 / 13%) !important; background: rgb(2 15 29 / 62%) !important; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
@@ -2654,4 +2732,106 @@ iframe {
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
+}
+
+:root[data-reduce-motion='true'] *,
+:root[data-reduce-motion='true'] *::before,
+:root[data-reduce-motion='true'] *::after {
+  scroll-behavior: auto !important;
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .01ms !important;
+}
+
+/* Poster-first collections, platform identities and dense ranking placements. */
+.favorite-game-card,
+.discover-game-card {
+  border-color: var(--hairline) !important;
+  background: var(--surface) !important;
+  box-shadow: var(--theme-shadow);
+}
+.favorite-game-header,
+.favorite-game-footer { background: var(--surface-soft); }
+.favorite-game-cover { border-block: 1px solid var(--hairline); }
+.discover-card-menu { transition: transform 160ms ease, background-color 160ms ease; }
+.discover-card-menu:hover { transform: scale(1.06); }
+.rating-control:focus-within .rating-stars { filter: drop-shadow(0 0 7px rgb(251 191 36 / 18%)); }
+.rating-stars { transition: filter 140ms ease; }
+.success-toast { border-color: color-mix(in srgb, var(--support-completed) 30%, transparent) !important; background: color-mix(in srgb, var(--support-completed) 12%, var(--surface)) !important; color: var(--foreground) !important; }
+
+.platform-card {
+  --platform-color: #60a5fa;
+  border-color: color-mix(in srgb, var(--platform-color) 28%, var(--hairline)) !important;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--platform-color) 12%, var(--surface)), var(--surface)) !important;
+  box-shadow: var(--theme-shadow), inset 0 1px rgb(255 255 255 / 4%);
+}
+.platform-card[data-platform-family='playstation'] { --platform-color: #4d8dff; }
+.platform-card[data-platform-family='xbox'] { --platform-color: #65b94a; }
+.platform-card[data-platform-family='nintendo'] { --platform-color: #ef5350; }
+.platform-card[data-platform-family='pc'] { --platform-color: #a879ff; }
+.platform-card[data-platform-family='other'] { --platform-color: #4dd2dd; }
+.platform-card-glow { background: var(--platform-color); opacity: .18; }
+.platform-card-icon { background: color-mix(in srgb, var(--platform-color) 16%, var(--surface-soft)); color: color-mix(in srgb, var(--platform-color) 78%, white); }
+.platform-card-icon img { filter: brightness(0) invert(1); opacity: .88; }
+
+.ranking-placement-emblem { font-variant-numeric: tabular-nums; }
+.ranking-placement-line { background: linear-gradient(90deg, color-mix(in srgb, var(--color-violet-400) 34%, var(--hairline)), transparent); }
+.ranking-placement-cards { border-color: color-mix(in srgb, var(--color-violet-400) 18%, var(--hairline)); }
+.ranking-placement-emblem.ranking-position { width: 3rem !important; height: 3rem !important; font-size: .875rem !important; }
+
+:root[data-theme='zelda'] :is(.favorite-game-card, .discover-game-card, .platform-card) {
+  border-color: rgb(211 181 99 / 22%) !important;
+  border-radius: 12px !important;
+  background: linear-gradient(145deg, #151711, #0d0f0c) !important;
+  box-shadow: 0 16px 35px rgb(0 0 0 / 38%) !important;
+}
+:root[data-theme='zelda'] :is(.favorite-game-header, .favorite-game-footer) { background: #0d0f0c; }
+:root[data-theme='zelda'] .platform-card { --platform-color: #d6b866; }
+:root[data-theme='zelda'] .ranking-placement-line { background: linear-gradient(90deg, rgb(211 181 99 / 48%), transparent); }
+:root[data-theme='zelda'] .ranking-placement-cards { border-color: rgb(211 181 99 / 22%); }
+
+:root[data-theme='nier'] :is(.favorite-game-card, .discover-game-card, .platform-card) {
+  border: 0 !important;
+  border-left: 4px solid #4b413d !important;
+  border-radius: 0 !important;
+  background: #d8d2bc !important;
+  color: #332d2a !important;
+  box-shadow: 5px 5px 0 rgb(75 65 61 / 18%) !important;
+}
+:root[data-theme='nier'] :is(.favorite-game-header, .favorite-game-footer) { background: #c9c3ad; color: #4b413d; }
+:root[data-theme='nier'] :is(.favorite-game-card a, .discover-game-card a) { color: #332d2a !important; }
+:root[data-theme='nier'] .platform-card { --platform-color: #4b413d; }
+:root[data-theme='nier'] .platform-card-icon { border-radius: 0 !important; background: #4b413d; color: #e3deca; }
+:root[data-theme='nier'] .ranking-placement-line { background: repeating-linear-gradient(90deg, #4b413d 0 18px, transparent 18px 24px); }
+:root[data-theme='nier'] .ranking-placement-cards { border-color: #4b413d; }
+
+:root[data-theme='crossing'] :is(.favorite-game-card, .discover-game-card, .platform-card) {
+  border: 3px solid #fff7dc !important;
+  border-radius: 25px !important;
+  background: #fff9e8 !important;
+  color: #465f54 !important;
+  box-shadow: 0 6px 0 rgb(95 132 83 / 9%), 0 15px 30px rgb(69 105 77 / 9%) !important;
+}
+:root[data-theme='crossing'] :is(.favorite-game-header, .favorite-game-footer) { background: #f1e8c9; color: #4d685c; }
+:root[data-theme='crossing'] :is(.favorite-game-card a, .discover-game-card a) { color: #465f54 !important; }
+:root[data-theme='crossing'] .platform-card { --platform-color: #69bcae; }
+:root[data-theme='crossing'] .platform-card-icon { border-radius: 50% !important; background: #d8eee6; color: #397662; }
+:root[data-theme='crossing'] .platform-card-icon img { filter: brightness(0); opacity: .58; }
+:root[data-theme='crossing'] .ranking-placement-line { background: linear-gradient(90deg, #87aa7c, transparent); }
+:root[data-theme='crossing'] .ranking-placement-cards { border-color: #c9e6c2; }
+
+:root[data-theme='ori'] :is(.favorite-game-card, .discover-game-card, .platform-card) {
+  border-color: rgb(137 224 240 / 15%) !important;
+  border-radius: 24px 17px 25px 18px / 18px 25px 17px 24px !important;
+  background: linear-gradient(145deg, rgb(8 35 54 / 94%), rgb(2 15 29 / 94%)) !important;
+  box-shadow: 0 18px 45px rgb(0 5 13 / 38%), inset 0 1px rgb(219 251 255 / 5%) !important;
+}
+:root[data-theme='ori'] :is(.favorite-game-header, .favorite-game-footer) { background: rgb(2 15 29 / 72%); }
+:root[data-theme='ori'] .platform-card { --platform-color: #55ddf4; }
+:root[data-theme='ori'] .ranking-placement-line { background: linear-gradient(90deg, rgb(85 221 244 / 48%), transparent); box-shadow: 0 0 8px rgb(85 221 244 / 15%); }
+:root[data-theme='ori'] .ranking-placement-cards { border-color: rgb(85 221 244 / 20%); }
+
+@media (prefers-reduced-motion: reduce) {
+  .discover-card-menu,
+  .rating-stars { transition: none !important; }
 }

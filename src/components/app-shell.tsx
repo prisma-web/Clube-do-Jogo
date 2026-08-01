@@ -3,16 +3,18 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Gamepad2, ShieldCheck, Trophy, UserRound } from 'lucide-react';
+import { Compass, Gamepad2, Library, Trophy, UserRound } from 'lucide-react';
 import { useApp } from './app-provider';
 import { AuthScreen } from './auth-screen';
 import { MonthSelector } from './month-selector';
-import { Avatar } from './ui/avatar';
+import { UserMenu } from './user-menu';
 import { cn } from '@/lib/utils';
 
-const navigation = [
+const navigation: Array<{ href: string; label: string; mobileLabel?: string; icon: typeof Gamepad2 }> = [
   { href: '/jogo-do-mes', label: 'Jogo do mês', icon: Gamepad2 },
   { href: '/ranking', label: 'Ranking', icon: Trophy },
+  { href: '/jogos', label: 'Todos os jogos', mobileLabel: 'Explorar', icon: Compass },
+  { href: '/seus-jogos', label: 'Meus Jogos', icon: Library },
   { href: '/perfil', label: 'Perfil', icon: UserRound },
 ];
 
@@ -39,7 +41,7 @@ function isNavigationActive(pathname: string, href: string) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, profile, authLoading, isAdmin } = useApp();
+  const { user, authLoading } = useApp();
   const [navVisible, setNavVisible] = useState(true);
   const lastScroll = useRef(0);
   const previousPath = useRef(pathname);
@@ -67,7 +69,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (authLoading || !user) return <AuthScreen loading={authLoading} />;
 
   const detailRoute = pathname.startsWith('/jogos/') || pathname.startsWith('/perfil/');
-  const desktopNavigation = isAdmin ? [...navigation, { href: '/admin', label: 'Administração', icon: ShieldCheck }] : navigation;
 
   return (
     <div className="theme-shell relative isolate min-h-dvh text-zinc-100">
@@ -103,7 +104,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav aria-label="Navegação principal" className="flex flex-1 flex-col gap-1.5 p-3">
-          {desktopNavigation.map(item => {
+          {navigation.map(item => {
             const active = isNavigationActive(pathname, item.href);
             const Icon = item.icon;
             return (
@@ -116,35 +117,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="border-t border-white/[0.08] p-3 pb-[max(.75rem,env(safe-area-inset-bottom))]">
-          <Link href="/perfil" aria-label="Abrir perfil" scroll={false} className="flex min-w-0 items-center gap-3 rounded-xl p-2 transition hover:bg-white/5">
-            <Avatar src={profile?.avatar_url} name={profile?.name} className="size-10 shrink-0" />
-            <span className="min-w-0"><strong className="block truncate text-xs text-zinc-200">{profile?.name || 'Meu perfil'}</strong><span className="mt-0.5 block text-[10px] text-zinc-600">{isAdmin ? 'Administrador' : 'Ver perfil'}</span></span>
-          </Link>
+          <UserMenu desktop />
         </div>
       </aside>
 
       <header className="theme-header sticky top-0 z-50 border-b border-white/[0.06] pt-[env(safe-area-inset-top)] backdrop-blur-xl min-[960px]:hidden">
-        <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-3 px-8">
+        <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-3 px-4 sm:px-8">
           <Link href="/jogo-do-mes" className="flex min-w-0 items-center gap-2.5" scroll={false}>
             <span className="theme-logo grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg shadow-violet-950/50"><Gamepad2 className="size-5" /></span>
             <span className="hidden truncate text-sm font-black tracking-tight min-[360px]:block">Clube do Jogo</span>
           </Link>
           <div className="flex min-w-0 items-center gap-2">
             {!detailRoute && <MonthSelector />}
-            <Link href="/perfil" aria-label="Abrir perfil" scroll={false}><Avatar src={profile?.avatar_url} name={profile?.name} className="size-9" /></Link>
+            <UserMenu />
           </div>
         </div>
       </header>
-      <main className="relative z-10 mx-auto w-full max-w-5xl px-8 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 sm:pt-7 min-[960px]:ml-56 min-[960px]:w-[calc(100%-14rem)] min-[960px]:max-w-none min-[960px]:pb-12 min-[960px]:pt-8">{children}</main>
+      <main className="relative z-10 mx-auto w-full max-w-5xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-8 sm:pt-7 min-[960px]:ml-56 min-[960px]:w-[calc(100%-14rem)] min-[960px]:max-w-none min-[960px]:pb-12 min-[960px]:pt-8">{children}</main>
       <nav aria-label="Navegação principal" className={cn('theme-nav fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-2xl border-t border-white/[0.08] pb-[max(.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-2xl transition-transform duration-150 ease-[cubic-bezier(.22,1,.36,1)] min-[960px]:hidden', navVisible ? 'translate-y-0' : 'translate-y-[calc(100%+env(safe-area-inset-bottom))]')}>
-        <div className="grid grid-cols-3">
+        <div className="grid grid-cols-5">
           {navigation.map(item => {
             const active = isNavigationActive(pathname, item.href);
             const Icon = item.icon;
             return (
               <Link key={item.href} href={item.href} scroll={false} aria-current={active ? 'page' : undefined} className={cn('group flex min-w-0 flex-col items-center gap-1 px-1 py-1.5 text-[10px] font-semibold text-zinc-500 transition', active && 'text-violet-400')}>
                 <span className={cn('grid h-7 w-12 place-items-center rounded-full transition group-active:scale-90', active && 'bg-violet-500/15')}><Icon className={cn('size-5', active && 'fill-violet-400/15')} /></span>
-                <span className="max-w-full truncate whitespace-nowrap">{item.label}</span>
+                <span className="max-w-full truncate whitespace-nowrap">{item.mobileLabel || item.label}</span>
               </Link>
             );
           })}

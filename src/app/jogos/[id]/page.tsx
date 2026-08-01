@@ -4,40 +4,43 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Tabs from '@radix-ui/react-tabs';
-import { CalendarDays, CheckCircle2, ChevronDown, Clock3, Flag, Gamepad2, ImageIcon, LayoutDashboard, ListChecks, NotebookPen, Share2, Star, ThumbsUp, Trash2, UsersRound } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Clock3, Gamepad2, Heart, ImageIcon, LayoutDashboard, ListChecks, NotebookPen, Share2, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { demoRanking } from '@/lib/demo-data';
 import { fetchGame, fetchUserPlatforms } from '@/lib/data';
-import type { Profile, UserPlatform } from '@/lib/types';
+import type { Profile, UserPlatform, VoteChoice, VoteParticipant, VoteReason } from '@/lib/types';
+import { ACTIVE_RANKING_FORMULA, legacyRankingScore, preferenceRankingScore } from '@/lib/ranking';
 import { shiftMonth, youtubeEmbedUrl } from '@/lib/utils';
 import { useStaleQuery } from '@/hooks/use-stale-query';
 import { useApp } from '@/components/app-provider';
-import { ParticipantsDialog } from '@/components/participants-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar } from '@/components/ui/avatar';
 import { GameGallery } from '@/components/game-gallery';
+import { RatingStars } from '@/components/rating-slider';
 import { GameActionButton } from '@/components/game-action-button';
 import { FloatingTrailer } from '@/components/floating-trailer';
 import { ClubGameAdminDialog } from '@/components/club-game-admin-dialog';
 import { ProgressList } from '@/components/progress-list';
 import { NotesChat } from '@/components/notes-chat';
+import { PreferenceParticipantsDialog } from '@/components/preference-participants-dialog';
+import { VoteReasonDialog } from '@/components/vote-reason-dialog';
 
 interface GamePeople {
   voters: Profile[];
   completed: Profile[];
+  choiceProfiles: Record<VoteChoice, VoteParticipant[]>;
+  myChoice: VoteChoice | null;
+  myReason?: VoteReason | null;
+  myReasonText?: string | null;
   votedByMe: boolean;
   completedByMe: boolean;
   inBacklog: boolean;
+  favorite: boolean;
 }
 
-function PeoplePreview({ people, empty }: { people: Profile[]; empty: string }) {
-  return (
-    <div className="game-people-chips flex flex-wrap gap-2">
-      {people.map(person => <span key={person.id} className="game-person-chip inline-flex max-w-full items-center gap-2 rounded-full border border-white/8 bg-white/[.06] py-1 pl-1 pr-3 text-xs font-semibold text-zinc-400"><Avatar src={person.avatar_url} name={person.name} className="size-7 text-[9px]" /><span className="truncate">{person.name || 'Membro'}</span></span>)}
-      {!people.length && <span className="game-people-empty text-xs leading-relaxed text-zinc-600">{empty}</span>}
-    </div>
-  );
-}
+const preferenceOptions = [
+  { value: 'would_not_play', label: 'Não', Icon: ThumbsDown },
+  { value: 'would_play', label: 'Jogaria', Icon: ThumbsUp },
+] as const;
 
 export default function GamePage() {
   const params = useParams<{ id: string }>();
@@ -51,12 +54,13 @@ export default function GamePage() {
   const peopleQuery = useStaleQuery<GamePeople>(`game-people:${params.id}:${voteMonth}:${clubRevision}`, async () => {
     if (isDemo) {
       const item = demoRanking().find(row => row.game.id === params.id) || demoRanking()[0];
-      return { voters: item.voters, completed: item.completedBy, votedByMe: item.votedByMe, completedByMe: item.completedByMe, inBacklog: item.inBacklog };
+      return { voters: item.voters, completed: item.completedBy, choiceProfiles: item.choiceProfiles, myChoice: item.myChoice, myReason: item.myReason, myReasonText: item.myReasonText, votedByMe: item.votedByMe, completedByMe: item.completedByMe, inBacklog: item.inBacklog, favorite: item.game.id === 'hollow-knight' };
     }
-    const [{ data: votes, error: votesError }, { data: completed, error: completedError }, { data: backlog }] = await Promise.all([
-      supabase.from('votes').select('user_id').eq('game_id', params.id).eq('vote_month', voteMonth),
+    const [{ data: votes, error: votesError }, { data: completed, error: completedError }, { data: backlog }, { data: favorite }] = await Promise.all([
+      supabase.from('votes').select('user_id, choice, reason, reason_text').eq('game_id', params.id).eq('vote_month', voteMonth),
       supabase.from('game_progress').select('user_id').eq('game_id', params.id).eq('status', 'finished'),
       supabase.from('backlogs').select('id').eq('game_id', params.id).eq('user_id', user!.id).maybeSingle(),
+      supabase.from('favorite_games').select('id').eq('game_id', params.id).eq('user_id', user!.id).maybeSingle(),
     ]);
     if (votesError) throw votesError;
     if (completedError) throw completedError;
@@ -68,19 +72,31 @@ export default function GamePage() {
       profiles = response.data as Profile[];
     }
     const profileMap = new Map(profiles.map(profile => [profile.id, profile]));
+    const validVotes = (votes || []).filter(item => item.choice === 'would_play' || item.choice === 'would_not_play');
+    const choiceProfiles: Record<VoteChoice, VoteParticipant[]> = {
+      would_play: validVotes.filter(item => item.choice === 'would_play').map(item => ({ ...(profileMap.get(item.user_id) || { id: item.user_id, name: 'Membro', avatar_url: null }), reason: null, reasonText: null })),
+      would_not_play: validVotes.filter(item => item.choice === 'would_not_play').map(item => ({ ...(profileMap.get(item.user_id) || { id: item.user_id, name: 'Membro', avatar_url: null }), reason: item.reason as VoteReason | null, reasonText: item.reason_text })),
+    };
+    const myVote = validVotes.find(item => item.user_id === user!.id);
     return {
-      voters: (votes || []).map(item => profileMap.get(item.user_id) || { id: item.user_id, name: 'Membro', avatar_url: null }),
+      voters: validVotes.map(item => profileMap.get(item.user_id) || { id: item.user_id, name: 'Membro', avatar_url: null }),
       completed: (completed || []).map(item => profileMap.get(item.user_id) || { id: item.user_id, name: 'Membro', avatar_url: null }),
-      votedByMe: (votes || []).some(item => item.user_id === user!.id),
+      choiceProfiles,
+      myChoice: myVote ? (myVote.choice || 'would_play') as VoteChoice : null,
+      myReason: (myVote?.reason as VoteReason | null) || null,
+      myReasonText: myVote?.reason_text || null,
+      votedByMe: Boolean(myVote),
       completedByMe: (completed || []).some(item => item.user_id === user!.id),
       inBacklog: Boolean(backlog),
+      favorite: Boolean(favorite),
     };
   }, Boolean(user));
   const game = gameQuery.data;
-  const people = peopleQuery.data || { voters: [], completed: [], votedByMe: false, completedByMe: false, inBacklog: false };
+  const people = peopleQuery.data || { voters: [], completed: [], choiceProfiles: { would_play: [], would_not_play: [] }, myChoice: null, myReason: null, myReasonText: null, votedByMe: false, completedByMe: false, inBacklog: false, favorite: false };
   const platformsQuery = useStaleQuery<UserPlatform[]>(`user-platforms:${user?.id}`, () => fetchUserPlatforms(supabase, user!.id, isDemo), Boolean(user));
   const ownedPlatformIds = new Set((platformsQuery.data || []).map(platform => platform.igdb_platform_id));
-  const [participantsOpen, setParticipantsOpen] = useState(true);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [reasonOpen, setReasonOpen] = useState(false);
 
   useEffect(() => {
     if (isDemo || !game || ((game.screenshot_urls?.length || 0) >= 3 && game.genres?.length && game.platforms?.length && game.platform_ids?.length) || mediaRequested.current.has(game.id)) return;
@@ -95,56 +111,45 @@ export default function GamePage() {
     if (!game || people.inBacklog) return;
     const next = { ...people, inBacklog: true };
     if (isDemo) peopleQuery.setData(next);
-    else await runOptimistic('Adicionando ao backlog...', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
+    else await runOptimistic('Adicionando a Meus Jogos…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
   }
 
   async function removeFromBacklog() {
     if (!game || !people.inBacklog) return;
     const next = { ...people, inBacklog: false };
     if (isDemo) peopleQuery.setData(next);
-    else await runOptimistic('Removendo do backlog...', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => supabase.from('backlogs').delete().eq('user_id', user!.id).eq('game_id', game.id));
+    else await runOptimistic('Removendo de Meus Jogos…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => supabase.from('backlogs').delete().eq('user_id', user!.id).eq('game_id', game.id));
   }
 
-  async function toggleVote() {
+  async function setPreference(choice: VoteChoice | null, reason?: VoteReason | null, reasonText?: string | null) {
     if (!game || isHistorical) return;
-    const votingNow = !people.votedByMe;
-    const mine: Profile = { id: user!.id, name: 'Você', avatar_url: null };
-    const next = { ...people, votedByMe: votingNow, inBacklog: votingNow || people.inBacklog, voters: votingNow ? [...people.voters, mine] : people.voters.filter(item => item.id !== user!.id) };
+    const mine: VoteParticipant = { id: user!.id, name: 'Você', avatar_url: null, reason: choice === 'would_not_play' ? reason : null, reasonText: choice === 'would_not_play' ? reasonText : null };
+    const choiceProfiles = {
+      would_play: people.choiceProfiles.would_play.filter(person => person.id !== user!.id),
+      would_not_play: people.choiceProfiles.would_not_play.filter(person => person.id !== user!.id),
+    };
+    if (choice) choiceProfiles[choice] = [...choiceProfiles[choice], mine];
+    const voters = [...choiceProfiles.would_play, ...choiceProfiles.would_not_play];
+    const next = { ...people, myChoice: choice, myReason: choice === 'would_not_play' ? reason : null, myReasonText: choice === 'would_not_play' ? reasonText : null, votedByMe: choice !== null, choiceProfiles, voters };
     if (isDemo) {
       peopleQuery.setData(next);
       return;
     }
-    const request = votingNow
-      ? Promise.all([
-        supabase.from('votes').insert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth }),
-        supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }),
-      ])
+    const request = choice
+      ? supabase.from('votes').upsert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth, choice, reason: choice === 'would_not_play' ? reason : null, reason_text: choice === 'would_not_play' ? reasonText : null }, { onConflict: 'user_id,game_id,vote_month' })
       : supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', game.id).eq('vote_month', voteMonth);
-    await runOptimistic(votingNow ? 'Registrando voto...' : 'Removendo voto...', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => request);
+    await runOptimistic(choice ? 'Salvando escolha…' : 'Removendo escolha…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => request);
   }
 
-  async function toggleCompleted() {
-    if (!game || isHistorical) return;
-    const completedNow = !people.completedByMe;
-    const mine: Profile = { id: user!.id, name: 'Você', avatar_url: null };
-    const next = { ...people, completedByMe: completedNow, completed: completedNow ? [...people.completed, mine] : people.completed.filter(item => item.id !== user!.id) };
-    if (isDemo) {
-      peopleQuery.setData(next);
-      return;
-    }
-    const now = new Date().toISOString();
-    const request = supabase.from('game_progress').upsert({
-      user_id: user!.id,
-      game_id: game.id,
-      status: completedNow ? 'finished' : 'not_started',
-      rating: null,
-      rating_mode: 'simple',
-      rating_details: null,
-      started_at: completedNow ? now : null,
-      finished_at: completedNow ? now : null,
-      updated_at: now,
-    }, { onConflict: 'user_id,game_id' });
-    await runOptimistic(completedNow ? 'Marcando como finalizado...' : 'Removendo jogo finalizado...', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => request);
+  async function toggleFavorite() {
+    if (!game) return;
+    const favorite = !people.favorite;
+    const next = { ...people, favorite };
+    if (isDemo) { peopleQuery.setData(next); return; }
+    const request = favorite
+      ? supabase.from('favorite_games').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' })
+      : supabase.from('favorite_games').delete().eq('user_id', user!.id).eq('game_id', game.id);
+    await runOptimistic(favorite ? 'Adicionando aos favoritos…' : 'Removendo dos favoritos…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => request);
   }
 
   async function shareGame() {
@@ -160,11 +165,9 @@ export default function GamePage() {
   const trailer = youtubeEmbedUrl(game.trailer_url);
   const screenshots = game.screenshot_urls || [];
   const galleryImages = Array.from(new Set([game.image_url, ...screenshots].filter(Boolean)));
-  const playtimePoints = game.duration_hours < 8 ? 1 : game.duration_hours <= 15 ? 3 : game.duration_hours <= 20 ? 2 : 1;
-  const ratingMultiplier = Number(game.average_rating ?? 50) / 100;
-  const completionPenalty = people.completed.length ? people.completed.length * 2 : 1;
-  const totalPoints = Math.round(((people.voters.length * 2 * playtimePoints * ratingMultiplier) / completionPenalty) * 10) / 10;
-  const ratingFill = game.average_rating === null || game.average_rating === undefined ? null : Math.max(0, Math.min(100, game.average_rating));
+  const choiceCounts = { would_play: people.choiceProfiles.would_play.length, would_not_play: people.choiceProfiles.would_not_play.length };
+  const totalPoints = ACTIVE_RANKING_FORMULA === 'legacy' ? legacyRankingScore(game, people.voters.length, people.completed.length) : preferenceRankingScore(choiceCounts);
+  const ratingValue = game.average_rating === null || game.average_rating === undefined ? null : Math.max(0, Math.min(10, game.average_rating / 10));
   const rating = game.average_rating === null || game.average_rating === undefined
     ? null
     : (game.average_rating / 10).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
@@ -177,10 +180,10 @@ export default function GamePage() {
 
   const backlogAction = people.inBacklog ? (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild><GameActionButton kind="backlog" active className="h-10 px-4" aria-label="Opções do backlog" /></DropdownMenu.Trigger>
+      <DropdownMenu.Trigger asChild><GameActionButton kind="backlog" active className="h-10 px-4" aria-label="Opções de Meus Jogos" /></DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="end" sideOffset={8} collisionPadding={12} className="app-popup animated-popup z-[100] min-w-52 rounded-xl border border-white/10 bg-zinc-900 p-1.5 shadow-2xl outline-none">
-          <DropdownMenu.Item onSelect={() => void removeFromBacklog()} className="danger-action flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold text-red-300 outline-none data-[highlighted]:bg-red-500/10"><Trash2 className="size-3.5" />Remover do backlog</DropdownMenu.Item>
+          <DropdownMenu.Item onSelect={() => void removeFromBacklog()} className="danger-action flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold text-red-300 outline-none data-[highlighted]:bg-red-500/10"><Trash2 className="size-3.5" />Remover de Meus Jogos</DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
@@ -188,37 +191,20 @@ export default function GamePage() {
 
   const overviewContent = (
     <div className="space-y-5 sm:space-y-6">
-      {!isPreview && <div className="grid items-start gap-5 lg:grid-cols-[.82fr_1.18fr]">
+      {!isPreview && <div className="grid items-start gap-4 lg:grid-cols-[.72fr_1.28fr]">
         <section className="game-detail-surface game-detail-score-card rounded-3xl border border-white/8 bg-white/[.035] p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <span className="game-detail-eyebrow text-[10px] font-black uppercase tracking-[.16em] text-zinc-600">Pontuação do clube</span>
-              <div className="mt-2 text-4xl font-black tracking-[-0.045em] sm:text-5xl" style={{ color: 'var(--support-completed)' }}>{totalPoints.toFixed(1)}<span className="ml-2 text-lg font-bold tracking-normal text-zinc-500">pts</span></div>
+              <div className="mt-2 text-4xl font-black tracking-[-0.045em] sm:text-5xl" style={{ color: 'var(--support-completed)' }}>{totalPoints.toFixed(ACTIVE_RANKING_FORMULA === 'legacy' ? 1 : 0)}<span className="ml-2 text-lg font-bold tracking-normal text-zinc-500">pts</span></div>
             </div>
             <div className="shrink-0">{backlogAction}</div>
           </div>
-          <p className="game-detail-muted mt-4 text-xs leading-relaxed text-zinc-500">Calculada a partir dos votos, duração, avaliação e pessoas que finalizaram.</p>
         </section>
 
-        <section className="game-detail-surface game-detail-people-card overflow-hidden rounded-3xl border border-white/8 bg-white/[.035]">
-          <button type="button" aria-expanded={participantsOpen} onClick={() => setParticipantsOpen(open => !open)} className="game-detail-people-toggle flex w-full items-center gap-3 px-5 py-4 text-left sm:px-6">
-            <span className="game-detail-section-icon grid size-9 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-violet-300"><UsersRound className="size-4" /></span>
-            <span className="min-w-0 flex-1">
-              <strong className="block text-sm">Participação</strong>
-              <span className="game-detail-muted mt-0.5 block text-[11px] text-zinc-500">{people.voters.length} votos · {people.completed.length} finalizaram</span>
-            </span>
-            <ChevronDown className={`size-4 shrink-0 text-zinc-500 transition-transform ${participantsOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {participantsOpen && <div className="game-detail-people-grid grid gap-3 border-t border-white/8 p-4 animate-fade-in sm:grid-cols-2 sm:p-5">
-            <div className="participation-card game-participation-group min-w-0 rounded-2xl border border-white/8 bg-black/10 p-4">
-              <div className="mb-3 flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-sm font-black" style={{ color: 'var(--support-vote)' }}><ThumbsUp className="size-4 fill-current" />Votos</h3><GameActionButton kind="vote" active={people.votedByMe} disabled={isHistorical} onClick={() => void toggleVote()} className="h-9 shrink-0 px-3 text-[11px]" /></div>
-              <ParticipantsDialog dialogId={`${params.id}-votes`} voters={people.voters} completed={people.completed}><button className="block w-full text-left" aria-label="Ver pessoas que votaram"><PeoplePreview people={people.voters} empty="Ainda ninguém votou." /></button></ParticipantsDialog>
-            </div>
-            <div className="participation-card game-participation-group min-w-0 rounded-2xl border border-white/8 bg-black/10 p-4">
-              <div className="mb-3 flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-sm font-black" style={{ color: 'var(--support-completed)' }}><Flag className="size-4 fill-current" />Finalizaram</h3><GameActionButton kind="completed" active={people.completedByMe} disabled={isHistorical} onClick={() => void toggleCompleted()} className="h-9 shrink-0 px-3 text-[11px]" /></div>
-              <ParticipantsDialog dialogId={`${params.id}-completed`} voters={people.voters} completed={people.completed} initialTab="completed"><button className="block w-full text-left" aria-label="Ver pessoas que finalizaram"><PeoplePreview people={people.completed} empty="Ainda ninguém finalizou." /></button></ParticipantsDialog>
-            </div>
-          </div>}
+        <section className="game-detail-surface game-detail-people-card rounded-3xl border border-white/8 bg-white/[.035] p-4 sm:p-5">
+          <PreferenceParticipantsDialog profiles={people.choiceProfiles}>{openAt => <div className="preference-summary grid w-full grid-cols-2 gap-2">{preferenceOptions.map(option => <button type="button" onClick={() => openAt(option.value)} key={option.value} data-choice={option.value} className="preference-count flex min-w-0 flex-col items-center gap-1 rounded-xl bg-black/20 px-2 py-2.5 text-[10px] font-bold"><option.Icon className="size-4" /><span>{choiceCounts[option.value]}</span><span className="max-w-full truncate">{option.label}</span></button>)}</div>}</PreferenceParticipantsDialog>
+          <div className="preference-picker mt-3 grid grid-cols-2 gap-2">{preferenceOptions.map(option => <button key={option.value} disabled={isHistorical} data-choice={option.value} data-selected={people.myChoice === option.value} onClick={() => option.value === 'would_not_play' ? setReasonOpen(true) : void setPreference(people.myChoice === option.value ? null : option.value)} className="preference-choice flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-[10px] font-extrabold transition active:scale-[.97]"><option.Icon className="size-3.5 shrink-0" /><span className="truncate">{option.label}</span></button>)}</div>
         </section>
       </div>}
 
@@ -229,8 +215,8 @@ export default function GamePage() {
         </div>
       </section>}
 
-      <section className="game-detail-surface game-detail-gallery rounded-3xl border border-white/8 bg-white/[.035] p-4 sm:p-6">
-        <div className="mb-4 flex items-center gap-2"><ImageIcon className="size-4 text-zinc-400" /><h2 className="text-base font-black tracking-tight">Galeria</h2></div>
+      <section className="game-detail-surface game-detail-gallery game-detail-gallery-bleed -mx-4 overflow-hidden border-y border-white/8 bg-white/[.035] py-4 sm:mx-0 sm:rounded-3xl sm:border sm:p-6">
+        <div className="mb-4 flex items-center gap-2 px-4 sm:px-0"><ImageIcon className="size-4 text-zinc-400" /><h2 className="text-base font-black tracking-tight">Galeria</h2></div>
         <GameGallery title={game.title} images={galleryImages} />
       </section>
     </div>
@@ -238,21 +224,22 @@ export default function GamePage() {
 
   return (
     <div className="game-detail-page animate-fade-in">
-      <div className="game-detail-trailer-bleed -mx-8 mb-6 bg-black">
+      <div className="game-detail-trailer-bleed -mx-4 mb-4 max-h-[34dvh] overflow-hidden bg-black sm:-mx-8 sm:mb-6 sm:max-h-none">
         {trailer ? <FloatingTrailer src={trailer} title={`Trailer de ${game.title}`} /> : <div className="aspect-video"><img src={game.image_url} alt={`Capa de ${game.title}`} className="size-full object-cover" /></div>}
       </div>
       <div className="mx-auto max-w-4xl">
         <section className="game-detail-summary px-0 pb-6 sm:pb-7">
           <div className="flex items-start justify-between gap-4">
             <h1 className="min-w-0 break-words text-3xl font-black leading-[1.02] tracking-[-0.035em] sm:text-5xl">{game.title}</h1>
-            <button onClick={() => void shareGame()} aria-label="Compartilhar jogo" title="Compartilhar jogo" className="game-detail-share grid size-10 shrink-0 place-items-center rounded-full border border-white/8 bg-white/[.06] text-zinc-400 transition hover:bg-white/[.12] hover:text-white"><Share2 className="size-4" /></button>
+            <div className="flex shrink-0 gap-2"><button onClick={() => void toggleFavorite()} aria-label={people.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'} className={`game-detail-share grid size-10 place-items-center rounded-full border border-white/8 bg-white/[.06] transition ${people.favorite ? 'text-pink-400' : 'text-zinc-400'}`}><Heart className={`size-4 ${people.favorite ? 'fill-current' : ''}`} /></button><button onClick={() => void shareGame()} aria-label="Compartilhar jogo" title="Compartilhar jogo" className="game-detail-share grid size-10 place-items-center rounded-full border border-white/8 bg-white/[.06] text-zinc-400 transition hover:bg-white/[.12] hover:text-white"><Share2 className="size-4" /></button></div>
           </div>
           <div className="mt-4 flex min-w-0 flex-wrap gap-2 text-xs font-bold text-zinc-400">
             <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2"><Clock3 className="size-3.5 text-zinc-500" />{game.duration_hours}h</span>
-            <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2">{ratingFill === null ? <span className="text-zinc-500">Sem nota</span> : <span className="game-rating inline-flex items-center gap-2"><span className="tabular-nums">{rating}</span><span aria-label={`Nota de ${rating} de 10`} className="relative flex"><span className="flex text-amber-400/25">{Array.from({ length: 5 }, (_, index) => <Star key={index} className="size-3.5" />)}</span><span aria-hidden="true" className="pointer-events-none absolute inset-0 flex overflow-hidden text-amber-400" style={{ width: `${ratingFill}%` }}>{Array.from({ length: 5 }, (_, index) => <Star key={index} className="size-3.5 shrink-0 fill-current" />)}</span></span></span>}</span>
+            <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2">{ratingValue === null ? <span className="text-zinc-500">Sem nota</span> : <span className="game-rating inline-flex items-center gap-2"><span className="tabular-nums">{rating}</span><span aria-label={`Nota de ${rating} de 10`}><RatingStars value={ratingValue} /></span></span>}</span>
             {game.release_year && <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2"><CalendarDays className="size-3.5 text-zinc-500" />{game.release_year}</span>}
           </div>
-          <p className="game-detail-description mt-4 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-[15px] sm:leading-7">{game.description || 'Sem descrição disponível.'}</p>
+          <p className={`game-detail-description mt-3 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-[15px] sm:leading-7 ${descriptionExpanded ? '' : 'line-clamp-3'}`}>{game.description || 'Sem descrição disponível.'}</p>
+          {game.description && game.description.length > 180 && <button onClick={() => setDescriptionExpanded(value => !value)} className="mt-1 text-[11px] font-extrabold text-violet-300">{descriptionExpanded ? 'Ver menos' : 'Ver mais'}</button>}
           {!isPreview && <ClubGameAdminDialog game={game} className="mt-5" />}
         </section>
 
@@ -263,10 +250,11 @@ export default function GamePage() {
           <Tabs.Trigger value="notes" className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[11px] font-extrabold text-zinc-500 outline-none data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300"><NotebookPen className="size-3.5" /><span className="truncate">Anotações</span></Tabs.Trigger>
         </Tabs.List>
         <Tabs.Content value="overview" className="outline-none data-[state=active]:animate-tab-in">{overviewContent}</Tabs.Content>
-        <Tabs.Content value="progress" className="outline-none data-[state=active]:animate-tab-in"><section className="game-detail-surface game-detail-tab-card rounded-3xl border border-white/8 bg-white/[.035] p-5 sm:p-6"><ProgressList game={game} /></section></Tabs.Content>
-        <Tabs.Content value="notes" className="outline-none data-[state=active]:animate-tab-in"><section className="game-detail-surface game-detail-tab-card rounded-3xl border border-white/8 bg-white/[.035] p-4 sm:p-6"><div className="mb-4 flex items-center gap-2"><NotebookPen className="size-4 text-violet-400" /><h2 className="text-base font-black tracking-tight">Anotações</h2></div><NotesChat game={game} /></section></Tabs.Content>
+        <Tabs.Content value="progress" className="outline-none data-[state=active]:animate-tab-in"><ProgressList game={game} /></Tabs.Content>
+        <Tabs.Content value="notes" className="outline-none data-[state=active]:animate-tab-in"><NotesChat game={game} /></Tabs.Content>
       </Tabs.Root> : overviewContent}
       </div>
+      <VoteReasonDialog open={reasonOpen} initialReason={people.myReason} initialText={people.myReasonText} onOpenChange={setReasonOpen} onConfirm={(reason, reasonText) => { setReasonOpen(false); void setPreference('would_not_play', reason, reasonText); }} />
     </div>
   );
 }

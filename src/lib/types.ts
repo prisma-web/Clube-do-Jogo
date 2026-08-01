@@ -76,6 +76,12 @@ export interface UserPlatform {
 
 export interface RankingItem {
   game: Game;
+  addedAt: string;
+  choiceCounts: Record<VoteChoice, number>;
+  choiceProfiles: Record<VoteChoice, VoteParticipant[]>;
+  myChoice: VoteChoice | null;
+  myReason?: VoteReason | null;
+  myReasonText?: string | null;
   votesCount: number;
   completedCount: number;
   voters: Profile[];
@@ -83,15 +89,36 @@ export interface RankingItem {
   playtimePoints: number;
   ratingMultiplier: number;
   totalPoints: number;
+  legacyTotalPoints: number;
   votedByMe: boolean;
   completedByMe: boolean;
   inBacklog: boolean;
+}
+
+export type VoteChoice = 'would_play' | 'would_not_play';
+export type VoteReason = 'played_before' | 'cannot_run' | 'too_expensive' | 'other';
+
+export interface VoteParticipant extends Profile {
+  reason?: VoteReason | null;
+  reasonText?: string | null;
+}
+export type RankingFormula = 'preference' | 'legacy';
+
+export type DiscoverSource = 'popular' | 'rated' | 'recent' | 'anticipated' | 'friends' | 'ranking';
+
+export interface DiscoverItem {
+  game: Game;
+  activityCount?: number;
+  people?: string[];
+  addedAt?: string | null;
 }
 
 export interface ProfileWithGames {
   profile: Profile | null;
   backlog: Game[];
   completed: Game[];
+  favorites: Game[];
+  library: LibraryGame[];
   votedGameIds: string[];
   rankingGameIds: string[];
   platforms: UserPlatform[];
@@ -113,6 +140,15 @@ export interface GameProgress {
   started_at: string | null;
   finished_at: string | null;
   profile?: Profile;
+}
+
+export interface LibraryGame {
+  game: Game;
+  inBacklog: boolean;
+  favorite: boolean;
+  progress: Pick<GameProgress, 'status' | 'rating' | 'rating_mode' | 'rating_details' | 'started_at' | 'finished_at'> | null;
+  addedAt: string | null;
+  updatedAt: string | null;
 }
 
 export interface CommentReaction {

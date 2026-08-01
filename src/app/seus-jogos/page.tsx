@@ -1,34 +1,57 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import * as Tabs from '@radix-ui/react-tabs';
+import { useMemo, useState } from 'react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { CalendarDays, Clock3, Flag, Gamepad2, Library, Plus, Search, Star, Trash2 } from 'lucide-react';
+import { ArrowDownAZ, Check, ChevronDown, Circle, Filter, Flag, Gamepad2, Heart, Library, MoreHorizontal, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchProfileWithGames } from '@/lib/data';
-import type { Game, UserPlatform } from '@/lib/types';
-import { formatMonth, shiftMonth } from '@/lib/utils';
+import { transitionProgress } from '@/lib/progress';
+import type { Game, LibraryGame, ProfileWithGames, ProgressStatus, UserPlatform } from '@/lib/types';
 import { useStaleQuery } from '@/hooks/use-stale-query';
 import { useApp } from '@/components/app-provider';
 import { GameListCard } from '@/components/game-list-card';
-import { GameDialogPreview } from '@/components/game-dialog-preview';
 import { ListSkeleton, Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { GameActionButton } from '@/components/game-action-button';
-import { useUrlDialog, useUrlTab } from '@/hooks/use-url-state';
+import { ProgressConfirmationDialog } from '@/components/progress-confirmation-dialog';
+import { useUrlDialog } from '@/hooks/use-url-state';
 
-const animation = { duration: 160, easing: 'cubic-bezier(.22, 1, .36, 1)' };
+type QuickFilter = 'all' | 'started' | 'finished' | 'not_started' | 'favorites';
+type SortMode = 'recent' | 'title' | 'duration' | 'rating';
 
-export function YourGamesPanel({ embedded = false }: { embedded?: boolean }) {
+const quickFilters: Array<{ value: QuickFilter; label: string; Icon: typeof Library }> = [
+  { value: 'all', label: 'Todos', Icon: Library },
+  { value: 'started', label: 'Comecei', Icon: Gamepad2 },
+  { value: 'finished', label: 'Finalizados', Icon: Flag },
+  { value: 'not_started', label: 'Não iniciados', Icon: Circle },
+  { value: 'favorites', label: 'Favoritos', Icon: Heart },
+];
+
+const statusLabel: Record<ProgressStatus, string> = { not_started: 'Não iniciado', started: 'Comecei', finished: 'Finalizado' };
+
+function rebuild(data: ProfileWithGames, library: LibraryGame[]): ProfileWithGames {
+  return {
+    ...data,
+    library,
+    backlog: library.filter(item => item.inBacklog).map(item => item.game),
+    completed: library.filter(item => item.progress?.status === 'finished').map(item => item.game),
+    favorites: library.filter(item => item.favorite).map(item => item.game),
+  };
+}
+
+export function YourGamesPanel() {
   const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, selectedMonth, isHistorical, runOptimistic } = useApp();
-  const voteMonth = shiftMonth(selectedMonth, 1);
-  const query = useStaleQuery(`your-games:${user?.id}:${voteMonth}`, () => fetchProfileWithGames(supabase, user!.id, isDemo, voteMonth), Boolean(user));
+  const { user, isDemo, runOptimistic } = useApp();
+  const query = useStaleQuery(`your-games:${user?.id}`, () => fetchProfileWithGames(supabase, user!.id, isDemo), Boolean(user), { staleTime: 60_000 });
   const data = query.data;
-  const [backlogParent] = useAutoAnimate<HTMLDivElement>(animation);
-  const [completedParent] = useAutoAnimate<HTMLDivElement>(animation);
+  const [listParent] = useAutoAnimate<HTMLDivElement>({ duration: 160, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
+  const [textFilter, setTextFilter] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>('recent');
+  const [playableOnly, setPlayableOnly] = useState(false);
+  const [shortOnly, setShortOnly] = useState(false);
+  const [ratedOnly, setRatedOnly] = useState(false);
+  const [grouped, setGrouped] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<Game[]>([]);
@@ -37,247 +60,127 @@ export function YourGamesPanel({ embedded = false }: { embedded?: boolean }) {
   const [platformSearching, setPlatformSearching] = useState(false);
   const [platformResults, setPlatformResults] = useState<UserPlatform[]>([]);
   const [platformError, setPlatformError] = useState('');
-  const addDialog = useUrlDialog('add-backlog');
-  const actionDialog = useUrlDialog('game-action');
-  const [activeTab, setActiveTab] = useUrlTab('list', ['backlog', 'completed', 'platforms'] as const, 'backlog');
+  const [progressTarget, setProgressTarget] = useState<{ item: LibraryGame; status: ProgressStatus } | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<LibraryGame | null>(null);
+  const addDialog = useUrlDialog('add-my-game');
+  const filterDialog = useUrlDialog('library-filters');
+  const platformsDialog = useUrlDialog('library-platforms');
 
-  async function removeBacklog(game: Game) {
-    if (!data) return;
-    const next = { ...data, backlog: data.backlog.filter(item => item.id !== game.id) };
+  const ownedPlatformIds = useMemo(() => new Set((data?.platforms || []).map(platform => platform.igdb_platform_id)), [data?.platforms]);
+  const visible = useMemo(() => {
+    const normalized = textFilter.trim().toLocaleLowerCase('pt-BR');
+    const matches = (data?.library || []).filter(item => {
+      const status = item.progress?.status || 'not_started';
+      if (quickFilter === 'favorites' ? !item.favorite : quickFilter !== 'all' && status !== quickFilter) return false;
+      if (normalized && !item.game.title.toLocaleLowerCase('pt-BR').includes(normalized)) return false;
+      if (playableOnly && item.game.platform_ids?.length && !item.game.platform_ids.some(id => ownedPlatformIds.has(id))) return false;
+      if (shortOnly && Number(item.game.duration_hours) > 12) return false;
+      if (ratedOnly && item.game.average_rating == null) return false;
+      return true;
+    });
+    return matches.sort((a, b) => sortMode === 'title'
+      ? a.game.title.localeCompare(b.game.title, 'pt-BR')
+      : sortMode === 'duration'
+        ? a.game.duration_hours - b.game.duration_hours
+        : sortMode === 'rating'
+          ? Number(b.game.average_rating ?? -1) - Number(a.game.average_rating ?? -1)
+          : (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  }, [data?.library, ownedPlatformIds, playableOnly, quickFilter, ratedOnly, shortOnly, sortMode, textFilter]);
+
+  const groups = grouped ? (['started', 'not_started', 'finished'] as ProgressStatus[]).map(status => ({ status, items: visible.filter(item => (item.progress?.status || 'not_started') === status) })).filter(group => group.items.length) : [{ status: null, items: visible }];
+
+  async function addToMyGames(game: Game) {
+    if (!data || data.library.some(item => item.game.id === game.id && item.inBacklog)) return;
+    const existing = data.library.find(item => item.game.id === game.id);
+    const entry: LibraryGame = existing ? { ...existing, inBacklog: true, updatedAt: new Date().toISOString() } : { game, inBacklog: true, favorite: false, progress: null, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const library = existing ? data.library.map(item => item.game.id === game.id ? entry : item) : [entry, ...data.library];
+    const next = rebuild(data, library);
     if (isDemo) query.setData(next);
-    else await runOptimistic('Removendo do backlog…', () => query.setData(next), () => query.setData(data), () => supabase.from('backlogs').delete().eq('user_id', user!.id).eq('game_id', game.id));
+    else await runOptimistic('Adicionando a Meus Jogos…', () => query.setData(next), () => query.setData(data), () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
   }
 
-  async function addToBacklog(game: Game) {
-    if (!data || data.backlog.some(item => item.id === game.id)) return;
-    const next = { ...data, backlog: [game, ...data.backlog] };
+  async function removeFromMyGames(item: LibraryGame) {
+    if (!data) return;
+    const changed = { ...item, inBacklog: false, updatedAt: new Date().toISOString() };
+    const library = item.favorite || item.progress ? data.library.map(row => row.game.id === item.game.id ? changed : row) : data.library.filter(row => row.game.id !== item.game.id);
+    const next = rebuild(data, library);
+    setRemoveTarget(null);
     if (isDemo) query.setData(next);
-    else await runOptimistic('Adicionando ao backlog…', () => query.setData(next), () => query.setData(data), () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
+    else await runOptimistic('Removendo de Meus Jogos…', () => query.setData(next), () => query.setData(data), () => supabase.from('backlogs').delete().eq('user_id', user!.id).eq('game_id', item.game.id));
   }
 
-  async function markFinished(game: Game, finished: boolean) {
+  async function toggleFavorite(item: LibraryGame) {
     if (!data) return;
-    const next = { ...data, completed: finished ? [...data.completed, game] : data.completed.filter(item => item.id !== game.id) };
-    if (isDemo) {
-      query.setData(next);
-      return;
-    }
+    const favorite = !item.favorite;
+    const next = rebuild(data, data.library.map(row => row.game.id === item.game.id ? { ...row, favorite, updatedAt: new Date().toISOString() } : row));
+    if (isDemo) query.setData(next);
+    else await runOptimistic(favorite ? 'Adicionando aos favoritos…' : 'Removendo dos favoritos…', () => query.setData(next), () => query.setData(data), () => favorite
+      ? supabase.from('favorite_games').upsert({ user_id: user!.id, game_id: item.game.id }, { onConflict: 'user_id,game_id' })
+      : supabase.from('favorite_games').delete().eq('user_id', user!.id).eq('game_id', item.game.id));
+  }
+
+  async function applyProgress() {
+    if (!data || !progressTarget) return;
+    const { item, status } = progressTarget;
     const now = new Date().toISOString();
-    const request = supabase.from('game_progress').upsert({
-      user_id: user!.id,
-      game_id: game.id,
-      status: finished ? 'finished' : 'started',
-      started_at: now,
-      finished_at: finished ? now : null,
-      updated_at: now,
-    }, { onConflict: 'user_id,game_id' });
-    await runOptimistic(finished ? 'Marcando como finalizado…' : 'Removendo finalização…', () => query.setData(next), () => query.setData(data), () => request);
-  }
-
-  async function toggleVote(game: Game) {
-    if (!data || isHistorical) return;
-    const voted = data.votedGameIds.includes(game.id);
-    const votedGameIds = voted ? data.votedGameIds.filter(id => id !== game.id) : [...data.votedGameIds, game.id];
-    const next = {
-      ...data,
-      votedGameIds,
-      rankingGameIds: voted ? data.rankingGameIds : Array.from(new Set([...data.rankingGameIds, game.id])),
-      backlog: voted || data.backlog.some(item => item.id === game.id) ? data.backlog : [game, ...data.backlog],
-    };
-    if (isDemo) {
-      query.setData(next);
-      return;
-    }
-    const request = voted
-      ? supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', game.id).eq('vote_month', voteMonth)
-      : Promise.all([
-        supabase.from('votes').insert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth }),
-        supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }),
-      ]);
-    await runOptimistic(voted ? 'Removendo voto…' : 'Registrando voto…', () => query.setData(next), () => query.setData(data), () => request);
+    const progress = transitionProgress(item.progress, status, now);
+    const next = rebuild(data, data.library.map(row => row.game.id === item.game.id ? { ...row, progress, updatedAt: now } : row));
+    setProgressTarget(null);
+    if (isDemo) query.setData(next);
+    else await runOptimistic('Atualizando progresso…', () => query.setData(next), () => query.setData(data), () => supabase.from('game_progress').upsert({ user_id: user!.id, game_id: item.game.id, ...progress, updated_at: now }, { onConflict: 'user_id,game_id' }));
   }
 
   async function searchGames(event: React.FormEvent) {
     event.preventDefault();
     if (!searchQuery.trim()) return;
-    setSearching(true);
-    setSearchError('');
-    if (isDemo) {
-      const normalized = searchQuery.toLocaleLowerCase('pt-BR');
-      const { demoGames } = await import('@/lib/demo-data');
-      setResults(demoGames.filter(game => game.title.toLocaleLowerCase('pt-BR').includes(normalized)));
-      setSearching(false);
-      return;
-    }
-    try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Não foi possível buscar jogos.');
-      setResults(payload);
-    } catch (value) {
-      setSearchError(value instanceof Error ? value.message : 'Não foi possível buscar jogos.');
-    } finally {
-      setSearching(false);
-    }
+    setSearching(true); setSearchError('');
+    if (isDemo) { const { demoGames } = await import('@/lib/demo-data'); const normalized = searchQuery.toLocaleLowerCase('pt-BR'); setResults(demoGames.filter(game => game.title.toLocaleLowerCase('pt-BR').includes(normalized))); setSearching(false); return; }
+    try { const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); setResults(payload); }
+    catch (value) { setSearchError(value instanceof Error ? value.message : 'Não foi possível buscar jogos.'); }
+    finally { setSearching(false); }
   }
 
   async function searchPlatforms(event: React.FormEvent) {
-    event.preventDefault();
-    if (!platformQuery.trim()) return;
-    setPlatformSearching(true);
-    setPlatformError('');
-    if (isDemo) {
-      const available: UserPlatform[] = [
-        { igdb_platform_id: 130, name: 'Nintendo Switch', abbreviation: 'Switch' },
-        { igdb_platform_id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' },
-        { igdb_platform_id: 48, name: 'PlayStation 4', abbreviation: 'PS4' },
-        { igdb_platform_id: 167, name: 'PlayStation 5', abbreviation: 'PS5' },
-        { igdb_platform_id: 169, name: 'Xbox Series X|S', abbreviation: 'Xbox' },
-      ];
-      const normalized = platformQuery.toLocaleLowerCase('pt-BR');
-      setPlatformResults(available.filter(platform => platform.name.toLocaleLowerCase('pt-BR').includes(normalized)));
-      setPlatformSearching(false);
-      return;
-    }
-    try {
-      const response = await fetch(`/api/platforms/search?q=${encodeURIComponent(platformQuery)}`);
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Não foi possível buscar consoles.');
-      setPlatformResults(payload);
-    } catch (value) {
-      setPlatformError(value instanceof Error ? value.message : 'Não foi possível buscar consoles.');
-    } finally {
-      setPlatformSearching(false);
-    }
+    event.preventDefault(); if (!platformQuery.trim()) return; setPlatformSearching(true); setPlatformError('');
+    if (isDemo) { const available: UserPlatform[] = [{ igdb_platform_id: 130, name: 'Nintendo Switch', abbreviation: 'Switch' }, { igdb_platform_id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' }, { igdb_platform_id: 167, name: 'PlayStation 5', abbreviation: 'PS5' }, { igdb_platform_id: 169, name: 'Xbox Series X|S', abbreviation: 'Xbox' }]; const normalized = platformQuery.toLocaleLowerCase('pt-BR'); setPlatformResults(available.filter(platform => platform.name.toLocaleLowerCase('pt-BR').includes(normalized))); setPlatformSearching(false); return; }
+    try { const response = await fetch(`/api/platforms/search?q=${encodeURIComponent(platformQuery)}`); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); setPlatformResults(payload); }
+    catch (value) { setPlatformError(value instanceof Error ? value.message : 'Não foi possível buscar consoles.'); }
+    finally { setPlatformSearching(false); }
   }
 
   async function addPlatform(platform: UserPlatform) {
     if (!data || data.platforms.some(item => item.igdb_platform_id === platform.igdb_platform_id)) return;
     const next = { ...data, platforms: [...data.platforms, platform].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) };
-    if (isDemo) {
-      query.setData(next);
-      return;
-    }
-    await runOptimistic('Adicionando console…', () => query.setData(next), () => query.setData(data), () => supabase.from('user_platforms').upsert({
-      user_id: user!.id,
-      igdb_platform_id: platform.igdb_platform_id,
-      name: platform.name,
-      abbreviation: platform.abbreviation ?? null,
-      logo_url: platform.logo_url ?? null,
-    }, { onConflict: 'user_id,igdb_platform_id' }));
+    if (isDemo) query.setData(next); else await runOptimistic('Adicionando console…', () => query.setData(next), () => query.setData(data), () => supabase.from('user_platforms').upsert({ user_id: user!.id, igdb_platform_id: platform.igdb_platform_id, name: platform.name, abbreviation: platform.abbreviation ?? null, logo_url: platform.logo_url ?? null }, { onConflict: 'user_id,igdb_platform_id' }));
   }
 
   async function removePlatform(platform: UserPlatform) {
     if (!data) return;
     const next = { ...data, platforms: data.platforms.filter(item => item.igdb_platform_id !== platform.igdb_platform_id) };
-    if (isDemo) {
-      query.setData(next);
-      return;
-    }
-    await runOptimistic('Removendo console…', () => query.setData(next), () => query.setData(data), () => supabase.from('user_platforms').delete().eq('user_id', user!.id).eq('igdb_platform_id', platform.igdb_platform_id));
+    if (isDemo) query.setData(next); else await runOptimistic('Removendo console…', () => query.setData(next), () => query.setData(data), () => supabase.from('user_platforms').delete().eq('user_id', user!.id).eq('igdb_platform_id', platform.igdb_platform_id));
   }
 
-  function voteAction(game: Game) {
-    if (!data) return null;
-    const voted = data.votedGameIds.includes(game.id);
-    const alreadyRanked = data.rankingGameIds.includes(game.id);
-    const message = voted
-      ? `Seu voto será removido da votação de ${formatMonth(voteMonth)}. Se for o último voto, o jogo sairá do ranking.`
-      : alreadyRanked
-        ? `O jogo já está no ranking. Seu voto será somado à votação de ${formatMonth(voteMonth)}.`
-        : `Seu voto adicionará o jogo ao ranking de ${formatMonth(voteMonth)}.`;
-    return (
-      <Dialog open={actionDialog.open && actionDialog.getParam('action') === 'vote' && actionDialog.getParam('item') === game.id} onOpenChange={open => open ? actionDialog.show({ action: 'vote', item: game.id }) : actionDialog.close()}>
-        <DialogTrigger asChild>
-          <GameActionButton kind="vote" active={voted} disabled={isHistorical} className="h-8 rounded-lg px-2.5 text-[10px]" />
-        </DialogTrigger>
-        <DialogContent title={voted ? 'Remover voto' : 'Votar neste jogo'} description={`Votação para ${formatMonth(voteMonth)}.`} className="max-w-sm">
-          <GameDialogPreview game={game} message={message} />
-          <div className="flex gap-2 p-4"><DialogClose className="h-10 flex-1 rounded-xl bg-white/5 px-3 text-xs font-bold text-zinc-300">Cancelar</DialogClose><DialogClose onClick={() => void toggleVote(game)} className={`h-10 flex-1 rounded-xl px-3 text-xs font-extrabold text-white ${voted ? 'bg-red-600' : 'bg-violet-600'}`}>{voted ? 'Remover voto' : 'Confirmar voto'}</DialogClose></div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
+  return <div className="mx-auto max-w-3xl animate-fade-in">
+    <div className="mb-5 flex items-center justify-between gap-3"><h1 className="text-2xl font-black tracking-tight sm:text-3xl">Meus Jogos</h1><div className="flex gap-2">
+      <Dialog open={platformsDialog.open} onOpenChange={open => open ? platformsDialog.show() : platformsDialog.close()}><DialogTrigger asChild><button aria-label="Gerenciar consoles" className="grid size-10 place-items-center rounded-xl border border-white/8 bg-white/[.035]"><Gamepad2 className="size-4" /></button></DialogTrigger><DialogContent title="Meus consoles"><form onSubmit={searchPlatforms} className="flex gap-2 border-b border-white/8 p-4"><input value={platformQuery} onChange={event => setPlatformQuery(event.target.value)} placeholder="Buscar console" className="h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/25 px-3 text-sm outline-none" /><button className="h-11 rounded-xl bg-violet-600 px-4 text-xs font-bold">Buscar</button></form><div className="max-h-[58dvh] space-y-2 overflow-y-auto p-4">{data?.platforms.map(platform => <div key={platform.igdb_platform_id} className="flex items-center gap-3 rounded-xl bg-white/[.035] p-3"><span className="min-w-0 flex-1 truncate text-sm font-bold">{platform.name}</span><button onClick={() => void removePlatform(platform)} aria-label={`Remover ${platform.name}`} className="grid size-8 place-items-center text-red-300"><X className="size-4" /></button></div>)}{platformSearching ? <Skeleton className="h-16 w-full" /> : platformError ? <p className="text-sm text-red-300">{platformError}</p> : platformResults.map(platform => <button key={platform.igdb_platform_id} disabled={data?.platforms.some(item => item.igdb_platform_id === platform.igdb_platform_id)} onClick={() => void addPlatform(platform)} className="flex w-full items-center justify-between rounded-xl bg-white/[.035] p-3 text-left text-sm font-bold disabled:text-emerald-400"><span className="truncate">{platform.name}</span><Plus className="size-4" /></button>)}</div></DialogContent></Dialog>
+      <Dialog open={addDialog.open} onOpenChange={open => open ? addDialog.show() : addDialog.close()}><DialogTrigger asChild><button className="inline-flex h-10 items-center gap-2 rounded-xl bg-violet-600 px-4 text-xs font-extrabold"><Plus className="size-4" />Adicionar</button></DialogTrigger><DialogContent title="Adicionar a Meus Jogos"><form onSubmit={searchGames} className="flex gap-2 border-b border-white/8 p-4"><input autoFocus value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Nome do jogo" className="h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/25 px-3 text-sm outline-none" /><button className="h-11 rounded-xl bg-violet-600 px-4 text-xs font-bold">Buscar</button></form><div className="max-h-[60dvh] space-y-2 overflow-y-auto p-4">{searching ? <ListSkeleton count={3} /> : searchError ? <p className="text-sm text-red-300">{searchError}</p> : results.map(game => { const added = data?.library.some(item => item.game.id === game.id && item.inBacklog); return <GameListCard key={game.id} game={game} action={<button disabled={added} onClick={() => void addToMyGames(game)} className="rounded-lg bg-violet-500/15 px-3 py-2 text-[10px] font-bold text-violet-300 disabled:text-emerald-300">{added ? 'Adicionado' : 'Adicionar'}</button>} />; })}</div></DialogContent></Dialog>
+    </div></div>
 
-  return (
-    <div className={embedded ? 'mb-8 mt-10' : 'mx-auto max-w-3xl'}>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>{embedded ? <><h2 className="text-xl font-black tracking-tight sm:text-2xl">Biblioteca</h2><p className="mt-1.5 text-sm text-zinc-500">Gerencie seu backlog, votos e jogos finalizados.</p></> : <><div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-violet-300"><Library className="size-3" />Biblioteca</div><h1 className="text-2xl font-black tracking-tight sm:text-3xl">Seus jogos</h1><p className="mt-1.5 text-sm text-zinc-500">Seu backlog é pessoal e não interfere na votação.</p></>}</div>
-        <Dialog open={false}>
-          <DialogTrigger asChild><button className="hidden"><Plus /></button></DialogTrigger>
-          <DialogContent title="Adicionar ao backlog" description="Busque um jogo para guardar na sua lista.">
-            <form onSubmit={searchGames} className="flex gap-2 border-b border-white/8 p-4"><label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-600" /><input autoFocus value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Nome do jogo" className="h-11 w-full rounded-xl border border-white/10 bg-black/30 pl-10 pr-3 text-sm outline-none focus:border-violet-500" /></label><button disabled={searching} className="h-11 shrink-0 rounded-xl bg-violet-600 px-4 text-xs font-bold disabled:opacity-50">Buscar</button></form>
-            <div className="max-h-[55dvh] space-y-2 overflow-y-auto p-4">
-              {searching ? Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-24 w-full" />) : searchError ? <p className="p-8 text-center text-sm text-red-300">{searchError}</p> : results.length ? results.map(game => {
-                const added = data?.backlog.some(item => item.id === game.id);
-                return <div key={game.id} className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.025] p-3"><img src={game.image_url} alt="" className="h-16 w-12 shrink-0 rounded-lg object-cover" /><div className="min-w-0 flex-1"><div className="truncate text-sm font-bold">{game.title}</div><div className="mt-1 flex items-center gap-1 text-[11px] text-zinc-500"><Clock3 className="size-3" />{game.duration_hours} h</div></div><button disabled={added} onClick={() => void addToBacklog(game)} type="button" className="shrink-0 rounded-lg bg-violet-500/15 px-3 py-2 text-[11px] font-bold text-violet-300 hover:bg-violet-500 hover:text-white disabled:text-emerald-300">{added ? 'No backlog' : 'Adicionar'}</button></div>;
-              }) : <p className="p-10 text-center text-sm text-zinc-500">Digite o nome de um jogo para começar.</p>}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+    <label className="relative block"><Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-zinc-600" /><input value={textFilter} onChange={event => setTextFilter(event.target.value)} placeholder="Buscar nos seus jogos" className="h-12 w-full rounded-2xl border border-white/8 bg-white/[.035] pl-10 pr-4 text-sm outline-none focus:border-violet-500" /></label>
+    <div className="-mx-4 mt-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-8 sm:px-8 [&::-webkit-scrollbar]:hidden"><div className="flex w-max gap-2">{quickFilters.map(({ value, label, Icon }) => <button key={value} onClick={() => setQuickFilter(value)} data-selected={quickFilter === value} className="library-filter-chip inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-[11px] font-bold"><Icon className="size-3.5" />{label}</button>)}</div></div>
+    <div className="my-4 flex items-center justify-between gap-2"><span className="text-[11px] font-bold text-zinc-500">{visible.length} {visible.length === 1 ? 'jogo' : 'jogos'}</span><div className="flex gap-2">
+      <Dialog open={filterDialog.open} onOpenChange={open => open ? filterDialog.show() : filterDialog.close()}><DialogTrigger asChild><button className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/8 bg-white/[.035] px-3 text-[10px] font-bold"><Filter className="size-3.5" />Filtros</button></DialogTrigger><DialogContent title="Filtros"><div className="space-y-2 p-4">{[[playableOnly, setPlayableOnly, 'Nos meus consoles'], [shortOnly, setShortOnly, 'Até 12 horas'], [ratedOnly, setRatedOnly, 'Com nota'], [grouped, setGrouped, 'Agrupar por status']] .map(([checked, setter, label]) => <label key={label as string} className="flex items-center justify-between rounded-xl bg-white/[.035] px-3 py-3 text-sm font-bold"><span>{label as string}</span><input type="checkbox" checked={checked as boolean} onChange={event => (setter as (value: boolean) => void)(event.target.checked)} className="size-4 accent-violet-500" /></label>)}</div></DialogContent></Dialog>
+      <DropdownMenu.Root><DropdownMenu.Trigger className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/8 bg-white/[.035] px-3 text-[10px] font-bold"><ArrowDownAZ className="size-3.5" />Ordenar<ChevronDown className="size-3" /></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content align="end" className="app-popup animated-popup z-[100] min-w-44 rounded-xl border border-white/10 bg-zinc-900 p-1.5 shadow-2xl">{([['recent', 'Atualizados'], ['title', 'Título'], ['duration', 'Duração'], ['rating', 'Nota']] as Array<[SortMode, string]>).map(([value, label]) => <DropdownMenu.Item key={value} onSelect={() => setSortMode(value)} className="flex items-center justify-between rounded-lg px-3 py-2.5 text-xs font-bold outline-none data-[highlighted]:bg-white/8">{label}{sortMode === value && <Check className="size-3.5" />}</DropdownMenu.Item>)}</DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>
+    </div></div>
 
-      <Tabs.Root value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
-        <Tabs.List className="app-tabs grid grid-cols-3 rounded-2xl border border-white/8 bg-white/[0.025] p-1.5">
-          <Tabs.Trigger value="backlog" className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-300"><span className="inline-flex items-center gap-1.5 leading-none"><span className="tabular-nums">{data?.backlog.length || 0}</span><Library className="size-5 shrink-0" /></span><span className="leading-none">Backlog</span></Tabs.Trigger>
-          <Tabs.Trigger value="completed" className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-300"><span className="inline-flex items-center gap-1.5 leading-none"><span className="tabular-nums">{data?.completed.length || 0}</span><Flag className="size-5 shrink-0" /></span><span className="leading-none">Finalizados</span></Tabs.Trigger>
-          <Tabs.Trigger value="platforms" className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-xs font-extrabold text-zinc-500 outline-none data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-300"><span className="inline-flex items-center gap-1.5 leading-none"><span className="tabular-nums">{data?.platforms.length || 0}</span><Gamepad2 className="size-5 shrink-0" /></span><span className="leading-none">Consoles</span></Tabs.Trigger>
-        </Tabs.List>
-        <div className="my-4 flex justify-end">
-          <Dialog open={addDialog.open} onOpenChange={open => open ? addDialog.show() : addDialog.close()}>
-            <DialogTrigger asChild><button className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 text-xs font-extrabold hover:bg-violet-500"><Plus className="size-4" />{activeTab === 'backlog' ? 'Adicionar ao backlog' : activeTab === 'completed' ? 'Adicionar aos finalizados' : 'Adicionar console'}</button></DialogTrigger>
-            {activeTab === 'platforms' ? <DialogContent title="Adicionar console" description="Busque um console na IGDB para incluir no seu perfil.">
-              <form onSubmit={searchPlatforms} className="flex gap-2 border-b border-white/8 p-4"><label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-600" /><input autoFocus value={platformQuery} onChange={event => setPlatformQuery(event.target.value)} placeholder="Nome do console" className="h-11 w-full rounded-xl border border-white/10 bg-black/30 pl-10 pr-3 text-sm outline-none focus:border-violet-500" /></label><button disabled={platformSearching} className="h-11 shrink-0 rounded-xl bg-violet-600 px-4 text-xs font-bold disabled:opacity-50">Buscar</button></form>
-              <div className="max-h-[55dvh] space-y-2 overflow-y-auto p-4">{platformSearching ? Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-16 w-full" />) : platformError ? <p className="p-8 text-center text-sm text-red-300">{platformError}</p> : platformResults.length ? platformResults.map(platform => { const added = data?.platforms.some(item => item.igdb_platform_id === platform.igdb_platform_id); return <div key={platform.igdb_platform_id} className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.025] p-3">{platform.logo_url ? <img src={platform.logo_url} alt="" className="size-10 shrink-0 rounded-lg object-contain" /> : <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/[.06] text-zinc-400"><Gamepad2 className="size-5" /></span>}<div className="min-w-0 flex-1"><div className="truncate text-sm font-bold">{platform.name}</div>{platform.abbreviation && <div className="mt-0.5 text-[11px] text-zinc-500">{platform.abbreviation}</div>}</div><button disabled={added} onClick={() => void addPlatform(platform)} type="button" className="shrink-0 rounded-lg bg-cyan-500/15 px-3 py-2 text-[11px] font-bold text-cyan-300 hover:bg-cyan-500 hover:text-white disabled:text-emerald-300">{added ? 'Adicionado' : 'Adicionar'}</button></div>; }) : <p className="p-10 text-center text-sm text-zinc-500">Digite o nome de um console para começar.</p>}</div>
-            </DialogContent> : <DialogContent title={activeTab === 'backlog' ? 'Adicionar ao backlog' : 'Adicionar aos finalizados'} description={activeTab === 'backlog' ? 'Busque um jogo para guardar na sua lista.' : 'Busque um jogo já concluído por você.'}>
-              <form onSubmit={searchGames} className="flex gap-2 border-b border-white/8 p-4"><label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-600" /><input autoFocus value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Nome do jogo" className="h-11 w-full rounded-xl border border-white/10 bg-black/30 pl-10 pr-3 text-sm outline-none focus:border-violet-500" /></label><button disabled={searching} className="h-11 shrink-0 rounded-xl bg-violet-600 px-4 text-xs font-bold disabled:opacity-50">Buscar</button></form>
-              <div className="max-h-[55dvh] space-y-2 overflow-y-auto p-4">{searching ? Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-24 w-full" />) : searchError ? <p className="p-8 text-center text-sm text-red-300">{searchError}</p> : results.length ? results.map(game => { const added = activeTab === 'backlog' ? data?.backlog.some(item => item.id === game.id) : data?.completed.some(item => item.id === game.id); return <GameSearchResult key={game.id} game={game} added={Boolean(added)} label={added ? (activeTab === 'backlog' ? 'No backlog' : 'Finalizado') : 'Adicionar'} onAdd={() => void (activeTab === 'backlog' ? addToBacklog(game) : markFinished(game, true))} />; }) : <p className="p-10 text-center text-sm text-zinc-500">Digite o nome de um jogo para começar.</p>}</div>
-            </DialogContent>}
-          </Dialog>
-        </div>
-        <Tabs.Content value="backlog" className="outline-none data-[state=active]:animate-tab-in">{query.isInitialLoading ? <ListSkeleton /> : data?.backlog.length ? <div ref={backlogParent} className="space-y-3">{data.backlog.map(game => {
-          const finished = data.completed.some(item => item.id === game.id);
-          return <GameListCard key={game.id} game={game} action={<>
-            <Dialog open={actionDialog.open && actionDialog.getParam('action') === 'remove' && actionDialog.getParam('item') === game.id} onOpenChange={open => open ? actionDialog.show({ action: 'remove', item: game.id }) : actionDialog.close()}><DialogTrigger asChild><button aria-label={`Remover ${game.title}`} className="grid size-8 shrink-0 place-items-center rounded-lg text-zinc-600 hover:bg-red-500/10 hover:text-red-300"><Trash2 className="size-3.5" /></button></DialogTrigger><DialogContent title="Remover do backlog" description="Esta ação não altera votos nem o status de finalização." className="max-w-sm"><GameDialogPreview game={game} message="O jogo será removido apenas da sua lista pessoal." /><div className="flex gap-2 p-4"><DialogClose className="h-10 flex-1 rounded-xl bg-white/5 px-3 text-xs font-bold text-zinc-300">Cancelar</DialogClose><DialogClose onClick={() => void removeBacklog(game)} className="h-10 flex-1 rounded-xl bg-red-600 px-3 text-xs font-bold text-white">Remover</DialogClose></div></DialogContent></Dialog>
-            <GameActionButton kind="completed" active={finished} onClick={() => void markFinished(game, !finished)} className="h-8 rounded-lg px-2.5 text-[10px]" />
-            {voteAction(game)}
-          </>} />;
-        })}</div> : <Empty title="Seu backlog está vazio" description="Adicione jogos aqui sem interferir no ranking." />}</Tabs.Content>
-        <Tabs.Content value="completed" className="outline-none data-[state=active]:animate-tab-in">{query.isInitialLoading ? <ListSkeleton /> : data?.completed.length ? <div ref={completedParent} className="space-y-3">{data.completed.map(game => <GameListCard key={game.id} game={game} action={<><GameActionButton kind="completed" active onClick={() => void markFinished(game, false)} className="h-8 rounded-lg px-2.5 text-[10px]" />{voteAction(game)}</>} />)}</div> : <Empty title="Nenhum jogo finalizado" description="Os jogos concluídos aparecerão aqui." />}</Tabs.Content>
-        <Tabs.Content value="platforms" className="outline-none data-[state=active]:animate-tab-in">{query.isInitialLoading ? <ListSkeleton /> : data?.platforms.length ? <section className="profile-platforms-surface rounded-3xl border border-white/8 bg-white/[.025] p-4 sm:p-5"><div className="mb-3"><h3 className="text-sm font-black">Seus consoles</h3><p className="mt-1 text-[11px] leading-relaxed text-zinc-500">Usamos essa lista para destacar plataformas que você já possui.</p></div><div className="flex flex-wrap gap-2.5">{data.platforms.map(platform => <span key={platform.igdb_platform_id} className="profile-platform-chip inline-flex min-h-10 max-w-full items-center gap-2 rounded-full border border-cyan-400/15 bg-cyan-500/[.07] py-1.5 pl-2.5 pr-1 text-xs font-bold text-cyan-100">{platform.logo_url ? <img src={platform.logo_url} alt="" className="size-6 shrink-0 object-contain" /> : <Gamepad2 className="size-4 shrink-0 text-cyan-300" />}<span className="truncate">{platform.name}</span><button type="button" onClick={() => void removePlatform(platform)} aria-label={`Remover ${platform.name}`} title={`Remover ${platform.name}`} className="profile-platform-remove grid size-7 shrink-0 place-items-center rounded-full text-cyan-200 transition hover:bg-red-500/15 hover:text-red-300"><Trash2 className="size-3.5" /></button></span>)}</div></section> : <Empty title="Nenhum console adicionado" description="Adicione os consoles que você tem para ver quais jogos são compatíveis." />}</Tabs.Content>
-        </Tabs.Root>
-    </div>
-  );
+    {query.isInitialLoading ? <ListSkeleton count={6} /> : visible.length ? <div ref={listParent} className="space-y-5">{groups.map(group => <section key={group.status || 'all'}>{group.status && <h2 className="mb-2 text-[10px] font-black uppercase tracking-[.16em] text-zinc-500">{statusLabel[group.status]}</h2>}<div className="space-y-2.5">{group.items.map(item => {
+      const status = item.progress?.status || 'not_started';
+      return <GameListCard key={item.game.id} game={item.game} action={<><span className={`library-status library-status-${status} mr-auto inline-flex items-center gap-1 text-[10px] font-bold`}>{statusLabel[status]}</span>{item.favorite && <Heart className="size-3.5 fill-current text-pink-400" />}<DropdownMenu.Root><DropdownMenu.Trigger aria-label={`Opções de ${item.game.title}`} className="grid size-8 place-items-center rounded-lg bg-white/[.04] text-zinc-400"><MoreHorizontal className="size-4" /></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content align="end" sideOffset={6} className="app-popup animated-popup z-[100] min-w-52 rounded-xl border border-white/10 bg-zinc-900 p-1.5 shadow-2xl outline-none"><DropdownMenu.Item onSelect={() => void toggleFavorite(item)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold outline-none data-[highlighted]:bg-white/8"><Heart className={`size-3.5 ${item.favorite ? 'fill-current text-pink-400' : ''}`} />{item.favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}</DropdownMenu.Item><DropdownMenu.Separator className="my-1 h-px bg-white/8" />{(['started', 'finished', 'not_started'] as ProgressStatus[]).map(nextStatus => <DropdownMenu.Item key={nextStatus} disabled={status === nextStatus} onSelect={() => setProgressTarget({ item, status: nextStatus })} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold outline-none data-[disabled]:opacity-40 data-[highlighted]:bg-white/8">{statusLabel[nextStatus]}</DropdownMenu.Item>)}{item.inBacklog && <><DropdownMenu.Separator className="my-1 h-px bg-white/8" /><DropdownMenu.Item onSelect={() => setRemoveTarget(item)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold text-red-300 outline-none data-[highlighted]:bg-red-500/10"><Trash2 className="size-3.5" />Remover de Meus Jogos</DropdownMenu.Item></>}</DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root></>} />;
+    })}</div></section>)}</div> : <div className="grid min-h-60 place-items-center rounded-3xl border border-dashed border-white/10 text-center"><div><SlidersHorizontal className="mx-auto size-8 text-zinc-700" /><h2 className="mt-3 text-sm font-bold">Nenhum jogo encontrado</h2></div></div>}
+
+    <ProgressConfirmationDialog open={Boolean(progressTarget)} onOpenChange={open => { if (!open) setProgressTarget(null); }} game={progressTarget?.item.game || null} currentStatus={progressTarget?.item.progress?.status || 'not_started'} targetStatus={progressTarget?.status || 'not_started'} onConfirm={() => void applyProgress()} />
+    <Dialog open={Boolean(removeTarget)} onOpenChange={open => { if (!open) setRemoveTarget(null); }}><DialogContent title="Remover de Meus Jogos" className="max-w-sm"><div className="p-4 text-sm text-zinc-400">{removeTarget?.game.title}</div><div className="flex gap-2 p-4 pt-0"><DialogClose className="h-10 flex-1 rounded-xl bg-white/5 text-xs font-bold">Cancelar</DialogClose><DialogClose onClick={() => removeTarget && void removeFromMyGames(removeTarget)} className="h-10 flex-1 rounded-xl bg-red-600 text-xs font-bold text-white">Remover</DialogClose></div></DialogContent></Dialog>
+  </div>;
 }
 
-function GameSearchResult({ game, added, label, onAdd }: { game: Game; added: boolean; label: string; onAdd: () => void }) {
-  const rating = game.average_rating === null || game.average_rating === undefined ? null : (game.average_rating / 10).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
-  return (
-    <article className="flex min-w-0 gap-3 rounded-xl border border-white/8 bg-white/[0.025] p-3">
-      <Link href={`/jogos/${game.id}?preview=1`} aria-label={`Ver detalhes de ${game.title}`} className="h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-900 transition hover:ring-2 hover:ring-violet-400/60">
-        <img src={game.image_url} alt={`Capa de ${game.title}`} className="size-full object-cover" />
-      </Link>
-      <div className="min-w-0 flex-1">
-        <h3 className="break-words text-sm font-bold leading-5 text-zinc-100">{game.title}</h3>
-        <div className="mt-2 flex items-end justify-between gap-3">
-          <div className="flex min-w-0 flex-wrap gap-1.5 text-[11px] font-semibold text-zinc-400">
-            <span className="inline-flex items-center gap-1 rounded-md bg-white/[.07] px-2 py-1"><Clock3 className="size-3 text-zinc-500" />{game.duration_hours} h</span>
-            {rating && <span className="game-rating inline-flex items-center gap-1 rounded-md bg-white/[.07] px-2 py-1 text-amber-300"><Star className="size-3 fill-current" />{rating}</span>}
-            {game.release_year && <span className="inline-flex items-center gap-1 rounded-md bg-white/[.07] px-2 py-1"><CalendarDays className="size-3 text-zinc-500" />{game.release_year}</span>}
-          </div>
-          <button disabled={added} onClick={onAdd} type="button" className="shrink-0 rounded-lg bg-violet-500/15 px-3 py-2 text-[11px] font-bold text-violet-300 transition hover:bg-violet-500 hover:text-white disabled:text-emerald-300">{label}</button>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function Empty({ title, description }: { title: string; description: string }) {
-  return <div className="grid min-h-60 place-items-center rounded-3xl border border-dashed border-white/10 p-8 text-center"><div><Library className="mx-auto size-8 text-zinc-700" /><h2 className="mt-3 text-sm font-bold text-zinc-300">{title}</h2><p className="mt-1 text-xs text-zinc-500">{description}</p></div></div>;
-}
-
-export default function YourGamesPage() {
-  const router = useRouter();
-  useEffect(() => { router.replace('/perfil'); }, [router]);
-  return <div className="mx-auto max-w-3xl"><ListSkeleton /></div>;
-}
+export default function YourGamesPage() { return <YourGamesPanel />; }

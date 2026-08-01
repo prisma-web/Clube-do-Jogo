@@ -56,7 +56,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${nunito.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-[var(--background)] text-zinc-50 font-sans">
-        <script id="theme-init" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('clube-do-jogo:theme');var c=${JSON.stringify(themeBootColors)};if(c[t]){document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=c[t]}}catch(e){}` }} />
+        <script id="theme-init" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('clube-do-jogo:theme');var c=${JSON.stringify(themeBootColors)};if(c[t]){document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=c[t]}if(localStorage.getItem('clube-do-jogo:reduce-motion')==='true')document.documentElement.dataset.reduceMotion='true'}catch(e){}` }} />
         <AppProvider>
           <AppShell>{children}</AppShell>
           <PwaRegistration />

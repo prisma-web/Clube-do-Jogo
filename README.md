@@ -1,6 +1,10 @@
 # Clube do Jogo
 
-App mobile-first para votação mensal, jogo do mês, comentários, progresso e backlog do clube.
+App mobile-first para votação mensal, jogo do mês, comentários, progresso, biblioteca pessoal e descoberta de jogos do clube.
+
+## Descoberta de jogos
+
+`/jogos` é o catálogo navegável. As fontes **Populares**, **Melhores notas**, **Lançamentos** e **Em breve** consultam a IGDB com paginação e filtros; **Amigos** agrega jogos adicionados por outros membros e **Ranking recente** usa a primeira entrada de cada jogo na votação do ciclo. Resultados externos são armazenados em `games` antes de aparecerem, garantindo que card, ações e página de detalhes sempre usem o mesmo identificador interno.
 
 ## Getting Started
 
@@ -25,6 +29,13 @@ Em um projeto novo, execute `schema.sql` no SQL Editor do Supabase. Em seguida �
 1. `migration_monthly_club.sql`
 2. `migration_admin_cycles_game_data.sql`
 3. `migration_rewards.sql`
+4. `migration_preferences_favorites.sql`
+
+## Fórmula do ranking
+
+A fórmula ativa por padrão é a de preferências: **Jogaria = +1** e **Não = -1**. Uma escolha negativa registra o motivo (`Já joguei`, `Não consigo rodar`, `Muito caro` ou um texto de até 150 caracteres). Jogos com a mesma pontuação compartilham a colocação e a posição seguinte usa ranking denso (1º, 2º, 2º, 3º).
+
+A implementação anterior continua em `src/lib/ranking.ts`, com seus pesos de duração, nota da IGDB e penalidade por finalizações. Para fazer uma comparação ou rollback temporário, defina `NEXT_PUBLIC_RANKING_FORMULA=legacy` e gere um novo build. Os snapshots guardam também `legacy_total_points`, portanto a troca não destrói o histórico.
 
 Na publicação do tema Floresta de Nibel, execute também `migration_reward_ori.sql` enquanto julho de 2026 ainda for o ciclo ativo. Essa migration específica não faz parte da criação genérica de projetos futuros.
 

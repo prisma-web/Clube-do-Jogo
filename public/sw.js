@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clube-do-jogo-v3';
+const CACHE_NAME = 'clube-do-jogo-v4';
 const APP_SHELL = ['/jogo-do-mes', '/manifest.webmanifest', '/icons/club-do-jogo-192.png', '/icons/club-do-jogo-512.png'];
 
 self.addEventListener('install', event => {
@@ -72,7 +72,13 @@ self.addEventListener('notificationclick', event => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
       const openClient = clientList.find(client => 'focus' in client);
-      if (openClient) return openClient.focus().then(client => client.navigate(targetUrl));
+      if (openClient) {
+        const focused = openClient.focus();
+        // Só navega se a aba não estiver já na URL alvo, evitando recarregar e
+        // perder o estado da página.
+        if (openClient.url === targetUrl || typeof openClient.navigate !== 'function') return focused;
+        return focused.then(client => client.navigate(targetUrl)).catch(() => {});
+      }
       return self.clients.openWindow(targetUrl);
     }),
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
@@ -32,6 +32,9 @@ export function Timeline({ game }: { game: Game }) {
   const [reactionNotice, setReactionNotice] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ comment: ClubComment; rootId: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [reactionTarget, setReactionTarget] = useState<ClubComment | null>(null);
+  const reactionHold = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressReactionClick = useRef(false);
   const [commentsParent] = useAutoAnimate<HTMLDivElement>({ duration: 160, easing: 'cubic-bezier(.22, 1, .36, 1)' });
 
   const query = useStaleQuery<ClubComment[]>(`comments:${game.id}:${selectedMonth}`, async () => {
@@ -114,7 +117,7 @@ export function Timeline({ game }: { game: Game }) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ commentId: savedCommentId }),
-          });
+          }).catch(() => {});
         }
       }
       else if (parentId) {
@@ -188,7 +191,7 @@ export function Timeline({ game }: { game: Game }) {
           <div className="flex min-w-0 flex-wrap items-center gap-2"><span className="truncate text-xs font-extrabold text-zinc-200">{comment.profile?.name || 'Membro'}</span><time className="shrink-0 rounded-full border border-white/[0.06] bg-white/[0.045] px-2 py-1 text-[10px] font-semibold text-zinc-400">{formatDateTime(comment.created_at)}</time></div>
           <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-300">{comment.body}</p>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {comment.reactions.map(reaction => <button key={reaction.emoji} data-active={reaction.reactedByMe} onClick={() => void toggleReaction(comment, reaction.emoji, rootId)} title={reaction.users.map(person => person.name).join(', ')} className={`comment-reaction inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs transition active:scale-95 ${reaction.reactedByMe ? 'border-violet-400/35 bg-violet-500/15 text-violet-200' : 'border-white/8 bg-white/[0.035] text-zinc-400'}`}><span>{reaction.emoji}</span><span className="text-[10px] font-bold">{reaction.users.length}</span></button>)}
+            {comment.reactions.map(reaction => <button key={reaction.emoji} data-active={reaction.reactedByMe} onPointerDown={() => { reactionHold.current = setTimeout(() => { suppressReactionClick.current = true; setReactionTarget(comment); }, 520); }} onPointerUp={() => { if (reactionHold.current) clearTimeout(reactionHold.current); }} onPointerCancel={() => { if (reactionHold.current) clearTimeout(reactionHold.current); }} onPointerLeave={() => { if (reactionHold.current) clearTimeout(reactionHold.current); }} onClick={event => { if (suppressReactionClick.current) { event.preventDefault(); suppressReactionClick.current = false; return; } void toggleReaction(comment, reaction.emoji, rootId); }} title={reaction.users.map(person => person.name).join(', ')} className={`comment-reaction inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs transition active:scale-95 ${reaction.reactedByMe ? 'border-violet-400/35 bg-violet-500/15 text-violet-200' : 'border-white/8 bg-white/[0.035] text-zinc-400'}`}><span>{reaction.emoji}</span><span className="text-[10px] font-bold">{reaction.users.length}</span></button>)}
             {!isHistorical && <ReactionPicker comment={comment} rootId={rootId} />}
             {!nested && !isHistorical && <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="ml-1 inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[10px] font-bold text-zinc-500 hover:bg-white/5 hover:text-zinc-300"><CornerDownRight className="size-3" />Responder</button>}
             {!isHistorical && comment.user_id === user!.id && <button type="button" onClick={() => setDeleteTarget({ comment, rootId })} aria-label="Apagar comentário" title="Apagar comentário" className="ml-auto grid size-7 place-items-center rounded-full text-zinc-600 transition hover:bg-red-500/10 hover:text-red-300"><Trash2 className="size-3.5" /></button>}
@@ -218,6 +221,16 @@ export function Timeline({ game }: { game: Game }) {
           <Dialog.Title className="text-base font-black">Apagar comentário?</Dialog.Title>
           <Dialog.Description className="mt-2 text-sm leading-relaxed text-zinc-400">{deleteTarget && !deleteTarget.comment.parent_id && deleteTarget.comment.replies.length > 0 ? 'As respostas também serão apagadas.' : 'Esta ação não pode ser desfeita.'}</Dialog.Description>
           <div className="mt-5 flex justify-end gap-2"><Dialog.Close asChild><button disabled={deleting} className="h-10 rounded-xl bg-white/5 px-4 text-xs font-bold text-zinc-300 transition hover:bg-white/10 disabled:opacity-50">Cancelar</button></Dialog.Close><button disabled={deleting} onClick={() => void deleteComment()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-red-600 px-4 text-xs font-bold text-white transition hover:bg-red-500 disabled:opacity-50"><Trash2 className="size-3.5" />{deleting ? 'Apagando…' : 'Apagar'}</button></div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+    <Dialog.Root open={Boolean(reactionTarget)} onOpenChange={open => { if (!open) setReactionTarget(null); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="dialog-overlay fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm" />
+        <Dialog.Content className="app-dialog animated-modal fixed left-1/2 top-1/2 z-[91] max-h-[80dvh] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-white/10 bg-[#121216] shadow-2xl outline-none">
+          <div className="app-dialog-header border-b border-white/8 px-5 py-4"><Dialog.Title className="text-base font-black">Reações</Dialog.Title><Dialog.Description className="sr-only">Pessoas que reagiram a este comentário.</Dialog.Description></div>
+          <div className="max-h-[64dvh] overflow-y-auto p-3">{reactionTarget?.reactions.flatMap(reaction => reaction.users.map(person => <div key={`${reaction.emoji}-${person.id}`} className="reaction-person flex items-center gap-3 rounded-xl px-2 py-2.5"><Avatar src={person.avatar_url} name={person.name} className="size-10" /><span className="min-w-0 flex-1 truncate text-sm font-bold">{person.name || 'Membro'}</span><span className="text-xl" aria-label={`Reagiu com ${reaction.emoji}`}>{reaction.emoji}</span></div>))}</div>
+          <div className="border-t border-white/8 p-3"><Dialog.Close className="h-10 w-full rounded-xl bg-white/5 text-xs font-bold">Fechar</Dialog.Close></div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

@@ -1,10 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Bell, BellRing } from 'lucide-react';
 import { useApp } from './app-provider';
 
 type PushState = 'checking' | 'inactive' | 'enabled' | 'blocked' | 'unavailable' | 'error';
+
+const noopSubscribe = () => () => {};
+// Suporte a push só é conhecido no cliente. useSyncExternalStore reconcilia o
+// snapshot do servidor (false) com o do cliente sem erro de hidratação.
+const getSupportSnapshot = () => 'serviceWorker' in navigator && 'PushManager' in window;
+const getSupportServerSnapshot = () => false;
 
 function base64UrlToUint8Array(value: string) {
   const base64 = `${value.replace(/-/g, '+').replace(/_/g, '/')}${'='.repeat((4 - value.length % 4) % 4)}`;
@@ -15,12 +21,13 @@ function base64UrlToUint8Array(value: string) {
 export function PushNotificationButton({ className = '' }: { className?: string }) {
   const { isDemo } = useApp();
   const [state, setState] = useState<PushState>('checking');
+  const supported = useSyncExternalStore(noopSubscribe, getSupportSnapshot, getSupportServerSnapshot);
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const isConfigured = !isDemo && Boolean(publicKey);
-  const lacksBrowserSupport = typeof window !== 'undefined' && (!('serviceWorker' in navigator) || !('PushManager' in window));
+  const lacksBrowserSupport = !supported;
 
   useEffect(() => {
-    if (!isConfigured || lacksBrowserSupport) return;
+    if (!isConfigured || !supported) return;
     void navigator.serviceWorker.getRegistration()
       .then(registration => {
         if (Notification.permission === 'denied') {
@@ -33,7 +40,7 @@ export function PushNotificationButton({ className = '' }: { className?: string 
         if (Notification.permission !== 'denied') setState(subscription ? 'enabled' : 'inactive');
       })
       .catch(() => setState('inactive'));
-  }, [isConfigured, lacksBrowserSupport]);
+  }, [isConfigured, supported]);
 
   async function enablePush() {
     if (!publicKey || state === 'blocked' || state === 'unavailable') return;

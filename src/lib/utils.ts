@@ -24,9 +24,21 @@ const timeFormatter = new Intl.DateTimeFormat('pt-BR', {
   timeZone: 'America/Fortaleza',
 });
 
+const shortDateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  timeZone: 'America/Fortaleza',
+});
+
 export function formatDate(value?: string | Date | null) {
   if (!value) return '—';
   return dateFormatter.format(new Date(value)).replace('.', '');
+}
+
+export function formatShortDate(value?: string | Date | null) {
+  if (!value) return '—';
+  return shortDateFormatter.format(new Date(value));
 }
 
 export function formatDateTime(value?: string | Date | null) {
