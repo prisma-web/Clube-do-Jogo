@@ -1,0 +1,34 @@
+appId: com.clubedojogo.mobile.dev
+---
+- extendedWaitUntil:
+    visible: Outer Wilds
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: Avaliar|Editar nota
+    direction: DOWN
+- tapOn: Avaliar|Editar nota
+- assertVisible: Sua avaliação
+- tapOn: Escala 10
+- tapOn: Simples
+- tapOn:
+    id: rating-overall
+- eraseText
+- inputText: '0'
+- tapOn: Salvar
+- assertVisible: Nota 0 de 10
+- takeScreenshot: avaliacao-zero
+- tapOn: Editar nota
+- tapOn: Detalhada
+- tapOn:
+    id: rating-graphics
+- eraseText
+- inputText: '10'
+- tapOn: Salvar
+- assertVisible: Nota 2 de 10
+- takeScreenshot: avaliacao-detalhada
+- tapOn: Editar nota
+- tapOn: Escala 5
+- tapOn: Cancelar
+- assertVisible: Nota 1 de 5
+- takeScreenshot: escala-cinco-sem-regravar

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { sendPushNotification } from '@/lib/push';
+import { dispatchPushNotification } from '@/lib/push';
 
 type CommentRequest = { commentId?: unknown };
 
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   const gameTitle = game?.title || 'o jogo do mes';
   const authorName = author?.name || 'Um membro';
   const preview = comment.body.replace(/\s+/g, ' ').trim().slice(0, 120);
-  const result = await sendPushNotification(admin, {
+  const result = await dispatchPushNotification(admin, `comment:${comment.id}`, {
     title: `Novo comentario em ${gameTitle}`,
     body: preview ? `${authorName}: ${preview}${comment.body.length > preview.length ? '...' : ''}` : `${authorName} comentou na timeline.`,
     url: '/jogo-do-mes?section=timeline',

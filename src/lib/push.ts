@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
+import { enqueueNativePushNotification } from './push-native';
 
 type StoredPushSubscription = { id: string; endpoint: string; p256dh: string; auth: string };
 
@@ -51,6 +52,30 @@ export async function sendPushNotification(admin: SupabaseClient, message: PushM
   if (expiredIds.length) await admin.from('push_subscriptions').delete().in('id', expiredIds);
 
   return { sent: results.filter(result => result.status === 'fulfilled').length, configured: true };
+}
+
+export async function dispatchPushNotification(
+  admin: SupabaseClient,
+  eventKey: string,
+  message: PushMessage,
+  userIds?: string[],
+  excludeUserId?: string,
+  sendWeb = true,
+) {
+  const [web, native] = await Promise.allSettled([
+    sendWeb ? sendPushNotification(admin, message, userIds, excludeUserId) : Promise.resolve({
+      sent: 0,
+      configured: isPushConfigured(),
+    }),
+    enqueueNativePushNotification(admin, eventKey, message, userIds, excludeUserId),
+  ]);
+  if (web.status === 'rejected') throw web.reason;
+  return {
+    ...web.value,
+    native: native.status === 'fulfilled'
+      ? native.value
+      : { queued: 0, configured: Boolean(process.env.EXPO_PROJECT_ID), error: 'native_enqueue_failed' },
+  };
 }
 
 export async function isAdminUser(admin: SupabaseClient, userId: string) {

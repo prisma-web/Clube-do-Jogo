@@ -1,0 +1,26 @@
+appId: com.clubedojogo.mobile.dev
+---
+- tapOn: Alterar ciclo, atual .*
+- tapOn: Selecionar Setembro de 2026
+- extendedWaitUntil:
+    visible: Ver detalhes de Outer Wilds
+    timeout: 20000
+- tapOn: Alterar ciclo, atual Setembro de 2026
+- tapOn: Selecionar Agosto de 2026
+- extendedWaitUntil:
+    visible: Ver detalhes de Celeste
+    timeout: 15000
+- assertVisible: Ciclo encerrado, somente leitura
+- assertVisible:
+    text: Comecei
+    enabled: false
+- assertVisible:
+    text: Finalizado
+    enabled: false
+- takeScreenshot: historico-somente-leitura
+- tapOn: Alterar ciclo, atual Agosto de 2026
+- tapOn: Selecionar Setembro de 2026
+- extendedWaitUntil:
+    visible: Ver detalhes de Outer Wilds
+    timeout: 15000
+- takeScreenshot: ciclo-atual-restaurado

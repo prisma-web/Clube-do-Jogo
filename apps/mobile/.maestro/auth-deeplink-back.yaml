@@ -1,0 +1,66 @@
+appId: com.clubedojogo.mobile.dev
+---
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: Boas-vindas de volta|Perfil(, tab, 5 of 5)?
+    timeout: 30000
+- runFlow:
+    when:
+      visible: Perfil(, tab, 5 of 5)?
+    commands:
+      - tapOn: Perfil(, tab, 5 of 5)?
+      - tapOn: Abrir configurações
+      - scrollUntilVisible:
+          element: Sair da conta
+          direction: DOWN
+          centerElement: true
+      - tapOn: Sair da conta
+- extendedWaitUntil:
+    visible: Boas-vindas de volta
+    timeout: 20000
+- takeScreenshot: 04a-logged-out-before-deeplink
+- openLink: clubedojogo://jogos/00000000-0000-4000-a000-000000000001
+- assertVisible: Boas-vindas de volta
+- takeScreenshot: 04b-deeplink-while-unauthenticated
+- tapOn: Seu e-mail
+- eraseText
+- inputText: ${TEST_EMAIL}
+- tapOn: Sua senha
+- eraseText
+- inputText: ${TEST_PASSWORD}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- tapOn:
+    text: ^Entrar$
+    enabled: true
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: Agora Não
+          optional: true
+- extendedWaitUntil:
+    visible: Ampliar capa de Outer Wilds
+    timeout: 20000
+- takeScreenshot: 04c-deeplink-detail-after-login
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: Voltar
+- extendedWaitUntil:
+    visible: Ver detalhes de Outer Wilds
+    timeout: 10000
+- takeScreenshot: 04d-back-from-detail
+- tapOn: Perfil(, tab, 5 of 5)?
+- assertVisible: ${TEST_PROFILE}

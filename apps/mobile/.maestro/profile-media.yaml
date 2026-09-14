@@ -1,0 +1,47 @@
+appId: com.clubedojogo.mobile.dev
+---
+- extendedWaitUntil:
+    visible: Perfil(, tab, 5 of 5)?
+    timeout: 30000
+- tapOn: Perfil(, tab, 5 of 5)?
+- tapOn: Editar perfil
+- tapOn:
+    id: profile-name
+- eraseText
+- inputText: Membro Expo Mobile
+- tapOn:
+    id: profile-bio
+- eraseText
+- inputText: Perfil verificado no aplicativo.
+- tapOn: Salvar alterações
+- assertVisible: Membro Expo Mobile
+- assertVisible: Perfil verificado no aplicativo.
+- takeScreenshot: perfil-editado
+- scrollUntilVisible:
+    element:
+      text: Ver perfil público
+    direction: DOWN
+- tapOn: Ver perfil público
+- assertVisible: Membro Expo Mobile
+- assertNotVisible: Editar perfil
+- assertNotVisible: Sair da conta
+- takeScreenshot: perfil-publico-somente-leitura
+- tapOn: Ir para o seu perfil
+- tapOn: Editar perfil
+- tapOn:
+    id: profile-name
+- eraseText
+- inputText: Membro Expo
+- tapOn:
+    id: profile-bio
+- eraseText
+- tapOn: Salvar alterações
+- assertVisible: Membro Expo
+- openLink: clubedojogo://jogos/00000000-0000-4000-a000-000000000001
+- tapOn: Ampliar capa de Outer Wilds
+- assertVisible: Imagem 1 de 1 de Outer Wilds
+- tapOn: Ampliar zoom
+- assertVisible: 150%
+- takeScreenshot: galeria-ampliada
+- tapOn: Fechar galeria
+- assertVisible: Outer Wilds

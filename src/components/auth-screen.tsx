@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Gamepad2, Mail, LockKeyhole } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { getBrowserSiteUrl } from '@/lib/site-url';
+import { getAuthRedirectUrl } from '@/lib/site-url';
 import { Skeleton } from './ui/skeleton';
 import { useApp } from './app-provider';
 
@@ -44,7 +44,7 @@ export function AuthScreen({ loading = false }: { loading?: boolean }) {
           password,
           options: {
             data: { name: email.split('@')[0] },
-            emailRedirectTo: `${getBrowserSiteUrl()}/auth/callback`,
+            emailRedirectTo: getAuthRedirectUrl(),
           },
         }));
         if (authError) throw authError;

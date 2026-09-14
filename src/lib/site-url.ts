@@ -11,3 +11,7 @@ export function getServerSiteUrl(requestOrigin?: string) {
 export function getBrowserSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || window.location.origin;
 }
+
+export function getAuthRedirectUrl() {
+  return `${getBrowserSiteUrl()}/auth/callback`;
+}

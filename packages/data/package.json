@@ -1,0 +1,14 @@
+{
+  "name": "@clube-do-jogo/data",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@clube-do-jogo/domain": "0.1.0",
+    "@supabase/supabase-js": "^2.110.7"
+  }
+}

@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/test-results/
 
 # next.js
 /.next/
@@ -49,3 +50,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Expo workspaces
+**/node_modules/
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/mobile/android/
+apps/mobile/ios/

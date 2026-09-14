@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/api-client';
+
 import { useMemo, useState } from 'react';
 import { CalendarClock, Check, Filter, Flame, Search, Sparkles, Star } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -57,7 +59,7 @@ export default function AllGamesPage() {
   const catalog = useStaleQuery(`discover:${queryKey}`, async () => {
     if (isDemo) return { items: demoDiscover(source, search, genre, platform, year), hasMore: false };
     const params = new URLSearchParams({ source, q: search, genre, platform, year, month: voteMonth, limit: '24' });
-    const response = await fetch(`/api/discover?${params}`);
+    const response = await apiFetch(`/api/discover?${params}`);
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Não foi possível carregar os jogos.');
     return payload as { items: DiscoverItem[]; hasMore: boolean };
@@ -74,7 +76,7 @@ export default function AllGamesPage() {
     setLoadingMore(true);
     try {
       const params = new URLSearchParams({ source, q: search, genre, platform, year, month: voteMonth, limit: '24', offset: String(items.length) });
-      const response = await fetch(`/api/discover?${params}`);
+      const response = await apiFetch(`/api/discover?${params}`);
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Não foi possível carregar mais jogos.');
       setPagination({ key: queryKey, items: [...extra, ...payload.items], hasMore: payload.hasMore });

@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/api-client';
+
 import { useState } from 'react';
 import { Check, UserRound } from 'lucide-react';
 import { useStaleQuery } from '@/hooks/use-stale-query';
@@ -24,7 +26,7 @@ export function GameMugshots({ gameId, title }: { gameId: string; title: string 
   const query = useStaleQuery<{ mugshots: Mugshot[] }>(
     `game-mugshots:${gameId}`,
     async () => {
-      const response = await fetch(`/api/games/${gameId}/mugshots`);
+      const response = await apiFetch(`/api/games/${gameId}/mugshots`);
       if (!response.ok) throw new Error('Não foi possível buscar os personagens.');
       return response.json();
     },

@@ -11,7 +11,11 @@ export async function cacheIGDBGames(supabase: SupabaseClient, games: IGDBGameRe
       duration_hours: game.duration_hours,
       average_rating: game.average_rating,
       release_year: game.release_year,
-      image_url: game.image_url ?? 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&q=80',
+      // O PostgREST monta o ON CONFLICT DO UPDATE SET a partir das chaves do payload,
+      // então omitir image_url preserva a capa já salva em vez de sobrescrevê-la. Só vale
+      // enviando um objeto por vez: em lote o postgrest-js manda `columns` com a união das
+      // chaves e a capa ausente volta a virar NULL.
+      ...(game.image_url ? { image_url: game.image_url } : {}),
       description: game.description,
       screenshot_urls: game.screenshot_urls,
       trailer_url: game.trailer_url,

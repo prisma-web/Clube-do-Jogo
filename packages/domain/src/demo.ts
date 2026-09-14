@@ -1,0 +1,189 @@
+import type { ClubComment, Game, GameProgress, Profile, RankingFormula, RankingItem } from './types';
+import { compareRankingItems, legacyPlaytimePoints, legacyRankingScore, preferenceRankingScore } from './ranking';
+import { monthKey, shiftMonth } from './dates';
+
+export const demoProfiles: Profile[] = [
+  { id: 'demo-user', name: 'Artur Lima', email: 'artur@clubedojogo.com', avatar_url: 'https://i.pravatar.cc/160?img=12', bio: 'RPGs, indies e histórias que ficam na cabeça.' },
+  { id: 'bia', name: 'Marina Costa', avatar_url: 'https://i.pravatar.cc/160?img=47', bio: 'Sempre atrás do próximo indie favorito.' },
+  { id: 'caio', name: 'Caio Nunes', avatar_url: 'https://i.pravatar.cc/160?img=11', bio: 'Metroidvanias e jogos difíceis.' },
+  { id: 'luiza', name: 'Luiza Alves', avatar_url: 'https://i.pravatar.cc/160?img=32', bio: 'Narrativas e mundos abertos.' },
+  { id: 'leo', name: 'Léo Rocha', avatar_url: 'https://i.pravatar.cc/160?img=15', bio: 'Só mais uma partida.' },
+];
+
+export const demoGames: Game[] = [
+  {
+    id: 'hades', igdb_id: 114795, title: 'Hades', duration_hours: 22, average_rating: 93, release_year: 2020,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co39vc.jpg',
+    description: 'Desafie o deus dos mortos enquanto batalha para sair do submundo neste roguelike de ação dos criadores de Bastion e Transistor.',
+    screenshot_urls: [
+      'https://images.ctfassets.net/5owu3y35gz1g/5LpElH2nmE7iS4v593VJvo/55f74bd209f45dc179c5279926cb2ea5/hades_09-dec-2019_05.jpg?q=90&w=1400',
+      'https://images.ctfassets.net/5owu3y35gz1g/7ovABouyHlisllvi4AQzFx/3ffed5743fd8321198bc4e0d1058b56d/hades_09-dec-2019_02.jpg?q=90&w=1400',
+      'https://images.ctfassets.net/5owu3y35gz1g/1StZVnaATlNYl4oaNNftOb/2853b2a421cfb09ab3b654f5d0b1c3ea/hades_09-dec-2019_03.jpg?q=90&w=1400',
+      'https://images.ctfassets.net/5owu3y35gz1g/4dfH21dAS69Kg8OQyGZAXB/7be3e45d3bcc84c193837bd84d2923c3/Hades_Aug19_01.png?q=90&w=1400',
+      'https://images.ctfassets.net/5owu3y35gz1g/jce84av2Stq3zFI4KGSlB/7e016dd8d9956468e2a681edbe5bb0ac/Hades_Aug2019_01.png?q=90&w=1400',
+      'https://images.ctfassets.net/5owu3y35gz1g/1NCys84aPIPSU43tNTKBDx/40be68e3a3ff0678992eb25fcac14e81/Hades_Aug19_04.png?q=90&w=1400',
+    ],
+    trailer_url: 'https://www.youtube.com/watch?v=91t0ha9x0AE',
+    genres: ['Hack and slash', 'Roguelike'],
+    platforms: ['Nintendo Switch', 'PC (Microsoft Windows)', 'PlayStation 5', 'Xbox Series X|S'],
+    platform_ids: [130, 6, 167, 169],
+  },
+  {
+    id: 'hollow-knight', igdb_id: 113112, title: 'Hollow Knight', duration_hours: 27, average_rating: 91, release_year: 2017,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co93cr.jpg',
+    description: 'Explore cavernas sinuosas, cidades antigas e ermos mortais em um reino vasto e interligado, cheio de criaturas e segredos.',
+    screenshot_urls: ['https://images.igdb.com/igdb/image/upload/t_screenshot_big/sc6y2k.jpg'],
+    trailer_url: 'https://www.youtube.com/watch?v=UAO2urG23S4',
+  },
+  {
+    id: 'cocoon', title: 'Cocoon', duration_hours: 5, average_rating: 88, release_year: 2023,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co4rvv.jpg', description: 'Uma aventura de quebra-cabeças sobre mundos dentro de mundos, criada pelo designer de Limbo e Inside.',
+    screenshot_urls: [], trailer_url: 'https://www.youtube.com/watch?v=ybLUe8aYV6A',
+  },
+  {
+    id: 'outer-wilds', title: 'Outer Wilds', duration_hours: 17, average_rating: 92, release_year: 2019,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co65ac.jpg', description: 'Um mistério de mundo aberto sobre um sistema solar preso em um loop temporal infinito.',
+    screenshot_urls: [], trailer_url: 'https://www.youtube.com/watch?v=d6LGnVCL1_A',
+    genres: ['Adventure', 'Puzzle'],
+    platforms: ['Nintendo Switch', 'PC (Microsoft Windows)', 'PlayStation 4', 'Xbox One'],
+    platform_ids: [130, 6, 48, 49],
+  },
+  {
+    id: 'celeste', title: 'Celeste', duration_hours: 8, average_rating: 91, release_year: 2018,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co3byy.jpg', description: 'Ajude Madeline a enfrentar seus demônios interiores em sua jornada até o topo da Montanha Celeste.',
+    screenshot_urls: [], trailer_url: 'https://www.youtube.com/watch?v=70d9irlxiB4',
+  },
+  {
+    id: 'inscryption', title: 'Inscryption', duration_hours: 12, average_rating: 87, release_year: 2021,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co4h7v.jpg', description: 'Uma odisseia sombria baseada em cartas que mistura roguelike, puzzles e terror psicológico.',
+    screenshot_urls: [], trailer_url: 'https://www.youtube.com/watch?v=RN5GSIWIN1k',
+  },
+  {
+    id: 'tunic', title: 'Tunic', duration_hours: 13, average_rating: 85, release_year: 2022,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co5p5b.jpg', description: 'Explore uma terra repleta de lendas perdidas, poderes ancestrais e monstros ferozes.',
+    screenshot_urls: [], trailer_url: null,
+  },
+  {
+    id: 'dredge', title: 'Dredge', duration_hours: 10, average_rating: 82, release_year: 2023,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co6d4z.jpg', description: 'Pesque em um arquipélago remoto e descubra por que algumas coisas deveriam permanecer esquecidas.',
+    screenshot_urls: [], trailer_url: null,
+  },
+  {
+    id: 'sea-of-stars', title: 'Sea of Stars', duration_hours: 28, average_rating: 86, release_year: 2023,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co6n21.jpg', description: 'Um RPG por turnos inspirado nos clássicos, com exploração, combate e uma história cheia de coração.',
+    screenshot_urls: [], trailer_url: null,
+  },
+  {
+    id: 'animal-well', title: 'Animal Well', duration_hours: 7, average_rating: 88, release_year: 2024,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co8e0o.jpg', description: 'Explore um labirinto surreal e denso em segredos, iluminando velas e resolvendo mistérios.',
+    screenshot_urls: [], trailer_url: null,
+  },
+  {
+    id: 'balatro', title: 'Balatro', duration_hours: 14, average_rating: 90, release_year: 2024,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co7vse.jpg', description: 'Um construtor de baralho hipnótico inspirado em pôquer, cheio de combos e possibilidades.',
+    screenshot_urls: [], trailer_url: null,
+  },
+  {
+    id: 'gris', title: 'GRIS', duration_hours: 4, average_rating: 84, release_year: 2018,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co1rb8.jpg', description: 'Uma experiência serena e evocativa sobre esperança, perda e um mundo que recupera suas cores.',
+    screenshot_urls: [], trailer_url: null,
+  },
+];
+
+export function demoRanking(formula: RankingFormula = 'preference'): RankingItem[] {
+  return demoGames.slice(1).map((game, index) => {
+    const voterCount = Math.max(1, 5 - Math.floor(index / 3));
+    const voters = index % 2 === 0 ? demoProfiles.slice(0, voterCount) : demoProfiles.slice(1, voterCount + 1);
+    const wouldNotPlay = index % 3 === 1 ? demoProfiles.slice(-Math.min(2, 1 + index % 2)) : [];
+    const wouldPlay = voters.filter(person => !wouldNotPlay.some(other => other.id === person.id));
+    const completedBy = demoProfiles.slice(index % 3, index % 3 + (index % 2));
+    const choiceProfiles = { would_play: wouldPlay, would_not_play: wouldNotPlay.map((person, reasonIndex) => ({ ...person, reason: reasonIndex % 2 ? 'cannot_run' as const : 'other' as const, reasonText: reasonIndex % 2 ? null : 'Não é o tipo de jogo que estou querendo jogar neste mês.' })) };
+    const choiceCounts = { would_play: wouldPlay.length, would_not_play: wouldNotPlay.length };
+    const allVoters = [...wouldPlay, ...choiceProfiles.would_not_play];
+    const playtimePoints = legacyPlaytimePoints(game.duration_hours);
+    const legacyTotalPoints = legacyRankingScore(game, allVoters.length, completedBy.length);
+    const myChoice = (Object.entries(choiceProfiles).find(([, people]) => people.some(person => person.id === 'demo-user'))?.[0] || null) as RankingItem['myChoice'];
+    const myParticipant = myChoice === 'would_not_play' ? choiceProfiles.would_not_play.find(person => person.id === 'demo-user') : null;
+    return { game, addedAt: new Date(Date.now() - index * 7_200_000).toISOString(), choiceCounts, choiceProfiles, myChoice, myReason: myParticipant?.reason || null, myReasonText: myParticipant?.reasonText || null, votesCount: allVoters.length, completedCount: completedBy.length, voters: allVoters, completedBy, playtimePoints, ratingMultiplier: (game.average_rating ?? 50) / 100, totalPoints: formula === 'legacy' ? legacyTotalPoints : preferenceRankingScore(choiceCounts), legacyTotalPoints, votedByMe: myChoice !== null, completedByMe: completedBy.some(item => item.id === 'demo-user'), inBacklog: demoGames.slice(1, 6).some(item => item.id === game.id) };
+  }).sort(compareRankingItems);
+}
+
+export const demoProgress: GameProgress[] = demoProfiles.map((profile, index) => ({
+  id: `progress-${profile.id}`,
+  user_id: profile.id,
+  game_id: 'hades',
+  status: index < 2 ? 'finished' : index < 4 ? 'started' : 'not_started',
+  rating: index < 2 ? 9 - index : null,
+  started_at: index < 4 ? new Date(Date.now() - (index + 4) * 86400000).toISOString() : null,
+  finished_at: index < 2 ? new Date(Date.now() - (index + 1) * 86400000).toISOString() : null,
+  profile,
+}));
+
+export const demoComments: ClubComment[] = [
+  {
+    id: 'comment-1', user_id: 'bia', game_id: 'hades', club_month: monthKey(), parent_id: null,
+    body: 'O ritmo da progressão me pegou de surpresa. Mesmo depois de perder, sempre tem uma conversa nova esperando no salão.',
+    created_at: new Date(Date.now() - 18_000_000).toISOString(), updated_at: new Date(Date.now() - 18_000_000).toISOString(), profile: demoProfiles[1],
+    reactions: [{ emoji: '🔥', users: demoProfiles.slice(0, 3), reactedByMe: true }, { emoji: '💜', users: demoProfiles.slice(2, 4), reactedByMe: false }],
+    replies: [
+      {
+        id: 'reply-1', user_id: 'caio', game_id: 'hades', club_month: monthKey(), parent_id: 'comment-1',
+        body: 'Sim! O jogo transforma cada tentativa em parte da história, não só em repetição.',
+        created_at: new Date(Date.now() - 16_200_000).toISOString(), updated_at: new Date(Date.now() - 16_200_000).toISOString(), profile: demoProfiles[2],
+        reactions: [{ emoji: '🎯', users: [demoProfiles[1], demoProfiles[3]], reactedByMe: false }], replies: [],
+      },
+      {
+        id: 'reply-2', user_id: 'leo', game_id: 'hades', club_month: monthKey(), parent_id: 'comment-1',
+        body: 'E os diálogos lembram até das escolhas pequenas. Achei que uma fala fosse se repetir, mas veio outra completamente diferente.',
+        created_at: new Date(Date.now() - 14_400_000).toISOString(), updated_at: new Date(Date.now() - 14_400_000).toISOString(), profile: demoProfiles[4],
+        reactions: [{ emoji: '👀', users: demoProfiles.slice(0, 2), reactedByMe: true }], replies: [],
+      },
+      {
+        id: 'reply-3', user_id: 'demo-user', game_id: 'hades', club_month: monthKey(), parent_id: 'comment-1',
+        body: 'Foi isso que me convenceu a continuar depois da primeira parede de dificuldade. Perder deixou de parecer tempo desperdiçado.',
+        created_at: new Date(Date.now() - 12_600_000).toISOString(), updated_at: new Date(Date.now() - 12_600_000).toISOString(), profile: demoProfiles[0],
+        reactions: [{ emoji: '✨', users: demoProfiles.slice(1, 4), reactedByMe: false }], replies: [],
+      },
+    ],
+  },
+  {
+    id: 'comment-2', user_id: 'luiza', game_id: 'hades', club_month: monthKey(), parent_id: null,
+    body: 'A direção de arte é absurda. Cada personagem parece ter saído de uma graphic novel.',
+    created_at: new Date(Date.now() - 10_800_000).toISOString(), updated_at: new Date(Date.now() - 10_800_000).toISOString(), profile: demoProfiles[3],
+    reactions: [{ emoji: '😍', users: [demoProfiles[0]], reactedByMe: true }],
+    replies: [
+      {
+        id: 'reply-4', user_id: 'bia', game_id: 'hades', club_month: monthKey(), parent_id: 'comment-2',
+        body: 'A paleta do Tártaro já seria linda sozinha, mas adoro como cada região muda completamente a temperatura das cores.',
+        created_at: new Date(Date.now() - 9_000_000).toISOString(), updated_at: new Date(Date.now() - 9_000_000).toISOString(), profile: demoProfiles[1],
+        reactions: [{ emoji: '🎨', users: demoProfiles.slice(0, 4), reactedByMe: true }], replies: [],
+      },
+      {
+        id: 'reply-5', user_id: 'caio', game_id: 'hades', club_month: monthKey(), parent_id: 'comment-2',
+        body: 'E ainda funciona em movimento. Mesmo com a tela cheia de efeitos, quase sempre consigo entender o que está acontecendo.',
+        created_at: new Date(Date.now() - 7_200_000).toISOString(), updated_at: new Date(Date.now() - 7_200_000).toISOString(), profile: demoProfiles[2],
+        reactions: [], replies: [],
+      },
+    ],
+  },
+  {
+    id: 'comment-3', user_id: 'leo', game_id: 'hades', club_month: monthKey(), parent_id: null,
+    body: 'Qual arma acabou virando a favorita de vocês? Comecei gostando do arco, mas o escudo ficou muito mais divertido quando desbloqueei novos aspectos.',
+    created_at: new Date(Date.now() - 5_400_000).toISOString(), updated_at: new Date(Date.now() - 5_400_000).toISOString(), profile: demoProfiles[4],
+    reactions: [{ emoji: '🛡️', users: [demoProfiles[2]], reactedByMe: false }],
+    replies: [{
+      id: 'reply-6', user_id: 'demo-user', game_id: 'hades', club_month: monthKey(), parent_id: 'comment-3',
+      body: 'As manoplas. O alcance curto parecia uma desvantagem, mas mudou completamente o ritmo das minhas tentativas.',
+      created_at: new Date(Date.now() - 3_600_000).toISOString(), updated_at: new Date(Date.now() - 3_600_000).toISOString(), profile: demoProfiles[0],
+      reactions: [{ emoji: '🥊', users: [demoProfiles[4], demoProfiles[1]], reactedByMe: false }], replies: [],
+    }],
+  },
+  {
+    id: 'comment-4', user_id: 'caio', game_id: 'hades', club_month: monthKey(), parent_id: null,
+    body: 'Cheguei ao chefe final pela primeira vez hoje. Não passei, mas agora a luta parece possível — e isso já foi uma vitória.',
+    created_at: new Date(Date.now() - 1_800_000).toISOString(), updated_at: new Date(Date.now() - 1_800_000).toISOString(), profile: demoProfiles[2],
+    reactions: [{ emoji: '👏', users: demoProfiles.slice(0, 5), reactedByMe: true }], replies: [],
+  },
+];
+
+export const demoMonths = [monthKey(), shiftMonth(monthKey(), -1), shiftMonth(monthKey(), -2)];

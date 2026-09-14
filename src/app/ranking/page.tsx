@@ -1,14 +1,17 @@
 'use client';
 
+import { apiFetch } from '@/lib/api-client';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { CalendarPlus, Check, ChevronDown, ChevronUp, Clock3, Library, ListOrdered, MoreHorizontal, Plus, Search, ThumbsDown, ThumbsUp, Trophy } from 'lucide-react';
+import { gameCoverUrl } from '@clube-do-jogo/domain';
 import { createClient } from '@/lib/supabase/client';
 import { fetchRankingData } from '@/lib/data';
-import { ACTIVE_RANKING_FORMULA, compareRankingItems, legacyPlaytimePoints, legacyRankingScore, preferenceRankingScore } from '@/lib/ranking';
+import { ACTIVE_RANKING_FORMULA, compareRankingItems, legacyPlaytimePoints, legacyRankingScore, rankingScore } from '@/lib/ranking';
 import type { Game, RankingItem, VoteChoice, VoteParticipant, VoteReason } from '@/lib/types';
 import { formatMonth, formatShortDate, shiftMonth } from '@/lib/utils';
 import { useStaleQuery } from '@/hooks/use-stale-query';
@@ -128,7 +131,7 @@ export default function RankingPage() {
   const visibleGroups = showAll ? rankingGroups : rankingGroups.slice(0, 10);
 
   function notifyRankingLeader(previousLeaderId: string | null, leaderId: string | null) {
-    void fetch('/api/push/ranking-leader', {
+    void apiFetch('/api/push/ranking-leader', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ voteMonth, previousLeaderId, leaderId }),
@@ -153,7 +156,7 @@ export default function RankingPage() {
       votesCount: voters.length,
       votedByMe: choice !== null,
       legacyTotalPoints,
-      totalPoints: ACTIVE_RANKING_FORMULA === 'legacy' ? legacyTotalPoints : preferenceRankingScore(choiceCounts),
+      totalPoints: rankingScore(ACTIVE_RANKING_FORMULA, item.game, choiceCounts, item.completedCount),
     };
   }
 
@@ -184,7 +187,7 @@ export default function RankingPage() {
       return;
     }
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+      const response = await apiFetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Não foi possível buscar jogos.');
       setResults(payload);
@@ -204,7 +207,7 @@ export default function RankingPage() {
       game, addedAt: new Date().toISOString(), choiceCounts, choiceProfiles, myChoice: choice, myReason: reason || null, myReasonText: reasonText || null,
       votesCount: 1, completedCount: 0, voters: choiceProfiles[choice], completedBy: [],
       playtimePoints: legacyPlaytimePoints(game.duration_hours), ratingMultiplier: Number(game.average_rating ?? 50) / 100,
-      totalPoints: ACTIVE_RANKING_FORMULA === 'legacy' ? legacyTotalPoints : preferenceRankingScore(choiceCounts), legacyTotalPoints,
+      totalPoints: rankingScore(ACTIVE_RANKING_FORMULA, game, choiceCounts, 0), legacyTotalPoints,
       votedByMe: true, completedByMe: false, inBacklog: false,
     };
     const next = [...ranking, item].sort(compareRankingItems);
@@ -251,7 +254,7 @@ export default function RankingPage() {
             <form onSubmit={searchGames} className="flex gap-2 border-b border-white/8 p-4"><label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-600" /><input autoFocus value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Nome do jogo" className="h-11 w-full rounded-xl border border-white/10 bg-black/30 pl-10 pr-3 text-sm outline-none focus:border-violet-500" /></label><button disabled={searching} className="h-11 rounded-xl bg-violet-600 px-4 text-xs font-bold disabled:opacity-50">Buscar</button></form>
             <div className="max-h-[62dvh] space-y-2 overflow-y-auto p-4">{searching ? Array.from({ length: 3 }).map((_, index) => <Skeleton key={index} className="h-32 w-full" />) : searchError ? <p className="p-8 text-center text-sm text-red-300">{searchError}</p> : results.length ? results.map(game => {
               const existing = ranking.find(item => item.game.id === game.id);
-              return <article key={game.id} className="rounded-2xl border border-white/8 bg-white/[0.025] p-3"><div className="mb-3 flex min-w-0 items-center gap-3"><img src={game.image_url} alt="" className="h-16 w-12 shrink-0 rounded-lg object-cover" /><div className="min-w-0"><div className="truncate text-sm font-bold">{game.title}</div><div className="mt-1 inline-flex items-center gap-1 text-[11px] text-zinc-500"><Clock3 className="size-3" />{game.duration_hours} h</div></div></div><PreferenceButtons compact value={existing?.myChoice || null} onChange={choice => chooseSearch(game, choice)} /></article>;
+              return <article key={game.id} className="rounded-2xl border border-white/8 bg-white/[0.025] p-3"><div className="mb-3 flex min-w-0 items-center gap-3"><img src={gameCoverUrl(game.image_url)} alt="" className="h-16 w-12 shrink-0 rounded-lg object-cover" /><div className="min-w-0"><div className="truncate text-sm font-bold">{game.title}</div><div className="mt-1 inline-flex items-center gap-1 text-[11px] text-zinc-500"><Clock3 className="size-3" />{game.duration_hours} h</div></div></div><PreferenceButtons compact value={existing?.myChoice || null} onChange={choice => chooseSearch(game, choice)} /></article>;
             }) : <p className="p-10 text-center text-sm text-zinc-500">Busque pelo nome do jogo.</p>}</div>
           </DialogContent>
         </Dialog>}
@@ -275,7 +278,7 @@ export default function RankingPage() {
             {!isHistorical && <DropdownMenu.Root><DropdownMenu.Trigger aria-label={`Opções de ${item.game.title}`} className="ranking-menu-trigger absolute right-2 top-2 z-20 grid size-8 place-items-center rounded-full bg-zinc-950/75 text-zinc-400 backdrop-blur"><MoreHorizontal className="size-4" /></DropdownMenu.Trigger><DropdownMenu.Portal><DropdownMenu.Content align="end" sideOffset={6} className="app-popup animated-popup z-[100] min-w-52 rounded-xl border border-white/10 bg-zinc-900 p-1.5 shadow-2xl outline-none"><DropdownMenu.Item disabled={item.inBacklog} onSelect={() => void addToMyGames(item)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold outline-none data-[disabled]:text-emerald-400 data-[highlighted]:bg-white/8">{item.inBacklog ? <Check className="size-3.5" /> : <Library className="size-3.5" />}{item.inBacklog ? 'Já está em Meus Jogos' : 'Adicionar a Meus Jogos'}</DropdownMenu.Item></DropdownMenu.Content></DropdownMenu.Portal></DropdownMenu.Root>}
 
             <div className="ranking-card-summary flex min-w-0 gap-3">
-              <Link href={`/jogos/${item.game.id}`} className="h-[112px] w-[82px] shrink-0 overflow-hidden rounded-xl bg-zinc-900"><img src={item.game.image_url} alt={`Capa de ${item.game.title}`} className="size-full object-cover" /></Link>
+              <Link href={`/jogos/${item.game.id}`} className="h-[112px] w-[82px] shrink-0 overflow-hidden rounded-xl bg-zinc-900"><img src={gameCoverUrl(item.game.image_url)} alt={`Capa de ${item.game.title}`} className="size-full object-cover" /></Link>
               <div className={`flex min-w-0 flex-1 flex-col justify-center py-1 ${isAdmin ? 'pr-16' : 'pr-7'}`}><Link href={`/jogos/${item.game.id}`} className="break-words text-sm font-extrabold leading-snug hover:text-violet-300">{item.game.title}</Link><div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-zinc-500"><span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{item.game.duration_hours} h</span>{rankingView === 'recent' && <span className="inline-flex items-center gap-1"><CalendarPlus className="size-3" />{formatShortDate(item.addedAt)}</span>}</div><div className="ranking-score mt-3 whitespace-nowrap text-3xl font-black leading-none text-emerald-400"><AnimatedPoints value={item.totalPoints} /><span className="ml-1 text-[10px] font-bold text-zinc-500">pts</span></div></div>
             </div>
 

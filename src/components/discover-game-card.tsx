@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, Clock3, Library, MoreHorizontal, Trophy, Users } from 'lucide-react';
+import { gameCoverUrl } from '@clube-do-jogo/domain';
 import type { DiscoverItem } from '@/lib/types';
 import { RatingDisplay } from './rating-slider';
 
@@ -20,7 +21,7 @@ export function DiscoverGameCard({ item, inMyGames, inRanking, onAddToMyGames, o
         <Link href={`/jogos/${game.id}`} className="min-w-0 flex-1 truncate text-[10px] font-extrabold text-zinc-100 transition group-hover:text-violet-300">{game.title}</Link>
       </header>
       <div className="discover-poster poster-card-cover relative aspect-[264/374] overflow-hidden bg-zinc-900">
-        <Link href={`/jogos/${game.id}`} className="block size-full"><img src={game.image_url} alt={`Capa de ${game.title}`} className="size-full object-cover transition duration-500 group-hover:scale-[1.035]" /></Link>
+        <Link href={`/jogos/${game.id}`} className="block size-full"><img src={gameCoverUrl(game.image_url)} alt={`Capa de ${game.title}`} className="size-full object-cover transition duration-500 group-hover:scale-[1.035]" /></Link>
         <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/15 opacity-75" />
         <div className="pointer-events-none absolute inset-x-2 bottom-2 flex items-end justify-between gap-2 text-[9px] font-bold text-white/85">
           {item.activityCount ? <span className="inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 backdrop-blur"><Users className="size-3" />{item.activityCount}</span> : <span />}

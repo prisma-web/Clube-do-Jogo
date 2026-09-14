@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/api-client';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -115,7 +117,7 @@ export function Timeline({ game }: { game: Game }) {
       if (saved) {
         await query.refresh();
         if (savedCommentId) {
-          void fetch('/api/push/comment', {
+          void apiFetch('/api/push/comment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ commentId: savedCommentId }),

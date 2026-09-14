@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/api-client';
+
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Bell, BellRing } from 'lucide-react';
 import { useApp } from './app-provider';
@@ -55,7 +57,7 @@ export function PushNotificationButton({ className = '' }: { className?: string 
       await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription()
         || await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlToUint8Array(publicKey) });
-      const response = await fetch('/api/push/subscribe', {
+      const response = await apiFetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(subscription.toJSON()),

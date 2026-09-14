@@ -1,0 +1,9 @@
+appId: com.clubedojogo.mobile.dev
+---
+- openLink: clubedojogo://auth/callback?code=invalid-expo-local-link
+- assertVisible: O link de autenticação expirou. Solicite um novo link.
+- tapOn: Voltar ao clube
+- extendedWaitUntil:
+    visible: Ver detalhes de Outer Wilds
+    timeout: 7000
+- takeScreenshot: retorno-do-link-invalido

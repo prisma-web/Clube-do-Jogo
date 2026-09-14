@@ -7,16 +7,17 @@ import { AnimatePresence, motion } from 'motion/react';
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Compass, Gamepad2, Library, Sparkles, Star, Trophy, X, Zap } from 'lucide-react';
 import {
   currentProductUpdate,
-  PRODUCT_UPDATE_EVENT,
+  gameCoverUrl,
   productUpdateStorageKey,
   type ProductUpdate,
   type ProductUpdateArtwork,
   type ProductUpdateImage,
-} from '@/lib/product-updates';
+} from '@clube-do-jogo/domain';
 import { demoGames } from '@/lib/demo-data';
 import { cn } from '@/lib/utils';
 
 const AUTO_OPEN_PRODUCT_UPDATE = process.env.NEXT_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE !== 'false';
+const PRODUCT_UPDATE_EVENT = 'clube-do-jogo:open-product-update';
 
 export function openCurrentProductUpdate() {
   window.dispatchEvent(new CustomEvent(PRODUCT_UPDATE_EVENT, { detail: currentProductUpdate.id }));
@@ -169,7 +170,7 @@ function MiniPoster({ index }: { index: number }) {
   const game = demoGames[index];
   return (
     <div className="relative aspect-[3/4] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl shadow-black/40">
-      <img src={game.image_url} alt="" className="size-full object-cover" />
+      <img src={gameCoverUrl(game.image_url)} alt="" className="size-full object-cover" />
       <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-2 pb-2 pt-6 text-[8px] font-black text-white">{game.title}</span>
       {game.average_rating != null && <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-1 rounded-full bg-black/70 px-1.5 py-1 text-[7px] font-black text-amber-300"><Star className="size-2.5 fill-current" />{(game.average_rating / 10).toFixed(1).replace('.', ',')}</span>}
     </div>

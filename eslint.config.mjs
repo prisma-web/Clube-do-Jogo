@@ -12,6 +12,18 @@ const eslintConfig = defineConfig([
       "@next/next/no-img-element": "off",
     },
   },
+  {
+    files: ["apps/mobile/**/*.tsx"],
+    rules: {
+      "jsx-a11y/alt-text": "off",
+    },
+  },
+  {
+    files: ["apps/mobile/metro.config.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
@@ -21,6 +33,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "apps/mobile/.expo/**",
+    "apps/mobile/dist/**",
+    "apps/mobile/android/**",
+    "apps/mobile/ios/**",
   ]),
 ]);
 

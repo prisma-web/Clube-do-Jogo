@@ -1,0 +1,61 @@
+appId: com.clubedojogo.mobile.dev
+---
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: Perfil(, tab, 5 of 5)?
+    timeout: 30000
+- tapOn: Perfil(, tab, 5 of 5)?
+- tapOn: Abrir configurações
+- assertVisible: expo.admin@example.test
+- scrollUntilVisible:
+    element: Escolher jogo do clube
+    direction: DOWN
+- tapOn: Escolher jogo do clube
+- tapOn:
+    id: admin-club-game-search
+- inputText: Hades
+- extendedWaitUntil:
+    visible:
+      id: admin-club-game-00000000-0000-4000-a000-000000000004
+    timeout: 20000
+- tapOn:
+    id: admin-club-game-00000000-0000-4000-a000-000000000004
+- tapOn:
+    id: admin-club-mode-next
+- assertVisible: (?i).*ciclo de outubro.*
+- tapOn: Confirmar decisão de ciclo
+- extendedWaitUntil:
+    visible: (?i)Jogo definido para o ciclo de outubro.*
+    timeout: 20000
+- takeScreenshot: ciclo-encerrado
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: Perfil(, tab, 5 of 5)?
+    timeout: 30000
+- tapOn: Perfil(, tab, 5 of 5)?
+- tapOn: Abrir configurações
+- scrollUntilVisible:
+    element: Desfazer decisão de ciclo
+    direction: DOWN
+    centerElement: true
+- assertVisible: (?i)Jogo definido para o ciclo de outubro.*
+- takeScreenshot: decisao-restaurada
+- runFlow: admin-undo.yaml
+- scrollUntilVisible:
+    element: Refazer decisão de ciclo
+    direction: DOWN
+    centerElement: true
+- tapOn: Refazer decisão de ciclo
+- extendedWaitUntil:
+    visible: (?i)Jogo definido para o ciclo de outubro.*
+    timeout: 20000
+- takeScreenshot: ciclo-refeito
+- runFlow: admin-undo.yaml
+- scrollUntilVisible:
+    element: (?i)Ciclo de setembro.*
+    direction: UP
+    centerElement: true
+- assertVisible: (?i)Ciclo de setembro.*
+- takeScreenshot: ciclo-original-restaurado

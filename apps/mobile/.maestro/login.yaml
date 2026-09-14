@@ -1,0 +1,30 @@
+appId: com.clubedojogo.mobile.dev
+---
+- tapOn:
+    text: Abrir
+    optional: true
+- tapOn:
+    text: Continue
+    optional: true
+- tapOn:
+    text: Close
+    optional: true
+- assertVisible: Boas-vindas de volta
+- tapOn: Seu e-mail
+- eraseText
+- inputText: ${TEST_EMAIL}
+- tapOn: Sua senha
+- eraseText
+- inputText: ${TEST_PASSWORD}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- tapOn:
+    text: Entrar
+    enabled: true
+- extendedWaitUntil:
+    visible: Ver detalhes de Outer Wilds
+    timeout: 20000
+- takeScreenshot: login-jogo-do-mes

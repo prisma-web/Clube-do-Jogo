@@ -1,0 +1,61 @@
+appId: com.clubedojogo.mobile.dev
+---
+- tapOn:
+    text: Abrir
+    optional: true
+- tapOn:
+    text: Continue
+    optional: true
+- tapOn:
+    text: Close
+    optional: true
+- assertVisible: Boas-vindas de volta
+- tapOn: Seu e-mail
+- eraseText
+- inputText: ${TEST_EMAIL}
+- tapOn: Sua senha
+- eraseText
+- inputText: ${TEST_PASSWORD}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- tapOn:
+    text: Entrar
+    enabled: true
+- extendedWaitUntil:
+    visible:
+      id: reward-celebration
+    timeout: 20000
+- assertVisible: Tema Animal Crossing
+- takeScreenshot: recompensa-crossing
+- tapOn:
+    id: reward-acknowledge
+- extendedWaitUntil:
+    visible: Tema Floresta de Nibel
+    timeout: 10000
+- takeScreenshot: recompensa-ori
+- tapOn:
+    id: reward-acknowledge
+- extendedWaitUntil:
+    visible: Tema Fogueira Cósmica
+    timeout: 10000
+- takeScreenshot: recompensa-cosmic
+- tapOn:
+    id: reward-use-theme
+- assertNotVisible:
+    id: reward-celebration
+- takeScreenshot: tema-recompensa-aplicado
+- tapOn: Perfil(, tab, 5 of 5)?
+- tapOn: Abrir configurações
+- scrollUntilVisible:
+    element:
+      id: settings-theme-cosmic-campfire
+    direction: DOWN
+    waitToSettleTimeoutMs: 500
+    timeout: 60000
+- assertVisible:
+    id: settings-theme-cosmic-campfire
+    selected: true
+- takeScreenshot: recompensa-tema-selecionado

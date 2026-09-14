@@ -1,20 +1,8 @@
 import { cn, initials } from '@/lib/utils';
 import type { AvatarCrop } from '@/lib/types';
+import { avatarImageStyle } from '@clube-do-jogo/domain';
 
-export const DEFAULT_AVATAR_CROP: AvatarCrop = { x: 50, y: 50, zoom: 1 };
-
-export function normalizeAvatarCrop(crop?: AvatarCrop | null): AvatarCrop {
-  return {
-    x: Math.max(0, Math.min(100, Number(crop?.x ?? DEFAULT_AVATAR_CROP.x))),
-    y: Math.max(0, Math.min(100, Number(crop?.y ?? DEFAULT_AVATAR_CROP.y))),
-    zoom: Math.max(1, Math.min(2.5, Number(crop?.zoom ?? DEFAULT_AVATAR_CROP.zoom))),
-  };
-}
-
-export function avatarImageStyle(crop?: AvatarCrop | null) {
-  const next = normalizeAvatarCrop(crop);
-  return { objectPosition: `${next.x}% ${next.y}%`, transform: `scale(${next.zoom})`, transformOrigin: `${next.x}% ${next.y}%` };
-}
+export { DEFAULT_AVATAR_CROP, normalizeAvatarCrop, avatarImageStyle } from '@clube-do-jogo/domain';
 
 export function Avatar({ src, name, crop, className }: { src?: string | null; name?: string | null; crop?: AvatarCrop | null; className?: string }) {
   return (

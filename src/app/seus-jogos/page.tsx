@@ -1,6 +1,9 @@
 'use client';
 
+import { apiFetch } from '@/lib/api-client';
+
 import { useMemo, useState } from 'react';
+import { selectLibraryGames, type LibraryQuickFilter, type LibrarySortMode } from '@clube-do-jogo/domain';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { ArrowUpDown, Check, ChevronDown, Circle, Filter, Flag, Gamepad2, Heart, Library, MoreHorizontal, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
@@ -17,8 +20,8 @@ import { ProgressConfirmationDialog } from '@/components/progress-confirmation-d
 import { useUrlDialog } from '@/hooks/use-url-state';
 import { usePersistentState } from '@/hooks/use-persistent-state';
 
-type QuickFilter = 'all' | 'started' | 'finished' | 'not_started' | 'favorites';
-type SortMode = 'updated_desc' | 'updated_asc' | 'title_asc' | 'title_desc' | 'duration_asc' | 'duration_desc' | 'rating_desc' | 'rating_asc';
+type QuickFilter = LibraryQuickFilter;
+type SortMode = LibrarySortMode;
 
 const sortOptions: Array<[SortMode, string]> = [
   ['updated_desc', 'Atualizados recentemente'],
@@ -79,28 +82,11 @@ function YourGamesPanel() {
   const platformsDialog = useUrlDialog('library-platforms');
 
   const ownedPlatformIds = useMemo(() => new Set((data?.platforms || []).map(platform => platform.igdb_platform_id)), [data?.platforms]);
-  const visible = useMemo(() => {
-    const normalized = textFilter.trim().toLocaleLowerCase('pt-BR');
-    const matches = (data?.library || []).filter(item => {
-      const status = item.progress?.status || 'not_started';
-      if (quickFilter === 'favorites' ? !item.favorite : quickFilter !== 'all' && status !== quickFilter) return false;
-      if (normalized && !item.game.title.toLocaleLowerCase('pt-BR').includes(normalized)) return false;
-      if (playableOnly && item.game.platform_ids?.length && !item.game.platform_ids.some(id => ownedPlatformIds.has(id))) return false;
-      if (shortOnly && Number(item.game.duration_hours) > 12) return false;
-      if (ratedOnly && item.game.average_rating == null) return false;
-      return true;
-    });
-    return matches.sort((a, b) => {
-      if (sortMode === 'title_asc') return a.game.title.localeCompare(b.game.title, 'pt-BR');
-      if (sortMode === 'title_desc') return b.game.title.localeCompare(a.game.title, 'pt-BR');
-      if (sortMode === 'duration_asc') return a.game.duration_hours - b.game.duration_hours;
-      if (sortMode === 'duration_desc') return b.game.duration_hours - a.game.duration_hours;
-      if (sortMode === 'rating_desc') return Number(b.game.average_rating ?? -Infinity) - Number(a.game.average_rating ?? -Infinity);
-      if (sortMode === 'rating_asc') return Number(a.game.average_rating ?? Infinity) - Number(b.game.average_rating ?? Infinity);
-      if (sortMode === 'updated_asc') return (a.updatedAt || '').localeCompare(b.updatedAt || '');
-      return (b.updatedAt || '').localeCompare(a.updatedAt || '');
-    });
-  }, [data?.library, ownedPlatformIds, playableOnly, quickFilter, ratedOnly, shortOnly, sortMode, textFilter]);
+  const visible = useMemo(() => selectLibraryGames(
+    data?.library || [],
+    { quickFilter, text: textFilter, sortMode, playableOnly, shortOnly, ratedOnly },
+    ownedPlatformIds,
+  ), [data?.library, ownedPlatformIds, playableOnly, quickFilter, ratedOnly, shortOnly, sortMode, textFilter]);
 
   const groups = grouped ? (['started', 'not_started', 'finished'] as ProgressStatus[]).map(status => ({ status, items: visible.filter(item => (item.progress?.status || 'not_started') === status) })).filter(group => group.items.length) : [{ status: null, items: visible }];
 
@@ -150,7 +136,7 @@ function YourGamesPanel() {
     if (!searchQuery.trim()) return;
     setSearching(true); setSearchError('');
     if (isDemo) { const { demoGames } = await import('@/lib/demo-data'); const normalized = searchQuery.toLocaleLowerCase('pt-BR'); setResults(demoGames.filter(game => game.title.toLocaleLowerCase('pt-BR').includes(normalized))); setSearching(false); return; }
-    try { const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); setResults(payload); }
+    try { const response = await apiFetch(`/api/search?q=${encodeURIComponent(searchQuery)}`); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); setResults(payload); }
     catch (value) { setSearchError(value instanceof Error ? value.message : 'Não foi possível buscar jogos.'); }
     finally { setSearching(false); }
   }
@@ -158,7 +144,7 @@ function YourGamesPanel() {
   async function searchPlatforms(event: React.FormEvent) {
     event.preventDefault(); if (!platformQuery.trim()) return; setPlatformSearching(true); setPlatformError('');
     if (isDemo) { const available: UserPlatform[] = [{ igdb_platform_id: 130, name: 'Nintendo Switch', abbreviation: 'Switch' }, { igdb_platform_id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' }, { igdb_platform_id: 167, name: 'PlayStation 5', abbreviation: 'PS5' }, { igdb_platform_id: 169, name: 'Xbox Series X|S', abbreviation: 'Xbox' }]; const normalized = platformQuery.toLocaleLowerCase('pt-BR'); setPlatformResults(available.filter(platform => platform.name.toLocaleLowerCase('pt-BR').includes(normalized))); setPlatformSearching(false); return; }
-    try { const response = await fetch(`/api/platforms/search?q=${encodeURIComponent(platformQuery)}`); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); setPlatformResults(payload); }
+    try { const response = await apiFetch(`/api/platforms/search?q=${encodeURIComponent(platformQuery)}`); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); setPlatformResults(payload); }
     catch (value) { setPlatformError(value instanceof Error ? value.message : 'Não foi possível buscar consoles.'); }
     finally { setPlatformSearching(false); }
   }

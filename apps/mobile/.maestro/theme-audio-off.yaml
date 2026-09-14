@@ -1,0 +1,11 @@
+appId: com.clubedojogo.mobile.dev
+---
+- assertVisible:
+    id: settings-audio
+    checked: true
+- tapOn:
+    id: settings-audio
+- assertVisible:
+    id: settings-audio
+    checked: false
+- takeScreenshot: audio-desabilitado

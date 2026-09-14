@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { Star } from 'lucide-react';
 import { ratingForScale, useRatingScale, type RatingScale } from '@/hooks/use-rating-scale';
+import { ratingFromScale } from '@clube-do-jogo/domain';
 
 function format(value: number) {
   return value.toLocaleString('pt-BR', { minimumFractionDigits: Number.isInteger(value) ? 0 : 1, maximumFractionDigits: 2 });
@@ -52,14 +53,10 @@ function RatingSliderControl({ initialValue, scale, onCommit, disabled, label }:
   const max = scale;
   const displayStep = 0.5;
 
-  function underlying(displayValue: number) {
-    return scale === 5 ? displayValue * 2 : displayValue;
-  }
-
   function pointerValue(event: React.PointerEvent<HTMLInputElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
     const raw = ((event.clientX - rect.left) / rect.width) * max;
-    return underlying(Math.max(0, Math.min(max, Math.round(raw / displayStep) * displayStep)));
+    return ratingFromScale(Math.max(0, Math.min(max, Math.round(raw / displayStep) * displayStep)), scale);
   }
 
   function commit(next: number) {
@@ -77,14 +74,14 @@ function RatingSliderControl({ initialValue, scale, onCommit, disabled, label }:
     disabled={disabled}
     aria-label={label}
     aria-valuetext={`${format(shown)} de ${scale}`}
-    onChange={event => setDraft(underlying(Number(event.target.value)))}
+    onChange={event => setDraft(ratingFromScale(Number(event.target.value), scale))}
     onPointerDown={event => { const next = pointerValue(event); event.currentTarget.setPointerCapture(event.pointerId); setHover(null); setDraft(next); }}
     onPointerMove={event => { if (disabled) return; const next = pointerValue(event); if (event.buttons === 1) setDraft(next); else setHover(next); }}
     onPointerUp={event => { const next = pointerValue(event); setDraft(next); setHover(null); commit(next); }}
     onPointerCancel={() => setHover(null)}
     onPointerLeave={() => setHover(null)}
-    onBlur={event => { setHover(null); commit(underlying(Number(event.currentTarget.value))); }}
-    onKeyUp={event => commit(underlying(Number(event.currentTarget.value)))}
+    onBlur={event => { setHover(null); commit(ratingFromScale(Number(event.currentTarget.value), scale)); }}
+    onKeyUp={event => commit(ratingFromScale(Number(event.currentTarget.value), scale))}
   />;
 
   if (scale === 5) return <div className="rating-control mx-auto flex w-full max-w-[15rem] items-center gap-3"><div className="relative w-44 shrink-0 py-1"><FiveStars value={shown} /><span className="rating-hit-area absolute inset-0 [&>input]:size-full [&>input]:cursor-ew-resize [&>input]:opacity-0">{input}</span></div><output className="w-9 shrink-0 text-right text-base font-black tabular-nums text-amber-300">{format(shown)}</output></div>;

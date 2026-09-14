@@ -1,0 +1,16 @@
+appId: com.clubedojogo.mobile.dev
+---
+- scrollUntilVisible:
+    element: Desfazer decisão de ciclo
+    direction: DOWN
+    centerElement: true
+- tapOn: Desfazer decisão de ciclo
+- assertVisible:
+    text: Confirmar desfazer decisão de ciclo
+    enabled: false
+- tapOn:
+    id: admin-undo-confirm-deletion
+- tapOn: Confirmar desfazer decisão de ciclo
+- extendedWaitUntil:
+    visible: Decisão de ciclo desfeita.
+    timeout: 20000

@@ -22,8 +22,6 @@ export interface ProductUpdate {
   steps: ProductUpdateStep[];
 }
 
-export const PRODUCT_UPDATE_EVENT = 'clube-do-jogo:open-product-update';
-
 export function productUpdateStorageKey(updateId: string) {
   return `clube-do-jogo:product-update:${updateId}:completed`;
 }

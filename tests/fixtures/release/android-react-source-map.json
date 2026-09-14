@@ -1,0 +1,1 @@
+{"version":3,"sources":["/apps/mobile/node_modules/react/index.js","/apps/mobile/node_modules/react/cjs/react.production.js","/apps/mobile/app/_layout.tsx"],"sourcesContent":["module.exports = require('./cjs/react.production.js');","exports.version = '19.2.3';","export default function Layout() {}"],"names":[],"mappings":"AAAA"}

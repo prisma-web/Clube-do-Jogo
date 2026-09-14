@@ -1,0 +1,17 @@
+Running 21 checks on your project...
+20/21 checks passed. 1 checks failed. Possible issues detected:
+Use the --verbose flag to see more details about passed checks.
+
+✖ Check that no duplicate dependencies are installed
+Your project contains duplicate native module dependencies, which should be de-duplicated.
+Native builds may only contain one version of any given native module, and having multiple versions of a single Native module installed may lead to unexpected build errors.
+Found duplicates for react:
+  ├─ react@19.2.3 (at: node_modules/react)
+  └─ react@19.2.4 (at: ../../node_modules/react)
+Found duplicates for react-dom:
+  ├─ react-dom@19.2.3 (at: node_modules/react-dom)
+  └─ react-dom@19.2.4 (at: ../../node_modules/react-dom)
+Advice:
+Resolve your dependency issues and deduplicate your dependencies. Learn more: https://expo.fyi/resolving-dependency-issues
+
+1 check failed, indicating possible issues with the project.

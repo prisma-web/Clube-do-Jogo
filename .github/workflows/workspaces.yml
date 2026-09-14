@@ -1,0 +1,114 @@
+name: Web and mobile checks
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: workspaces-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run typecheck:mobile
+      - run: npm run test:domain
+      - run: npm run test:data
+      - run: npm run test:api
+      - run: npm run test:mobile
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:web
+      - run: npm run build
+
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run test:dependency-gate
+      - name: Generate native runtime fingerprints
+        working-directory: apps/mobile
+        run: |
+          npx expo-updates fingerprint:generate --platform android > "$RUNNER_TEMP/mobile-fingerprint-android.json"
+          npx expo-updates fingerprint:generate --platform ios > "$RUNNER_TEMP/mobile-fingerprint-ios.json"
+        env:
+          APP_VARIANT: development
+          EXPO_NO_DOTENV: '1'
+      - name: Capture Expo Doctor diagnostic
+        id: doctor
+        shell: bash
+        working-directory: apps/mobile
+        run: |
+          set +e
+          npx expo-doctor 2>&1 | tee "$RUNNER_TEMP/expo-doctor.log"
+          status=${PIPESTATUS[0]}
+          echo "exit-code=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Classify Expo Doctor React split
+        run: npm run --silent mobile:dependencies:gate -- doctor --log "$RUNNER_TEMP/expo-doctor.log" --exit-code "${{ steps.doctor.outputs.exit-code }}" | tee "$RUNNER_TEMP/mobile-doctor-classification.json"
+      - name: Export Android with source maps
+        working-directory: apps/mobile
+        run: npx expo export --platform android --source-maps external --output-dir "$RUNNER_TEMP/mobile-export/android"
+        env:
+          APP_VARIANT: development
+          EXPO_NO_DOTENV: '1'
+      - name: Export iOS with source maps
+        working-directory: apps/mobile
+        run: npx expo export --platform ios --source-maps external --output-dir "$RUNNER_TEMP/mobile-export/ios"
+        env:
+          APP_VARIANT: development
+          EXPO_NO_DOTENV: '1'
+      - name: Verify bundle React origins
+        run: npm run --silent mobile:dependencies:gate -- sourcemaps --project-root "$GITHUB_WORKSPACE" --android-dir "$RUNNER_TEMP/mobile-export/android" --ios-dir "$RUNNER_TEMP/mobile-export/ios" | tee "$RUNNER_TEMP/mobile-react-origins.json"
+      - name: Preserve dependency evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobile-dependency-evidence
+          path: |
+            ${{ runner.temp }}/expo-doctor.log
+            ${{ runner.temp }}/mobile-doctor-classification.json
+            ${{ runner.temp }}/mobile-react-origins.json
+            ${{ runner.temp }}/mobile-fingerprint-*.json
+            ${{ runner.temp }}/mobile-export/android/**/*.map
+            ${{ runner.temp }}/mobile-export/ios/**/*.map
+          if-no-files-found: error

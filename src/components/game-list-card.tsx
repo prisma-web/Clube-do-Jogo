@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { CalendarDays, Clock3 } from 'lucide-react';
+import { gameCoverUrl } from '@clube-do-jogo/domain';
 import type { Game } from '@/lib/types';
 import { RatingDisplay } from './rating-slider';
 
@@ -8,7 +9,7 @@ export function GameListCard({ game, action, badge }: { game: Game; action?: Rea
     <article className="game-list-card group relative flex min-w-0 gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.03] p-3 transition hover:border-violet-500/25 hover:bg-white/[0.05]">
       {badge}
       <Link href={`/jogos/${game.id}`} className="relative h-[92px] w-[69px] shrink-0 overflow-hidden rounded-xl bg-zinc-900">
-        <img src={game.image_url} alt={`Capa de ${game.title}`} className="size-full object-cover transition duration-300 group-hover:scale-105" />
+        <img src={gameCoverUrl(game.image_url)} alt={`Capa de ${game.title}`} className="size-full object-cover transition duration-300 group-hover:scale-105" />
       </Link>
       <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
         <div className="min-w-0">

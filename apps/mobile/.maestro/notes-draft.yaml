@@ -1,0 +1,77 @@
+appId: com.clubedojogo.mobile.dev
+---
+- extendedWaitUntil:
+    visible: Jogo do Mês(, tab, 1 of 5)?
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: Notas
+    direction: DOWN
+- tapOn: Notas
+- scrollUntilVisible:
+    element:
+      id: private-notes-input
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: private-notes-input
+    point: "95%,90%"
+- eraseText: 100
+- inputText: ${DRAFT_BODY}
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: Jogo do Mês(, tab, 1 of 5)?
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: Notas
+    direction: DOWN
+- tapOn: Notas
+- scrollUntilVisible:
+    element:
+      id: private-notes-input
+    direction: DOWN
+    centerElement: true
+- assertVisible: (?i)${DRAFT_BODY}
+- takeScreenshot: rascunho-restaurado
+- scrollUntilVisible:
+    element:
+      text: Salvar anotação
+    direction: DOWN
+    centerElement: true
+- tapOn: Salvar anotação
+- assertVisible:
+    id: note-row-.*
+    text: (?i).*${DRAFT_BODY}.*
+- longPressOn:
+    id: note-row-.*
+    text: (?i).*${DRAFT_BODY}.*
+- tapOn: Editar
+- scrollUntilVisible:
+    element:
+      id: private-notes-input
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: private-notes-input
+    point: "95%,90%"
+- eraseText: 100
+- inputText: ${EDITED_BODY}
+- scrollUntilVisible:
+    element:
+      text: Salvar anotação
+    direction: DOWN
+    centerElement: true
+- tapOn: Salvar anotação
+- assertVisible:
+    id: note-row-.*
+    text: (?i).*${EDITED_BODY}.*
+- takeScreenshot: anotacao-editada
+- longPressOn:
+    id: note-row-.*
+    text: (?i).*${EDITED_BODY}.*
+- tapOn: Excluir
+- tapOn: Apagar
+- assertNotVisible: (?i).*${EDITED_BODY}.*
+- takeScreenshot: anotacao-removida

@@ -1,0 +1,86 @@
+appId: com.clubedojogo.mobile.dev
+---
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: Perfil(, tab, 5 of 5)?
+    timeout: 30000
+- tapOn: Perfil(, tab, 5 of 5)?
+- tapOn: Abrir configurações
+- scrollUntilVisible:
+    element:
+      id: settings-theme-zelda
+    direction: DOWN
+    centerElement: true
+- assertVisible:
+    id: settings-theme-crossing
+    enabled: false
+- tapOn:
+    id: settings-theme-zelda
+- assertVisible:
+    id: settings-theme-zelda
+    selected: true
+- takeScreenshot: tema-zelda
+- tapOn:
+    id: settings-theme-nier
+- assertVisible:
+    id: settings-theme-nier
+    selected: true
+- takeScreenshot: tema-nier
+- scrollUntilVisible:
+    element:
+      id: settings-rating-5
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    id: settings-rating-5
+- assertVisible:
+    id: settings-rating-5
+    selected: true
+- scrollUntilVisible:
+    element: Este aparelho ou versão do app ainda não aceita notificações push.
+    direction: DOWN
+    centerElement: true
+- assertNotVisible: Ativar notificações
+- takeScreenshot: notificacoes-indisponiveis
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: Perfil(, tab, 5 of 5)?
+    timeout: 30000
+- takeScreenshot: tema-nier-reiniciado
+- tapOn: Perfil(, tab, 5 of 5)?
+- tapOn: Abrir configurações
+- scrollUntilVisible:
+    element:
+      id: settings-theme-nier
+    direction: DOWN
+    centerElement: true
+- assertVisible:
+    id: settings-theme-nier
+    selected: true
+- scrollUntilVisible:
+    element:
+      id: settings-theme-original
+    direction: UP
+    centerElement: true
+- tapOn:
+    id: settings-theme-original
+    enabled: true
+- assertVisible:
+    id: settings-theme-original
+    selected: true
+- scrollUntilVisible:
+    element:
+      id: settings-rating-5
+    direction: DOWN
+    centerElement: true
+- assertVisible:
+    id: settings-rating-5
+    selected: true
+- tapOn:
+    id: settings-rating-10
+- assertVisible:
+    id: settings-rating-10
+    selected: true
+- takeScreenshot: preferencias-restauradas

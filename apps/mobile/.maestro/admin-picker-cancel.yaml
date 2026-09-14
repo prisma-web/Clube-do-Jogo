@@ -1,0 +1,24 @@
+appId: com.clubedojogo.mobile.dev
+---
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: Perfil(, tab, 5 of 5)?
+    timeout: 30000
+- tapOn: Perfil(, tab, 5 of 5)?
+- tapOn: Abrir configurações
+- scrollUntilVisible:
+    element: Escolher jogo do clube
+    direction: DOWN
+    centerElement: true
+- tapOn: Escolher jogo do clube
+- tapOn:
+    id: admin-club-game-00000000-0000-4000-a000-000000000004
+- assertVisible:
+    id: admin-club-mode-next
+- tapOn: Fechar
+- tapOn: Escolher jogo do clube
+- assertVisible:
+    id: admin-club-game-search
+- takeScreenshot: nova-escolha-apos-cancelar
+- tapOn: Fechar

@@ -1,0 +1,16 @@
+appId: com.clubedojogo.mobile.dev
+---
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: Perfil(, tab, 5 of 5)?
+    timeout: 30000
+- tapOn: Perfil(, tab, 5 of 5)?
+- tapOn: Abrir configurações
+- scrollUntilVisible:
+    element: Sair da conta
+    direction: DOWN
+- tapOn: Sair da conta
+- extendedWaitUntil:
+    visible: Boas-vindas de volta
+    timeout: 20000

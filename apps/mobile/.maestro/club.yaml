@@ -1,0 +1,48 @@
+appId: com.clubedojogo.mobile.dev
+---
+- assertVisible: Ver detalhes de Outer Wilds
+- tapOn:
+    text: Comecei
+    enabled: true
+- assertVisible:
+    text: Comecei
+    selected: true
+- tapOn:
+    text: Finalizado
+    enabled: true
+- assertVisible:
+    text: Finalizado
+    selected: true
+- tapOn:
+    text: 'Ranking(, tab, 2 of 5)?'
+    index: 0
+- extendedWaitUntil:
+    visible: Ver detalhes de Hollow Knight
+    timeout: 15000
+- runFlow:
+    when:
+      visible:
+        text: Jogaria
+        selected: true
+    commands:
+      - tapOn: Jogaria
+- tapOn: Jogaria
+- assertVisible:
+    text: Jogaria
+    selected: true
+- tapOn:
+    text: Não
+    enabled: true
+- assertVisible: Por que você não jogaria?
+- tapOn: Não consigo rodar
+- tapOn: Confirmar Não
+- assertVisible: 'Meu motivo: Não consigo rodar'
+- takeScreenshot: ranking-voto-negativo
+- tapOn:
+    text: Não
+    enabled: true
+- assertNotVisible: 'Meu motivo: Não consigo rodar'
+- tapOn:
+    text: 'Jogo do mês(, tab, 1 of 5)?'
+    index: 0
+- takeScreenshot: progresso-finalizado

@@ -1,0 +1,49 @@
+appId: com.clubedojogo.mobile.dev
+---
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: Perfil(, tab, 5 of 5)?
+    timeout: 30000
+- tapOn: Perfil(, tab, 5 of 5)?
+- tapOn: Abrir configurações
+- scrollUntilVisible:
+    element: Sair da conta
+    direction: DOWN
+- assertNotVisible:
+    id: admin-panel
+- tapOn: Sair da conta
+- runFlow: login.yaml
+- tapOn: Perfil(, tab, 5 of 5)?
+- tapOn: Abrir configurações
+- scrollUntilVisible:
+    element: Cargos e acesso
+    direction: DOWN
+- tapOn: Cargos e acesso
+- scrollUntilVisible:
+    element:
+      id: admin-user-role-${ADMIN_USER_ID}
+    direction: DOWN
+- assertVisible:
+    id: admin-user-role-${ADMIN_USER_ID}
+    enabled: false
+- scrollUntilVisible:
+    element:
+      id: admin-user-role-${OTHER_USER_ID}
+    direction: DOWN
+- tapOn:
+    id: admin-user-role-${OTHER_USER_ID}
+- assertVisible: Conceder cargo de admin?
+- tapOn: Confirmar alteração de cargo
+- extendedWaitUntil:
+    visible: Remover cargo de administrador de Segundo Membro
+    timeout: 20000
+- takeScreenshot: usuario-promovido
+- tapOn:
+    id: admin-user-role-${OTHER_USER_ID}
+- assertVisible: Remover cargo de admin?
+- tapOn: Confirmar alteração de cargo
+- extendedWaitUntil:
+    visible: Tornar Segundo Membro administrador
+    timeout: 20000
+- takeScreenshot: usuario-rebaixado

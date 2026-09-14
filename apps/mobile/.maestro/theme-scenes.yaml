@@ -1,0 +1,109 @@
+appId: com.clubedojogo.mobile.dev
+---
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: Perfil(, tab, 5 of 5)?
+    timeout: 30000
+- assertNotVisible:
+    id: reward-celebration
+- tapOn: Perfil(, tab, 5 of 5)?
+- tapOn: Abrir configurações
+- scrollUntilVisible:
+    element:
+      id: settings-theme-crossing
+    direction: DOWN
+    waitToSettleTimeoutMs: 500
+    timeout: 60000
+    centerElement: true
+- tapOn:
+    id: settings-theme-crossing
+    enabled: true
+- assertVisible:
+    id: settings-theme-crossing
+    selected: true
+- scrollUntilVisible:
+    element:
+      id: theme-scene-crossing-shake
+    direction: DOWN
+    waitToSettleTimeoutMs: 500
+    timeout: 60000
+    centerElement: true
+- tapOn:
+    id: theme-scene-crossing-shake
+- assertVisible: A árvore balançou e uma folha desceu girando.
+- takeScreenshot: cena-crossing-interativa
+- scrollUntilVisible:
+    element:
+      id: settings-theme-ori
+    direction: UP
+    waitToSettleTimeoutMs: 500
+    timeout: 60000
+    centerElement: true
+- tapOn:
+    id: settings-theme-ori
+    enabled: true
+- assertVisible:
+    id: settings-theme-ori
+    selected: true
+- scrollUntilVisible:
+    element:
+      id: theme-scene-ori-call
+    direction: DOWN
+    waitToSettleTimeoutMs: 500
+    timeout: 60000
+    centerElement: true
+- tapOn:
+    id: theme-scene-ori-call
+- assertVisible: A luz seguiu para a copa das árvores.
+- takeScreenshot: cena-ori-interativa
+- scrollUntilVisible:
+    element:
+      id: settings-theme-cosmic-campfire
+    direction: UP
+    waitToSettleTimeoutMs: 500
+    timeout: 60000
+    centerElement: true
+- tapOn:
+    id: settings-theme-cosmic-campfire
+    enabled: true
+- assertVisible:
+    id: settings-theme-cosmic-campfire
+    selected: true
+- scrollUntilVisible:
+    element:
+      id: theme-scene-mode-spaceflight
+    direction: DOWN
+    waitToSettleTimeoutMs: 500
+    timeout: 60000
+    centerElement: true
+- tapOn:
+    id: theme-scene-mode-spaceflight
+- assertVisible: Travessia em curso. Escolha um corpo celeste para consultar o mapa.
+- tapOn:
+    id: theme-scene-cosmic-body-giants-deep
+- assertVisible: Tempestades elétricas escondem ilhas que sobem e afundam sem aviso.
+- takeScreenshot: cena-cosmic-travessia
+- scrollUntilVisible:
+    element:
+      id: settings-reduce-motion
+    direction: DOWN
+    waitToSettleTimeoutMs: 500
+    timeout: 60000
+    centerElement: true
+- runFlow:
+    when:
+      visible:
+        id: settings-reduce-motion
+        checked: false
+    commands:
+      - tapOn:
+          id: settings-reduce-motion
+- assertVisible:
+    id: settings-reduce-motion
+    checked: true
+- scrollUntilVisible:
+    element: Sem animação
+    direction: UP
+    timeout: 60000
+- takeScreenshot: cena-movimento-reduzido

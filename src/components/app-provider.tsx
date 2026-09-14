@@ -1,5 +1,7 @@
 'use client';
 
+import { apiFetch } from '@/lib/api-client';
+
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { AnimatePresence, motion } from 'motion/react';
@@ -348,13 +350,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     if (succeeded) {
       await fetchClubState();
-      void fetch('/api/push/club-game', {
+      void apiFetch('/api/push/club-game', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gameId: game.id, month: targetMonth }),
       });
       if (mode === 'next' && active?.month) {
-        void fetch('/api/push/rewards', {
+        void apiFetch('/api/push/rewards', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ clubMonth: active.month }),

@@ -1,3 +1,5 @@
+import { isOfflineCatalogEnabled, offlineBrowseGames, offlineGameById, offlineGameMugshots, offlineSearchGames, offlineSearchPlatforms } from './igdb-offline';
+
 export interface IGDBGameResult {
   id: number;
   title: string;
@@ -164,6 +166,7 @@ function mapIGDBGame(game: IGDBGame, durationHours = 10): IGDBGameResult {
 }
 
 export async function searchPlatformsWithIGDB(query: string): Promise<IGDBPlatformResult[]> {
+  if (isOfflineCatalogEnabled()) return offlineSearchPlatforms(query);
   const clientId = process.env.IGDB_CLIENT_ID;
   if (!clientId) throw new Error('IGDB_CLIENT_ID não configurado.');
   const token = await getTwitchToken();
@@ -189,6 +192,7 @@ export async function searchPlatformsWithIGDB(query: string): Promise<IGDBPlatfo
 }
 
 export async function searchGamesWithIGDB(query: string): Promise<IGDBGameResult[]> {
+  if (isOfflineCatalogEnabled()) return offlineSearchGames(query);
   const clientId = process.env.IGDB_CLIENT_ID;
   if (!clientId) throw new Error('IGDB_CLIENT_ID não configurado.');
 
@@ -233,6 +237,7 @@ export async function browseGamesWithIGDB(options: {
   offset?: number;
   limit?: number;
 }): Promise<IGDBGameResult[]> {
+  if (isOfflineCatalogEnabled()) return offlineBrowseGames(options);
   const clientId = process.env.IGDB_CLIENT_ID;
   if (!clientId) throw new Error('IGDB_CLIENT_ID não configurado.');
   const token = await getTwitchToken();
@@ -282,6 +287,7 @@ export async function browseGamesWithIGDB(options: {
 }
 
 export async function getGameMugshotsByIGDBId(igdbGameId: number): Promise<IGDBCharacterMugshot[]> {
+  if (isOfflineCatalogEnabled()) return offlineGameMugshots(igdbGameId);
   const clientId = process.env.IGDB_CLIENT_ID;
   if (!clientId) throw new Error('IGDB_CLIENT_ID não configurado.');
   const token = await getTwitchToken();
@@ -314,6 +320,7 @@ export async function getGameMugshotsByIGDBId(igdbGameId: number): Promise<IGDBC
 }
 
 export async function getGameByIGDBId(igdbId: number): Promise<IGDBGameResult | null> {
+  if (isOfflineCatalogEnabled()) return offlineGameById(igdbId);
   const clientId = process.env.IGDB_CLIENT_ID;
   if (!clientId) throw new Error('IGDB_CLIENT_ID não configurado.');
 
