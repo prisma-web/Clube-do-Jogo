@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  AppState,
   Modal,
   PanResponder,
   Pressable,
@@ -29,26 +30,31 @@ export function VotingDeckGate() {
   const ranking = useRanking();
   const vote = useVote();
   const [closed, setClosed] = useState(false);
-  const [index, setIndex] = useState(0);
+  const [dismissedGameIds, setDismissedGameIds] = useState<ReadonlySet<string>>(() => new Set());
   const translateX = useRef(new Animated.Value(0)).current;
 
-  const cards = useMemo(() => recentVotingItems(ranking.data ?? []), [ranking.data]);
-  const card = cards[index];
+  const cards = useMemo(
+    () => recentVotingItems(ranking.data ?? []).filter(item => !dismissedGameIds.has(item.game.id)),
+    [dismissedGameIds, ranking.data],
+  );
+  const card = cards[0];
   const visible = !closed && !isHistorical && ranking.isSuccess && Boolean(card);
 
   useEffect(() => {
-    if (index >= cards.length && cards.length > 0) setIndex(0);
-  }, [cards.length, index]);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state !== 'active') return;
+      setClosed(false);
+      setDismissedGameIds(new Set());
+      void ranking.refetch();
+    });
+    return () => subscription.remove();
+  }, [ranking.refetch]);
 
   const resetPosition = () => {
     Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 7 }).start();
   };
 
-  const advance = () => {
-    const next = nextVotingCardIndex(index, cards.length);
-    if (next === null) setClosed(true);
-    else setIndex(next);
-  };
+  const advance = () => setDismissedGameIds(current => new Set([...current, card?.game.id].filter((id): id is string => Boolean(id))));
 
   const commit = (choice: DeckAction, direction: -1 | 0 | 1 = 0) => {
     if (!card || vote.isPending) return;
@@ -122,7 +128,7 @@ export function VotingDeckGate() {
             <Animated.View
               {...panResponder.panHandlers}
               style={[styles.card, cardStyle]}
-              accessibilityLabel={`${card.game.title}, jogo ${index + 1} de ${cards.length}`}
+              accessibilityLabel={`${card.game.title}, jogo ${dismissedGameIds.size + 1} de ${dismissedGameIds.size + cards.length}`}
               testID="voting-deck-card"
             >
               <Pressable
@@ -180,7 +186,7 @@ export function VotingDeckGate() {
           </View>
           {vote.isPending ? <ActivityIndicator color={colors.violet300} style={styles.loading} /> : null}
           {vote.isError ? <Text style={styles.error} accessibilityRole="alert">{vote.error.message}</Text> : null}
-          <Text style={styles.progress}>{index + 1} de {cards.length}</Text>
+          <Text style={styles.progress}>{dismissedGameIds.size + 1} de {dismissedGameIds.size + cards.length}</Text>
         </View>
       </View>
     </Modal>

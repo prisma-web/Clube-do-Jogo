@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { nextVotingCardIndex, recentVotingItems } from '../../apps/mobile/src/features/voting/voting-deck';
+import { recentVotingItems } from '../../apps/mobile/src/features/voting/voting-deck';
 import type { RankingItem } from '@clube-do-jogo/domain';
 
-function item(id: string, addedAt: string): RankingItem {
+function item(id: string, addedAt: string, votedByMe = false): RankingItem {
   return {
     game: { id, title: id, duration_hours: 4, image_url: null, description: '' },
     addedAt,
@@ -18,23 +18,19 @@ function item(id: string, addedAt: string): RankingItem {
     ratingMultiplier: 0,
     totalPoints: 0,
     legacyTotalPoints: 0,
-    votedByMe: false,
+    votedByMe,
     completedByMe: false,
     inBacklog: false,
   };
 }
 
-test('opening voting deck lists newest additions first and caps the deck', () => {
+test('opening voting deck lists newest games that the current user has not voted on', () => {
   const cards = recentVotingItems([
     item('old', '2026-10-01T00:00:00.000Z'),
     item('new', '2026-10-03T00:00:00.000Z'),
+    item('already-voted', '2026-10-04T00:00:00.000Z', true),
     item('middle', '2026-10-02T00:00:00.000Z'),
   ], 2);
 
   assert.deepEqual(cards.map(card => card.game.id), ['new', 'middle']);
-});
-
-test('opening voting deck closes after its final card', () => {
-  assert.equal(nextVotingCardIndex(0, 2), 1);
-  assert.equal(nextVotingCardIndex(1, 2), null);
 });
