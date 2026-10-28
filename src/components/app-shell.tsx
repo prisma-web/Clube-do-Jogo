@@ -15,6 +15,7 @@ import { prefetchStaleQuery } from '@/hooks/use-stale-query';
 import { CosmicAmbienceController } from './cosmic-ambience-controller';
 import { CosmicBackdrop } from './cosmic-backdrop';
 import { CosmicInteractionSounds } from './cosmic-interaction-sounds';
+import { QuickVotingDeck } from './quick-voting-deck';
 
 const navigation: Array<{ href: string; label: string; mobileLabel?: string; icon: typeof Gamepad2 }> = [
   { href: '/jogo-do-mes', label: 'Jogo do mês', icon: Gamepad2 },
@@ -144,6 +145,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <CosmicBackdrop />
       <CosmicAmbienceController />
       <CosmicInteractionSounds />
+      <QuickVotingDeck />
       <div className="theme-pattern pointer-events-none fixed inset-0 z-0" aria-hidden="true" />
       <div className="theme-ambient pointer-events-none fixed inset-x-0 top-0 z-0 h-80 min-[960px]:bottom-0 min-[960px]:left-56 min-[960px]:h-auto" aria-hidden="true" />
       <div className="theme-effects pointer-events-none fixed inset-0 z-20 overflow-hidden" aria-hidden="true">
