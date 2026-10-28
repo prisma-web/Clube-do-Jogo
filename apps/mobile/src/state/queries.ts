@@ -40,6 +40,15 @@ function notifyRankingLeaderPush(voteMonth: string, previousLeaderId: string | n
   }).catch(() => {});
 }
 
+function notifyVotingThreshold(voteMonth: string, gameId: string) {
+  const transport = createMobileApiTransport(getMobileSupabaseClient());
+  void transport.request('/api/push/voting-threshold', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'vote-saved', voteMonth, gameId }),
+  }).catch(() => {});
+}
+
 type VoteVariables = {
   gameId: string;
   choice: VoteChoice | null;
@@ -240,8 +249,9 @@ export function useVote(): UseMutationResult<void, Error, VoteVariables> {
         nextLeaderId: next?.[0]?.game.id || null,
       };
     },
-    onSuccess: (_data, _input, mutationContext) => {
+    onSuccess: (_data, input, mutationContext) => {
       if (!context.isSessionCurrent(epoch) || !mutationContext || context.isDemo) return;
+      if (input.choice) notifyVotingThreshold(shiftMonth(context.selectedMonth, 1), input.gameId);
       const { previousLeaderId, nextLeaderId } = mutationContext;
       if (previousLeaderId === nextLeaderId) return;
       notifyRankingLeaderPush(shiftMonth(context.selectedMonth, 1), previousLeaderId, nextLeaderId);

@@ -138,6 +138,14 @@ export default function RankingPage() {
     });
   }
 
+  function notifyVotingThreshold(gameId: string) {
+    void apiFetch('/api/push/voting-threshold', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'vote-saved', voteMonth, gameId }),
+    });
+  }
+
   function changedItem(item: RankingItem, choice: VoteChoice | null, reason?: VoteReason | null, reasonText?: string | null): RankingItem {
     const me: VoteParticipant = { ...(profile || { id: user!.id, name: 'Você', avatar_url: null }), reason: choice === 'would_not_play' ? reason : null, reasonText: choice === 'would_not_play' ? reasonText : null };
     const choiceProfiles = Object.fromEntries(preferenceOptions.map(option => [option.value, item.choiceProfiles[option.value].filter(person => person.id !== user!.id)])) as Record<VoteChoice, VoteParticipant[]>;
@@ -171,7 +179,10 @@ export default function RankingPage() {
       ? supabase.from('votes').upsert({ user_id: user!.id, game_id: item.game.id, vote_month: voteMonth, choice, reason: choice === 'would_not_play' ? reason : null, reason_text: choice === 'would_not_play' ? reasonText : null }, { onConflict: 'user_id,game_id,vote_month' })
       : supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', item.game.id).eq('vote_month', voteMonth);
     const saved = await runOptimistic(choice ? 'Salvando escolha…' : 'Removendo escolha…', () => rankingQuery.setData(next), () => rankingQuery.setData(previous), () => request);
-    if (saved) notifyRankingLeader(previous[0]?.game.id || null, next[0]?.game.id || null);
+    if (saved) {
+      notifyRankingLeader(previous[0]?.game.id || null, next[0]?.game.id || null);
+      if (choice) notifyVotingThreshold(item.game.id);
+    }
   }
 
   async function searchGames(event: React.FormEvent) {
@@ -213,7 +224,10 @@ export default function RankingPage() {
     const next = [...ranking, item].sort(compareRankingItems);
     if (isDemo) { rankingQuery.setData(next); return; }
     const saved = await runOptimistic('Salvando escolha…', () => rankingQuery.setData(next), () => rankingQuery.setData(ranking), () => supabase.from('votes').upsert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth, choice, reason: choice === 'would_not_play' ? reason : null, reason_text: choice === 'would_not_play' ? reasonText : null }, { onConflict: 'user_id,game_id,vote_month' }));
-    if (saved) notifyRankingLeader(ranking[0]?.game.id || null, next[0]?.game.id || null);
+    if (saved) {
+      notifyRankingLeader(ranking[0]?.game.id || null, next[0]?.game.id || null);
+      notifyVotingThreshold(game.id);
+    }
   }
 
   function choose(item: RankingItem, choice: VoteChoice) {

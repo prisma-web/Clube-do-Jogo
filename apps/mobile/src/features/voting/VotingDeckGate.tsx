@@ -16,7 +16,9 @@ import { gameCoverUrl, type VoteChoice } from '@clube-do-jogo/domain';
 import { useApp } from '@/state/app-provider';
 import { useRanking, useVote } from '@/state/queries';
 import { radii, spacing, themedStyles, typography, useThemeColors } from '@/theme';
-import { nextVotingCardIndex, recentVotingItems } from './voting-deck';
+import { createMobileApiTransport, getMobileSupabaseClient } from '@/platform';
+import { shiftMonth } from '@/lib/format';
+import { recentVotingItems } from './voting-deck';
 
 const swipeThreshold = 88;
 
@@ -26,7 +28,7 @@ export function VotingDeckGate() {
   const router = useRouter();
   const colors = useThemeColors();
   const styles = useStyles();
-  const { isHistorical } = useApp();
+  const { isHistorical, selectedMonth } = useApp();
   const ranking = useRanking();
   const vote = useVote();
   const [closed, setClosed] = useState(false);
@@ -49,6 +51,23 @@ export function VotingDeckGate() {
     });
     return () => subscription.remove();
   }, [ranking.refetch]);
+
+  useEffect(() => {
+    if (!card) return;
+    const transport = createMobileApiTransport(getMobileSupabaseClient());
+    const report = (action: 'opened' | 'closed') => {
+      void transport.request('/api/push/voting-threshold', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, voteMonth: shiftMonth(selectedMonth, 1) }),
+      }).catch(() => {});
+    };
+    report('opened');
+    const subscription = AppState.addEventListener('change', state => {
+      if (state !== 'active') report('closed');
+    });
+    return () => subscription.remove();
+  }, [card, selectedMonth]);
 
   const resetPosition = () => {
     Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 7 }).start();

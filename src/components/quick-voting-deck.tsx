@@ -11,6 +11,7 @@ import { fetchRankingData } from '@/lib/data';
 import { useStaleQuery } from '@/hooks/use-stale-query';
 import { useApp } from './app-provider';
 import { shiftMonth } from '@/lib/utils';
+import { apiFetch } from '@/lib/api-client';
 
 const CARD_LIMIT = 8;
 const SWIPE_THRESHOLD = 90;
@@ -55,6 +56,25 @@ export function QuickVotingDeck() {
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [rankingQuery.refresh]);
+
+  useEffect(() => {
+    if (!card) return;
+    void apiFetch('/api/push/voting-threshold', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'opened', voteMonth }),
+    });
+    const closeSession = () => {
+      void fetch('/api/push/voting-threshold', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'closed', voteMonth }),
+        keepalive: true,
+      });
+    };
+    window.addEventListener('pagehide', closeSession);
+    return () => window.removeEventListener('pagehide', closeSession);
+  }, [card, voteMonth]);
 
   if (!card || closed || isHistorical) return null;
 
