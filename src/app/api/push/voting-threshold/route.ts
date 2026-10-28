@@ -4,6 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 import { dispatchPushNotification } from '@/lib/push';
 
 type RequestBody = { action?: unknown; voteMonth?: unknown; gameId?: unknown };
+type ThresholdRecipient = {
+  recipient_user_id: string;
+  notification_sequence: number;
+};
 
 function validMonth(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
@@ -51,8 +55,9 @@ export async function POST(request: Request) {
   });
   if (recipientsError) return NextResponse.json({ error: 'Nao foi possivel registrar os avisos.' }, { status: 500 });
 
-  const results = await Promise.all((recipients || []).map(async recipient => {
-    const recipientId = recipient.recipient_user_id as string;
+  const thresholdRecipients = (recipients || []) as ThresholdRecipient[];
+  const results = await Promise.all(thresholdRecipients.map(async recipient => {
+    const recipientId = recipient.recipient_user_id;
     const sequence = Number(recipient.notification_sequence);
     return dispatchPushNotification(admin, `vote-threshold:${body.voteMonth}:${recipientId}:${sequence}`, {
       title: 'Novos jogos entraram na votação',
