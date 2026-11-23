@@ -14,7 +14,7 @@ type DataClient = {
   readProfile(profileId: string, isDemo: boolean): Promise<{ id: string } | null>;
   readGame(input: { userId: string; isDemo: boolean; gameId: string }): Promise<{ id: string } | null>;
   readGameOfMonth(input: { userId: string; isDemo: boolean; month: string }): Promise<{ id: string } | null>;
-  setVote(input: { userId: string; isDemo: boolean; month: string; historical?: boolean; gameId: string; choice: 'would_play' | 'would_not_play' | null; reason?: 'other'; reasonText?: string }): Promise<void>;
+  setVote(input: { userId: string; isDemo: boolean; month: string; historical?: boolean; gameId: string; choice: 'would_play' | 'neutral' | 'would_not_play' | null; reason?: 'other'; reasonText?: string }): Promise<void>;
   setProgress(input: { userId: string; isDemo: boolean; gameId: string; status: 'started' | 'finished' }): Promise<void>;
 };
 type DataModule = { createDataClient(options: { supabase: SupabaseClient }): DataClient; DataError: new (...args: never[]) => Error };
@@ -302,6 +302,11 @@ test('voto permite primeiro, troca e remoção e rejeita outro mês', { skip: co
   assert.equal(changed.choice, 'would_not_play');
   assert.equal(changed.reason, 'other');
 
+  await dataClient.setVote({ userId: member.id, isDemo: false, month: activeCycleMonth, gameId: testGameId, choice: 'neutral', reason: 'other', reasonText: 'ignorado' });
+  const neutral = noError(await member.client.from('votes').select('choice,reason,reason_text').eq('user_id', member.id).eq('game_id', testGameId).eq('vote_month', testVoteMonth).single(), 'voto neutro');
+  assert.deepEqual(neutral, { choice: 'neutral', reason: null, reason_text: null });
+  rejected(await member.client.from('votes').update({ reason: 'other' }).eq('user_id', member.id).eq('game_id', testGameId).eq('vote_month', testVoteMonth), 'voto neutro com motivo');
+
   const otherMonth = await member.client.from('votes').insert({
     user_id: member.id,
     game_id: testGameId,
@@ -324,13 +329,14 @@ test('voto permite primeiro, troca e remoção e rejeita outro mês', { skip: co
 test('upsert do web troca voto existente e não move nem transfere o voto', { skip: config ? false : localSkip, concurrency: false }, async () => {
   const { accounts: current } = await readyOwnData();
   const { member } = current;
-  const upsertVote = (voteMonth: string, choice: 'would_play' | 'would_not_play') => member.client.from('votes').upsert(
+  const upsertVote = (voteMonth: string, choice: 'would_play' | 'neutral' | 'would_not_play') => member.client.from('votes').upsert(
     { user_id: member.id, game_id: testGameId, vote_month: voteMonth, choice, reason: null, reason_text: null },
     { onConflict: 'user_id,game_id,vote_month' },
   );
 
   try {
-    noError(await upsertVote(testVoteMonth, 'would_not_play'), 'primeiro upsert');
+    noError(await upsertVote(testVoteMonth, 'neutral'), 'primeiro upsert neutro');
+    noError(await upsertVote(testVoteMonth, 'would_not_play'), 'troca de neutro por upsert');
     noError(await upsertVote(testVoteMonth, 'would_play'), 'troca de voto por upsert');
     const changed = noError(await member.client.from('votes').select('choice').eq('user_id', member.id).eq('game_id', testGameId).eq('vote_month', testVoteMonth).single(), 'voto trocado');
     assert.equal(changed?.choice, 'would_play');

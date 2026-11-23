@@ -33,7 +33,7 @@ const fixtures = Array.from({ length: 1000 }, (_, index) => ({
     duration_hours: [4, 8, 15, 20, 25, 70][index % 6],
     average_rating: index % 9 === 0 ? null : (index * 13) % 101,
   },
-  choiceCounts: { would_play: (index * 7) % 31, would_not_play: (index * 11) % 19 },
+  choiceCounts: { would_play: (index * 7) % 31, neutral: (index * 5) % 13, would_not_play: (index * 11) % 19 },
   completed: index % 7,
 }));
 

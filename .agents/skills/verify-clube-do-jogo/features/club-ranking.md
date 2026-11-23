@@ -3,7 +3,7 @@
 ## Sub-features
 
 - Abrir o jogo do mês e entrar em Ranking.
-- Escolher `Jogaria` ou `Não` em um jogo elegível.
+- Escolher `Jogaria`, `Neutro` ou `Não` em um jogo elegível. `Neutro` grava um voto de 0 ponto que conta como respondido.
 - Ao escolher `Não`, selecionar um motivo e confirmar.
 - Ver a escolha e o motivo no próprio cartão.
 - Consultar ciclos históricos como leitura somente.
@@ -24,6 +24,7 @@ O helper começa em `/jogo-do-mes`, fecha a novidade opcional, usa o link `Ranki
 
 - O demo começa com escolhas de outros membros; `Cocoon` é usado porque o `demo-user` começa sem escolha nesse cartão.
 - A escolha negativa abre um diálogo e não deve ser simulada por mutação de estado.
+- Tocar de novo na escolha selecionada, inclusive `Neutro`, remove o voto.
 - O voto do mês é o ciclo seguinte ao mês selecionado; não atribua o voto a um ciclo histórico.
 - A operação demo é em memória e não prova RLS ou persistência real.
 - O web smoke desta skill usa 3102/3103, nunca a porta 3101 do root.
