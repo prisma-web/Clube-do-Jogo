@@ -50,7 +50,7 @@ export function QuickVotingDeck() {
   }, [rankingQuery.refresh]);
 
   useEffect(() => {
-    if (!card) return;
+    if (!card || isDemo) return;
     void apiFetch('/api/push/voting-threshold', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -66,7 +66,7 @@ export function QuickVotingDeck() {
     };
     window.addEventListener('pagehide', closeSession);
     return () => window.removeEventListener('pagehide', closeSession);
-  }, [card, voteMonth]);
+  }, [card, isDemo, voteMonth]);
 
   if (!card || closed || isHistorical) return null;
 
