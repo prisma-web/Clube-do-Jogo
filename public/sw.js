@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clube-do-jogo-v5';
+const CACHE_NAME = 'clube-do-jogo-v6';
 const APP_SHELL = ['/jogo-do-mes', '/ranking', '/jogos', '/seus-jogos', '/perfil', '/configuracoes', '/manifest.webmanifest', '/icons/club-do-jogo-192.png', '/icons/club-do-jogo-512.png'];
 
 self.addEventListener('install', event => {
@@ -21,21 +21,17 @@ self.addEventListener('fetch', event => {
   if (url.pathname.startsWith('/_next/webpack-hmr')) return;
 
   if (request.mode === 'navigate') {
+    // Network first: a cached page would keep running the previous deploy's code.
     event.respondWith(
-      caches.match(request).then(cached => {
-        const update = fetch(request).then(response => {
+      fetch(request)
+        .then(response => {
           if (response.ok) {
             const copy = response.clone();
             void caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
           }
           return response;
-        });
-        if (cached) {
-          event.waitUntil(update.catch(() => undefined));
-          return cached;
-        }
-        return update.catch(async () => (await caches.match('/jogo-do-mes')));
-      }),
+        })
+        .catch(async () => (await caches.match(request)) || (await caches.match('/jogo-do-mes'))),
     );
     return;
   }
