@@ -48,7 +48,7 @@ Somente leitura. Exige: PID vivo com a identidade do manifesto, cwd neste checko
 $H drive ranking --run-id <id>
 ```
 
-Único subcomando de drive. Playwright headless, só ações de usuário por papel e texto visível, sem `page.evaluate`. Abre `/jogo-do-mes`, entra em `Ranking`, escolhe `Não` em `Cocoon`, seleciona `Não consigo rodar`, confirma, abre a contagem negativa e espera o motivo `Não consigo rodar` na lista `Escolhas do clube`. Grava `before-action.png`, `after-vote.png`, os snapshots ARIA antes/depois e `drive-result.json` com tamanho, dimensões e SHA-256 de cada captura. Qualquer console error, page error ou request falha reprova o drive.
+Único subcomando de drive. Playwright headless, só ações de usuário (cliques e esperas por papel, texto visível e atributos `data-choice`/`aria-pressed` do cartão), sem `page.evaluate`. Abre `/jogo-do-mes`, fecha a novidade e a votação rápida se aparecerem, entra em `Ranking`, escolhe `Não` em `Cocoon`, seleciona `Não consigo rodar`, confirma, abre a contagem negativa e espera o motivo `Não consigo rodar` na lista `Escolhas do clube`. Grava `before-action.png`, `after-vote.png`, os snapshots ARIA antes/depois e `drive-result.json` com tamanho, dimensões e SHA-256 de cada captura. Qualquer console error, page error ou request falha reprova o drive.
 
 As outras features são dirigidas à mão com Playwright seguindo `features/`. Grave as capturas no `evidenceDir` do run; elas entram no hash do `evidence`.
 

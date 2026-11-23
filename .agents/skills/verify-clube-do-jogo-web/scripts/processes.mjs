@@ -9,7 +9,7 @@ const darwin = process.platform === 'darwin';
 const unknown = { alive: false, state: null, cwd: null, command: null, pgid: null, identity: null };
 
 function run(command, args) {
-  const result = spawnSync(command, args, { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' } });
+  const result = spawnSync(command, args, { encoding: 'utf8', env: { ...process.env, LC_ALL: 'C', TZ: 'UTC' } });
   if (result.error) return null;
   return result;
 }

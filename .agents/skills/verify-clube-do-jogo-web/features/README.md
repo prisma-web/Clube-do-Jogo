@@ -12,6 +12,6 @@ Toda condução parte de um run do helper (`launch` → `doctor`) em modo demo, 
 | [Login e histórico](./auth-history.md) | tela de login → `/auth/callback` → `Ranking` | Entrar e consultar ciclo |
 | [Confirmação de mudança de progresso](./progress-confirmation.md) | `Meus Jogos` → `Opções de <jogo>` | Trocar status com confirmação de efeito |
 | [Filtros e agrupamento da biblioteca](./library-filters.md) | `Meus Jogos` → `Filtros`/`Ordenar` | Filtrar, ordenar e agrupar por status |
-| [Anotações otimistas](./notes-pending-queue.md) | detalhe do jogo → chat de anotações | Nota aparece antes da confirmação, sem duplicar |
+| [Anotações privadas](./private-notes.md) | detalhe do jogo → chat de anotações | Escrever, editar e excluir uma anotação |
 | [Administração do jogo do clube por card](./club-admin-per-card.md) | `Ranking`/detalhe → coroa | Definir, desfazer e refazer o ciclo |
 | [Diálogo de novidades](./product-update-dialog.md) | `?novidades=atual` | Ver passos da versão atual |
