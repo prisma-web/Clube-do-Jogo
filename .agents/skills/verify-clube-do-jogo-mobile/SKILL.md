@@ -34,7 +34,7 @@ Se o pool falhar, cite o erro e tente uma vez. Em 23/11/2026 o `device_open` de 
 
 O helper roda no Mac que compila. O `doctor` inspeciona o simulador com `xcrun simctl`, então só enxerga simuladores deste Mac. Um emulador Android ou um iOS em outro Mac não passa pelo doctor. Esse caminho fica sem prova até alguém compilar o APK no `rogstrix` (`npx expo run:android --variant release --no-bundler`, ver [docs/mobile-release.md](../../../docs/mobile-release.md)).
 
-Um aparelho tem um só escritor. Nunca rode dois fluxos no mesmo aparelho ao mesmo tempo, nem da mesma sessão. Um fluxo pode passar só porque o outro levou o app à tela que ele esperava. O `drive` pega um lock atômico (`mkdir`) em `state/verify-clube-do-jogo-mobile/device-locks/<UDID>.lock` e recusa se ele já existir.
+Um aparelho tem um só escritor. Nunca rode dois fluxos no mesmo aparelho ao mesmo tempo, nem da mesma sessão. Um fluxo pode passar só porque o outro levou o app à tela que ele esperava. O `drive` pega um lock atômico (`mkdir`) em `${XDG_STATE_HOME:-~/.local/state}/clube-do-jogo/device-locks/<UDID>/`, fora do checkout, então threads do T3 em worktrees diferentes se enxergam. O arquivo `owner` guarda PID, início do processo, `RUN_ID` e worktree. Um lock cujo dono está vivo faz o `drive` recusar. Um lock cujo PID morreu (um `kill -9`, um turno derrubado) é quebrado pelo próximo `drive`, que avisa no stderr. O `cleanup` solta o lock órfão do próprio run e recusa se um drive do run ainda estiver vivo.
 
 ## Launch
 
@@ -43,7 +43,7 @@ npm ci   # uma vez por checkout
 ./.agents/skills/verify-clube-do-jogo-mobile/scripts/verify-mobile launch --run-id <id>
 ```
 
-Exige checkout limpo. Compila um Release iOS para simulador do `HEAD`, com o bundle JS embarcado e sem Metro: `expo prebuild`, `pod install` e `xcodebuild` com `CODE_SIGNING_ALLOWED=NO`. O ambiente do build é uma allowlist (`APP_VARIANT=development`, `EXPO_NO_DOTENV=1`, `EXPO_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE=false`), e nada do shell entra no bundle. O primeiro build levou 5 minutos neste Mac (M1 Pro). Rode-o desvinculado e com log se o turno puder cair. O `.app` fica em cache em `state/verify-clube-do-jogo-mobile/builds/ios-<chave>/`, com a chave tirada da árvore de `apps/mobile`, `packages` e dos `package*.json`. Um commit que não mexe nessa árvore reaproveita o build, e um rebuild usa o DerivedData incremental. Pronto significa que o comando imprimiu `RUN_ID=` e `APP_PATH=`. O log do build fica em `evidence/.../<RUN_ID>/build.log`.
+Exige checkout limpo. Compila um Release iOS para simulador do `HEAD`, com o bundle JS embarcado e sem Metro: `expo prebuild`, `pod install` e `xcodebuild` com `CODE_SIGNING_ALLOWED=NO`. O ambiente do build é uma allowlist (`APP_VARIANT=development`, `EXPO_NO_DOTENV=1`, `EXPO_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE=false`), e nada do shell entra no bundle. O primeiro build levou 5 minutos neste Mac (M1 Pro). Rode-o desvinculado e com log se o turno puder cair. O `.app` fica em cache em `state/verify-clube-do-jogo-mobile/builds/ios-<chave>/`. A chave cobre a árvore de `apps/mobile`, `packages` e dos `package*.json`, a allowlist de env e o script de build (`BUILD_ENV` e `BUILD_SCRIPT` no helper) e o `xcodebuild -version`. Um commit que não mexe em nada disso reaproveita o build. Um build novo roda `expo prebuild --clean`, então um `ios/` gerado por outra chave nunca é reaproveitado. O DerivedData incremental continua compartilhado. Pronto significa que o comando imprimiu `RUN_ID=`, `APP_PATH=` e `EVIDENCE=`. O log do build fica em `<EVIDENCE>/build.log`. O launch recusa um `--run-id` que já tenha estado ou evidência, então um run nunca sobrescreve a prova de outro. O id aceita só letras, dígitos, `.`, `_` e `-`, começando por letra ou dígito.
 
 Depois instale com o comando do `device_open`:
 
@@ -59,7 +59,7 @@ Para hot reload, use o dev client com Metro (`npm run start --workspace @clube-d
 ./.agents/skills/verify-clube-do-jogo-mobile/scripts/verify-mobile doctor --run-id <id> --udid <UDID>
 ```
 
-Só lê, nada muda. Confere que a árvore do app no `HEAD` (`apps/mobile`, `packages`, `package*.json`) é a do build, que o simulador está ligado neste Mac, e que o `main.jsbundle` instalado no simulador tem o mesmo SHA-256 do build do run. Esse SHA prova que você vai dirigir o commit certo e não um `.app` velho de outra sessão. Também confere que o bundle instalado não tem host Supabase, e avisa se houver lock de dispositivo. Rode o doctor primeiro sempre que algo parecer errado.
+Só lê, nada muda. Confere que a árvore do app no `HEAD` (`apps/mobile`, `packages`, `package*.json`) é a do build, que o simulador está ligado neste Mac, e que o `main.jsbundle` instalado no simulador tem o mesmo SHA-256 do build do run. Esse SHA prova que você vai dirigir o commit certo e não um `.app` velho de outra sessão. Também confere que o bundle instalado não tem host Supabase, e avisa se houver lock de dispositivo, dizendo se o dono está vivo ou se o lock é órfão. Rode o doctor primeiro sempre que algo parecer errado.
 
 ## Drive
 
@@ -68,7 +68,7 @@ Só lê, nada muda. Confere que a árvore do app no `HEAD` (`apps/mobile`, `pack
   --agent-device <comando do device_open> .agents/skills/verify-clube-do-jogo-mobile/flows/<fluxo>.yaml
 ```
 
-O helper roda `<agent-device> test <fluxo> --maestro` sob o lock, grava `run.log`, artefatos e `result.env` em `evidence/.../<RUN_ID>/drive-<fluxo>/` e sai com código diferente de zero se o fluxo falhar, se a árvore do app mudou desde o launch ou se o checkout sujar. O fluxo roda dentro da pasta de evidência, então os `takeScreenshot` caem lá. O agent-device grava a imagem sem extensão, e o helper acrescenta `.png`. O `test` abre uma sessão própria e recusa o aparelho (`Device is already in use by session`) se uma sessão interativa estiver aberta, por isso o helper roda `<agent-device> close` antes. Depois de um drive, abra o app de novo com `open` para explorar.
+Antes do lock, o helper lê o UDID preso ao comando do `device_open` (o array `bound` do `agent-device-launcher.mjs` que o wrapper executa) e recusa se ele não for o `--udid`. Depois do lock, confere de novo que o `main.jsbundle` instalado nesse UDID é o do run. Só então roda `<agent-device> test <fluxo> --maestro`, grava `run.log`, artefatos e `result.env` (com `UDID` e `AGENT_DEVICE_UDID`) em `<EVIDENCE>/drive-<fluxo>/` e sai com código diferente de zero se o fluxo falhar, se a árvore do app mudou desde o launch ou se o checkout sujar. Um fluxo roda uma vez por run: se `drive-<fluxo>/` já existe, o drive recusa. Para repetir, faça outro launch com outro `--run-id` (o build em cache é reaproveitado). O fluxo roda dentro da pasta de evidência, então os `takeScreenshot` caem lá. O agent-device grava a imagem sem extensão, e o helper acrescenta `.png`. O `test` abre uma sessão própria e recusa o aparelho (`Device is already in use by session`) se uma sessão interativa estiver aberta, por isso o helper roda `<agent-device> close` antes. Depois de um drive, abra o app de novo com `open` para explorar.
 
 O agent-device roda um subconjunto do Maestro (`agent-device help maestro`), e sintaxe fora dele falha alto. `scrollUntilVisible` com `centerElement` não é aceito, e por isso `notes-draft.yaml` e `admin-cycle.yaml` do repo não rodam assim. O `~/.maestro/bin/maestro` direto é a alternativa, mas fica fora do helper, sem lock e sem recibo. Em 23/11/2026 ele ficou 300 s sem saída no simulador local já preso ao runner do agent-device, e foi encerrado.
 
@@ -90,7 +90,9 @@ Regras de autoria de fluxo:
 
 Escreve `SHA256SUMS` de todos os arquivos do run, lista o status de cada drive e falha se algum não passou. A prova de uma feature tem a ação e o estado resultante (screenshots antes e depois dentro do fluxo), o `result.env` com SHA do commit, SHA do bundle, UDID e código de saída, e o resultado do doctor. Capture também um `device_screenshot` ou `<agent-device> screenshot <caminho>` do estado final quando o fluxo não tiver `takeScreenshot`. Separe `unit`, `live` e `perf` no relato, e marque como `not-run` o que não rodou, com o motivo.
 
-Evidência vai para `evidence/verify-clube-do-jogo-mobile/<RUN_ID>/`. Estado e cache vão para `state/verify-clube-do-jogo-mobile/`. As duas bases recebem um `.gitignore` com `*` no primeiro launch, então nada disso entra no git.
+Evidência vai para `evidence/verify-clube-do-jogo-mobile/<RUN_ID>/` no checkout. Estado e cache vão para `state/verify-clube-do-jogo-mobile/`. As duas bases recebem um `.gitignore` com `*` no primeiro launch, então nada disso entra no git.
+
+O T3 apaga o worktree da thread quando ela é arquivada ou mergeada, e a evidência vai junto. Para guardar a prova, rode o launch com `VERIFY_MOBILE_EVIDENCE_BASE=~/.t3/artifacts/<slug>-<AAAAMMDD>` (o manifesto lembra o caminho, e os outros subcomandos o seguem), ou copie `<EVIDENCE>` para lá antes de encerrar. Cite no relato o caminho final.
 
 ## Cleanup
 
@@ -98,15 +100,35 @@ Evidência vai para `evidence/verify-clube-do-jogo-mobile/<RUN_ID>/`. Estado e c
 ./.agents/skills/verify-clube-do-jogo-mobile/scripts/verify-mobile cleanup --run-id <id>
 ```
 
-Apaga o estado do run, mantém o build em cache e a evidência, e falha se a evidência sumir. O helper não deixa processo vivo: o build e cada drive terminam dentro do próprio comando, então não há o que encerrar. Depois devolva o aparelho com `device_close` e `shutdown: true`. Não mate Metro, Next ou simulador de outra sessão por nome. O cache de build (DerivedData incluído) passa de 5 GB em `state/verify-clube-do-jogo-mobile/builds/`; apague-o quando terminar de verificar o branch.
+Apaga o estado do run, solta o lock órfão do run, mantém o build em cache e a evidência, e falha se a evidência sumir. O `--run-id` passa pela mesma validação do launch, e o estado precisa ser uma pasta real dentro de `state/verify-clube-do-jogo-mobile/` (sem symlink), senão nada é apagado. O helper não deixa processo vivo: o build e cada drive terminam dentro do próprio comando, então não há o que encerrar. Depois devolva o aparelho com `device_close` e `shutdown: true`. Não mate Metro, Next ou simulador de outra sessão por nome. O cache de build (DerivedData incluído) passa de 5 GB em `state/verify-clube-do-jogo-mobile/builds/`; apague-o quando terminar de verificar o branch.
 
-## Defeito aberto: a tela trava depois da Votação rápida
+## Observação reproduzida, sem controle humano: a tela não responde depois da Votação rápida
 
-Em 23/11/2026, com o app de `c3117bb` (master) em Release num iPhone 18 Pro com iOS 27.2 e SimSlim máximo: depois que a `Votação rápida` fecha, seja pelo `Fechar votação rápida` ou depois de votar no último jogo, a tela principal para de receber toques. Abas, botões e até a rolagem nativa não respondem, e ir ao fundo e voltar não resolve. Como a rolagem nativa também trava, o bloqueio está na camada do UIKit e não no JS. O `Modal` dispensado parece continuar segurando os toques. Os toques dentro do deck funcionam. Isso foi observado com toques do agent-device (XCTest) e não foi confirmado com um toque humano. Até alguém corrigir, toda receita que precisa das abas depois do login falha nesse ponto. `flows/demo-ranking-vote.yaml` fica como fluxo de regressão desse defeito: hoje ele falha ao procurar `Cocoon` no Ranking.
+Status: reproduzido em simulador iOS com toques do agent-device, com um mecanismo observado no UIKit. Ainda não confirmado com toque humano, em outro iOS, no Android nem pelo Maestro direto. Não declare corrigido nem "falha da automação" sem rodar esses controles.
+
+Observado em 23/11/2026 com o build demo de `c3117bb` (bundle `f8258095…`) num iPhone 18 Pro com iOS 27.2 e SimSlim máximo:
+
+- Em todo login, o log do app registra `[com.apple.UIKit:Presentation] Attempt to present <RCTFabricModalHostViewController> on <UIViewController> (from <RNSScreen>) while a presentation is in progress.` Foram 12 ocorrências, uma por processo do app, entre 18:45 e 19:38, inclusive a do run que falhou no Ranking. Um segundo `Modal` tenta se apresentar enquanto a `Votação rápida` ainda está entrando, e o UIKit recusa.
+- Com o deck aberto, a árvore crua (`snapshot --raw`) tem dois `RCTModalHostViewComponentView` de tela cheia (402×874) como irmãos da pilha de abas. Depois de `Fechar votação rápida`, um deles continua lá, `hittable`, por cima das abas, sem conteúdo apresentado.
+- Com esse host sobrando, `press` na aba `Ranking` (logo depois de fechar e de novo 15 s depois), `press` em `Notas` e `fill` no campo de comentário não mudam a tela. O screenshot mostra a tela principal normal, com a barra de abas.
+
+Leitura provável (inferida, não provada): o React Native marca o modal recusado como apresentado (`_isPresented = YES` em `RCTModalHostViewComponentView.mm`) e nunca tenta de novo, então o placeholder de tela cheia fica montado e engole os toques. Isso independe do agent-device, porque a recusa acontece no login, antes de qualquer toque na tela principal. Qual é o segundo `Modal` não foi identificado: o demo de hoje não tem recompensa pendente e o build desliga a abertura automática de Novidades. Um build Debug com React DevTools responde isso.
+
+Controles que faltam: toque humano no painel Device do T3, outro modelo de iPhone ou iOS, emulador Android e o `~/.maestro/bin/maestro` direto. A evidência dessa investigação fica em `evidence/verify-clube-do-jogo-mobile/fix-20261123T192809/investigacao-toque/` (snapshots `A*`, `B*`, `C*`, árvores cruas `E0`–`E2` e `uikit-attempt-to-present.log`). A primeira falha no Ranking fica em `evidence/verify-clube-do-jogo-mobile/proof-20261123T191429/drive-demo-ranking-vote/`, não em `final-…`. As duas pastas vivem no worktree desta thread e somem com ele.
+
+Até isso ser resolvido, toda receita que precisa das abas depois do login para nesse ponto. `flows/demo-ranking-vote.yaml` fica como fluxo de regressão: hoje ele falha ao procurar `Cocoon` no Ranking.
 
 ## Gotcha: Pressable acessível engole o filho
 
 No iOS, um `Pressable` com `accessibilityRole` e `accessibilityLabel` ao mesmo tempo colapsa a subárvore de acessibilidade. Um botão aninhado continua visível e tocável por coordenada, mas some para o VoiceOver e para automação por árvore. `testID` não resolve, porque não entra na árvore do leitor de tela. A correção é estrutural: o Pressable e a ação secundária viram irmãos, como em `apps/mobile/src/components/GameListRow.tsx`. O mesmo colapso explica por que o texto `Novidades da V1.1` não é alvo em Configurações. O alvo é o rótulo do Pressable, `Ver novamente as novidades da V1.1`.
+
+## Testes do helper
+
+```sh
+./.agents/skills/verify-clube-do-jogo-mobile/scripts/test-verify-mobile
+```
+
+Roda sem simulador nem build, num repositório git temporário. Prova que o `cleanup` recusa `--run-id` com `../`, `.`, `..`, `builds` e estado em symlink sem apagar a evidência, que o lock vivo bloqueia o `drive` e o `cleanup`, que o lock órfão é quebrado e solto, que o `drive` recusa um wrapper preso a outro UDID e que launch e drive não sobrescrevem evidência. Rode depois de mexer no helper.
 
 ## Mapa de features
 

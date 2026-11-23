@@ -17,7 +17,7 @@ A folha de novidades da versão abre sozinha no primeiro login de uma versão no
 
 Preconditions:
 
-- Doctor ok, modo demonstração ativo e `Votação rápida` fechada. Hoje o defeito da tela travada (SKILL.md) bloqueia esta receita depois desse fechamento. O build desta skill fixa a abertura automática em `false`.
+- Doctor ok, modo demonstração ativo e `Votação rápida` fechada. Esta receita não foi verificada: com toques do agent-device, a tela principal não responde depois desse fechamento (observação reproduzida no SKILL.md, ainda sem toque humano). O build desta skill fixa a abertura automática em `false`.
 
 - **Reabrir.** Rode `<agent-device> snapshot -i`, toque `Perfil`, toque `Abrir configurações` e role até o alvo. Rode `<agent-device> press <ref de "Ver novamente as novidades da V1.1"> --settle`. A folha de novidades aparece.
 - **Passos.** Avance pelos botões da folha até o último passo e feche.

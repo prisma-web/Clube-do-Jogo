@@ -17,7 +17,7 @@ O membro escolhe um mês anterior e vê o jogo daquele ciclo em modo leitura, co
 
 Preconditions:
 
-- Doctor ok, modo demonstração ativo e `Votação rápida` fechada. Hoje o defeito da tela travada (SKILL.md) bloqueia esta receita depois desse fechamento. O demo tem três meses: o atual e os dois anteriores.
+- Doctor ok, modo demonstração ativo e `Votação rápida` fechada. Esta receita não foi verificada: com toques do agent-device, a tela principal não responde depois desse fechamento (observação reproduzida no SKILL.md, ainda sem toque humano). O demo tem três meses: o atual e os dois anteriores.
 
 - **Abrir o seletor.** Rode `<agent-device> snapshot -i` e toque a ref `Alterar ciclo, atual ...`. A lista de meses aparece.
 - **Mês anterior.** Toque `Selecionar <mês anterior>`. O aviso `Ciclo encerrado, somente leitura` aparece e `Comecei` fica desabilitado.

@@ -25,5 +25,5 @@ Preconditions:
 ## Gotchas
 
 - O voto dado no deck não pede motivo. O `Não` do cartão no Ranking pede.
-- A segunda visão do voto (o cartão de Cocoon no Ranking) está bloqueada pelo defeito da tela travada depois que a janela fecha. Ver o SKILL.md. Por isso a prova cobre a ação e o avanço do deck, e o voto gravado fica sem confirmação por outra tela.
+- A segunda visão do voto (o cartão de Cocoon no Ranking) não foi verificada: com toques do agent-device, a tela principal não responde depois que a janela fecha (observação reproduzida no SKILL.md). Por isso a prova cobre a ação e o avanço do deck, e o voto gravado fica sem confirmação por outra tela.
 - Os ids dos jogos e a ordem vêm de `packages/domain/src/demo.ts`. Uma mudança nos dados demo muda os rótulos.

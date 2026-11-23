@@ -5,9 +5,29 @@
 set -euo pipefail
 
 ROOT=$(git rev-parse --show-toplevel)
-EVIDENCE_BASE="$ROOT/evidence/verify-clube-do-jogo-mobile"
+EVIDENCE_BASE="${VERIFY_MOBILE_EVIDENCE_BASE:-$ROOT/evidence/verify-clube-do-jogo-mobile}"
 STATE_BASE="$ROOT/state/verify-clube-do-jogo-mobile"
+# O lock é do aparelho, não do checkout: cada thread do T3 tem seu worktree, e todas veem esta pasta.
+LOCK_BASE="${XDG_STATE_HOME:-$HOME/.local/state}/clube-do-jogo/device-locks"
 BUNDLE_ID="com.clubedojogo.mobile.dev"
+
+# A receita do build entra na chave do cache: mudar env, flag ou Xcode força um build novo.
+BUILD_ENV=(CI=1 EXPO_NO_DOTENV=1 APP_VARIANT=development EXPO_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE=false)
+BUILD_SCRIPT='
+set -euo pipefail
+echo "== prebuild $(date)"
+npx expo prebuild --platform ios --no-install --clean
+echo "== pod install $(date)"
+(cd ios && pod install)
+ws=$(ls -d ios/*.xcworkspace | head -1)
+scheme=$(basename "$ws" .xcworkspace)
+echo "== xcodebuild $ws $scheme $(date)"
+xcodebuild -workspace "$ws" -scheme "$scheme" -configuration Release \
+  -sdk iphonesimulator -destination "generic/platform=iOS Simulator" \
+  -derivedDataPath "$1" CODE_SIGNING_ALLOWED=NO build
+echo "== done $(date)"
+'
+SUPABASE_HOST_RE='https?://[a-z0-9.-]*supabase\.(co|in)'
 
 die() { echo "verify-mobile: $*" >&2; exit 1; }
 log() { echo "verify-mobile: $*" >&2; }
@@ -45,35 +65,101 @@ parse() {
   done
 }
 
+# Um id é um nome de pasta simples: sem barra, sem começar por ponto, e nunca a pasta do cache.
+check_run_id() {
+  [[ "$RUN_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] && [ "$RUN_ID" != builds ] || die "RUN_ID inválido: $RUN_ID"
+}
+
 latest_run() {
-  /bin/ls -1t "$STATE_BASE" 2>/dev/null | { grep -v -E '^(builds|device-locks)$' || true; } | head -1
+  /bin/ls -1t "$STATE_BASE" 2>/dev/null | { grep -v -x -E 'builds|device-locks' || true; } | head -1
 }
 
 require_run() {
   [ -n "$RUN_ID" ] || RUN_ID=$(latest_run)
   [ -n "$RUN_ID" ] || die "nenhum run; rode launch primeiro"
+  check_run_id
   STATE="$STATE_BASE/$RUN_ID"
-  EVIDENCE="$EVIDENCE_BASE/$RUN_ID"
+  [ -d "$STATE" ] && [ ! -L "$STATE" ] || die "run $RUN_ID não existe em $STATE_BASE"
+  [ "$(cd "$STATE" && pwd -P)" = "$(cd "$STATE_BASE" && pwd -P)/$RUN_ID" ] || die "estado do run fora de $STATE_BASE: $STATE"
   [ -f "$STATE/manifest.env" ] || die "manifesto ausente em $STATE"
+  EVIDENCE=""
   # shellcheck disable=SC1091
   . "$STATE/manifest.env"
+  # Manifesto anterior a EVIDENCE= usa a base padrão.
+  EVIDENCE="${EVIDENCE:-$EVIDENCE_BASE/$RUN_ID}"
 }
 
 clean_tree() { [ -z "$(git -C "$ROOT" status --porcelain)" ]; }
 
-build_key() { git -C "$ROOT" ls-tree HEAD apps/mobile packages package.json package-lock.json | shasum -a 256 | cut -c1-16; }
+build_key() {
+  {
+    git -C "$ROOT" ls-tree HEAD apps/mobile packages package.json package-lock.json
+    printf '%s\n' "${BUILD_ENV[@]}" "$BUILD_SCRIPT"
+    xcodebuild -version
+  } | shasum -a 256 | cut -c1-16
+}
 
 sha256() { shasum -a 256 "$1" | cut -d' ' -f1; }
 
+# Lock de aparelho: pasta criada com mkdir (atômico) e um arquivo owner com PID, início do processo e run.
+lock_field() { sed -n "s/^$2=//p" "$1/owner" 2>/dev/null | head -1; }
+proc_start() { ps -o lstart= -p "$1" 2>/dev/null | sed 's/^ *//'; }
+lock_alive() {
+  local pid start
+  pid=$(lock_field "$1" PID)
+  # Sem owner: o dono pode estar entre o mkdir e a escrita. Conta como vivo no primeiro minuto.
+  [ -n "$pid" ] || { [ -z "$(find "$1" -maxdepth 0 -mmin +1)" ]; return; }
+  start=$(proc_start "$pid")
+  [ -n "$start" ] && [ "$start" = "$(lock_field "$1" PROC_START)" ]
+}
+lock_describe() { [ -f "$1/owner" ] && tr '\n' ' ' < "$1/owner" || echo "(sem owner)"; }
+
+acquire_lock() {
+  mkdir -p "$LOCK_BASE"
+  DEVICE_LOCK="$LOCK_BASE/$UDID"
+  if ! mkdir "$DEVICE_LOCK" 2>/dev/null; then
+    lock_alive "$DEVICE_LOCK" && die "dispositivo $UDID em uso: $(lock_describe "$DEVICE_LOCK"); aborte"
+    local pid stale="$DEVICE_LOCK.stale.$$"
+    pid=$(lock_field "$DEVICE_LOCK" PID)
+    mv "$DEVICE_LOCK" "$stale" 2>/dev/null || die "o lock de $UDID mudou durante a checagem; tente de novo"
+    if [ "$(lock_field "$stale" PID)" != "$pid" ]; then
+      mv "$stale" "$DEVICE_LOCK" 2>/dev/null || true
+      die "outro drive pegou o lock de $UDID durante a checagem; aborte"
+    fi
+    log "lock órfão de $UDID quebrado (dono morto): $(lock_describe "$stale")"
+    rm -rf "$stale"
+    mkdir "$DEVICE_LOCK" 2>/dev/null || die "outro drive pegou o lock de $UDID; aborte"
+  fi
+  printf 'PID=%s\nPROC_START=%s\nRUN_ID=%s\nWORKTREE=%s\nSTARTED_AT=%s\n' \
+    $$ "$(proc_start $$)" "$RUN_ID" "$ROOT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$DEVICE_LOCK/owner.tmp"
+  mv "$DEVICE_LOCK/owner.tmp" "$DEVICE_LOCK/owner"
+  trap release_lock EXIT
+}
+
+release_lock() {
+  [ "$(lock_field "$DEVICE_LOCK" PID)" = "$$" ] && rm -rf "$DEVICE_LOCK"
+  return 0
+}
+
+# O wrapper do device_open executa um launcher cujo array `bound` fixa --udid. Lê o UDID de lá.
+bound_udid() {
+  local launcher
+  launcher=$(sed -n "s/.*'\([^']*agent-device-launcher\.mjs\)'.*/\1/p" "$AGENT_DEVICE" | head -1)
+  [ -n "$launcher" ] && [ -f "$launcher" ] || return 1
+  sed -n 's/^const bound = \[\(.*\)\];$/\1/p' "$launcher" | tr ',' '\n' | tr -d '"' |
+    awk 'found { print; exit } $0 == "--udid" { found = 1 }'
+}
+
 cmd_launch() {
-  [ "$(uname)" = Darwin ] || die "launch compila iOS e precisa de macOS com Xcode"
-  [ -d "$ROOT/node_modules" ] || die "rode 'npm ci' na raiz do checkout antes"
   [ -n "$RUN_ID" ] || RUN_ID="$(date +%Y%m%dT%H%M%S)-$$"
-  case "$RUN_ID" in *[!A-Za-z0-9._-]*) die "RUN_ID inválido: $RUN_ID" ;; esac
+  check_run_id
   STATE="$STATE_BASE/$RUN_ID"
   EVIDENCE="$EVIDENCE_BASE/$RUN_ID"
-  clean_tree || die "checkout sujo; o bundle embarcado precisa corresponder a um commit"
   [ ! -e "$STATE" ] || die "run $RUN_ID já existe"
+  [ ! -e "$EVIDENCE" ] || die "já há evidência em $EVIDENCE; use outro --run-id"
+  [ "$(uname)" = Darwin ] || die "launch compila iOS e precisa de macOS com Xcode"
+  [ -d "$ROOT/node_modules" ] || die "rode 'npm ci' na raiz do checkout antes"
+  clean_tree || die "checkout sujo; o bundle embarcado precisa corresponder a um commit"
   mkdir -p "$STATE" "$EVIDENCE"
   # Launch que falha antes do manifesto não deixa estado; a evidência (build.log) fica.
   trap '[ -f "$STATE/manifest.env" ] || rm -rf "$STATE"' EXIT
@@ -82,13 +168,13 @@ cmd_launch() {
   echo '*' > "$STATE_BASE/.gitignore"
   local sha key build app
   sha=$(git -C "$ROOT" rev-parse HEAD)
-  # O cache segue a árvore que entra no app, não o HEAD: um commit só de docs reaproveita o build.
+  # O cache segue a árvore que entra no app e a receita, não o HEAD: um commit só de docs reaproveita o build.
   key=$(build_key)
   build="$STATE_BASE/builds/ios-$key"
   app="$build/ClubedoJogo.app"
 
   if [ -f "$build/build.env" ] && [ -d "$app" ]; then
-    log "reaproveitando build da árvore $key em $app"
+    log "reaproveitando build da chave $key em $app"
   else
     mkdir -p "$build"
     log "compilando Release iOS (demo, sem Supabase) de $sha; log em $EVIDENCE/build.log"
@@ -96,21 +182,7 @@ cmd_launch() {
       cd "$ROOT/apps/mobile"
       # Allowlist: nada do shell (Supabase, API, tokens) entra no bundle.
       env -i HOME="$HOME" PATH="$PATH" USER="${USER:-}" LANG=en_US.UTF-8 TMPDIR="${TMPDIR:-/tmp}" \
-        CI=1 EXPO_NO_DOTENV=1 APP_VARIANT=development EXPO_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE=false \
-        bash -c '
-          set -euo pipefail
-          echo "== prebuild $(date)"
-          npx expo prebuild --platform ios --no-install
-          echo "== pod install $(date)"
-          (cd ios && pod install)
-          ws=$(ls -d ios/*.xcworkspace | head -1)
-          scheme=$(basename "$ws" .xcworkspace)
-          echo "== xcodebuild $ws $scheme $(date)"
-          xcodebuild -workspace "$ws" -scheme "$scheme" -configuration Release \
-            -sdk iphonesimulator -destination "generic/platform=iOS Simulator" \
-            -derivedDataPath "$1" CODE_SIGNING_ALLOWED=NO build
-          echo "== done $(date)"
-        ' _ "$STATE_BASE/builds/ios-dd"
+        "${BUILD_ENV[@]}" bash -c "$BUILD_SCRIPT" _ "$STATE_BASE/builds/ios-dd"
     ) > "$EVIDENCE/build.log" 2>&1 || die "build falhou; veja $EVIDENCE/build.log"
     local built
     built=$(find "$STATE_BASE/builds/ios-dd/Build/Products/Release-iphonesimulator" -maxdepth 1 -name '*.app' | head -1)
@@ -120,8 +192,9 @@ cmd_launch() {
   fi
   clean_tree || die "o checkout mudou durante o build (git status): arquivo gerado fora do .gitignore ou edição concorrente"
 
-  # O bundle não pode carregar nenhum host Supabase: este lane é só demo.
-  if grep -aoE 'https?://[a-z0-9.-]*supabase\.(co|in)' "$app/main.jsbundle" | head -1 | grep -q .; then
+  # Defesa em profundidade: o build não recebe EXPO_PUBLIC_SUPABASE_*, então o app cai no demo
+  # (apps/mobile/src/platform/config.ts). Mesmo assim, um bundle com host Supabase não é dirigido.
+  if grep -aqE "$SUPABASE_HOST_RE" "$app/main.jsbundle"; then
     die "o bundle contém um host Supabase; recuso dirigir"
   fi
 
@@ -130,6 +203,7 @@ cmd_launch() {
   cat > "$STATE/manifest.env" <<EOF
 RUN_ID=$RUN_ID
 WORKTREE=$ROOT
+EVIDENCE=$EVIDENCE
 SHA=$sha
 BUILD_KEY=$key
 BUILT_FROM=$BUILD_SHA
@@ -142,28 +216,32 @@ EOF
   cp "$STATE/manifest.env" "$EVIDENCE/manifest.env"
   echo "RUN_ID=$RUN_ID"
   echo "APP_PATH=$app"
+  echo "EVIDENCE=$EVIDENCE"
   echo "Instale com o comando do device_open: <agent-device> install $BUNDLE_ID $app"
 }
 
 cmd_doctor() {
   require_run
   [ -n "$UDID" ] || die "doctor precisa de --udid (o id que device_open devolveu)"
-  local ok=1 container installed
+  local ok=1 container installed lock="$LOCK_BASE/$UDID"
   echo "run      $RUN_ID  sha=$SHA  modo=$MODE"
-  if [ "$(build_key)" = "$BUILD_KEY" ]; then echo "ok       a árvore do app no HEAD é a do build ($BUILD_KEY)"
-  else echo "FALHA    apps/mobile, packages ou package*.json mudaram desde o launch; rode launch de novo"; ok=0; fi
+  if [ "$(build_key)" = "$BUILD_KEY" ]; then echo "ok       a árvore do app e a receita do build no HEAD são as do launch ($BUILD_KEY)"
+  else echo "FALHA    apps/mobile, packages, package*.json, a receita ou o Xcode mudaram desde o launch; rode launch de novo"; ok=0; fi
   if [ -f "$APP_PATH/main.jsbundle" ]; then echo "ok       build em $APP_PATH"; else echo "FALHA    build ausente"; ok=0; fi
   if xcrun simctl list devices booted | grep -q "$UDID"; then echo "ok       simulador $UDID ligado"; else echo "FALHA    simulador $UDID não está ligado neste Mac"; ok=0; fi
   if container=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" app 2>/dev/null); then
     installed=$(sha256 "$container/main.jsbundle")
     if [ "$installed" = "$BUNDLE_SHA256" ]; then echo "ok       app instalado no simulador é o build deste run"
     else echo "FALHA    app instalado ($installed) não é o build deste run ($BUNDLE_SHA256); reinstale"; ok=0; fi
-    if grep -aqE 'https?://[a-z0-9.-]*supabase\.(co|in)' "$container/main.jsbundle"; then echo "FALHA    bundle instalado aponta para Supabase remoto"; ok=0
+    if grep -aqE "$SUPABASE_HOST_RE" "$container/main.jsbundle"; then echo "FALHA    bundle instalado aponta para Supabase remoto"; ok=0
     else echo "ok       bundle instalado sem host Supabase (demo)"; fi
   else
     echo "FALHA    $BUNDLE_ID não está instalado em $UDID"; ok=0
   fi
-  if [ -d "$STATE_BASE/device-locks/$UDID.lock" ]; then echo "aviso    lock de dispositivo presente: outro drive está rodando ou morreu sem limpar"; fi
+  if [ -d "$lock" ]; then
+    if lock_alive "$lock"; then echo "aviso    aparelho em uso por outro drive: $(lock_describe "$lock")"
+    else echo "aviso    lock órfão (dono morto), o próximo drive o quebra: $(lock_describe "$lock")"; fi
+  fi
   [ "$ok" = 1 ] && echo "doctor: ok" || { echo "doctor: falhou"; exit 1; }
 }
 
@@ -172,16 +250,19 @@ cmd_drive() {
   [ -n "$AGENT_DEVICE" ] && [ -x "$AGENT_DEVICE" ] || die "drive precisa de --agent-device <caminho devolvido por device_open>"
   [ -n "$UDID" ] || die "drive precisa de --udid"
   [ -n "$FLOW" ] && [ -f "$FLOW" ] || die "fluxo não encontrado: $FLOW"
-  local name out rc flow_abs
+  local bound name out rc flow_abs container
+  bound=$(bound_udid) || die "não consegui ler o UDID preso ao $AGENT_DEVICE; chame device_open de novo"
+  [ "$bound" = "$UDID" ] || die "o comando agent-device está preso a $bound, não a --udid $UDID"
   flow_abs="$(cd "$(dirname "$FLOW")" && pwd)/$(basename "$FLOW")"
   name=$(basename "$FLOW" .yaml)
   out="$EVIDENCE/drive-$name"
-  mkdir -p "$out" "$STATE_BASE/device-locks"
-  DEVICE_LOCK="$STATE_BASE/device-locks/$UDID.lock"
-  mkdir "$DEVICE_LOCK" 2>/dev/null || die "dispositivo $UDID em uso por outro drive ($DEVICE_LOCK); aborte"
-  trap 'rmdir "$DEVICE_LOCK" 2>/dev/null || true' EXIT
+  [ ! -e "$out" ] || die "já há evidência de $name em $out; use outro run"
+  acquire_lock
   clean_tree || die "checkout sujo antes do drive"
   [ "$(build_key)" = "$BUILD_KEY" ] || die "a árvore do app mudou desde o launch; rode launch de novo"
+  container=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" app 2>/dev/null) || die "$BUNDLE_ID não está instalado em $UDID"
+  [ "$(sha256 "$container/main.jsbundle")" = "$BUNDLE_SHA256" ] || die "o app instalado em $UDID não é o build deste run; reinstale"
+  mkdir -p "$out"
   log "rodando $FLOW em $UDID; saída em $out"
   set +e
   # O test abre sessão própria e recusa o aparelho se uma sessão interativa (open/snapshot) estiver aberta.
@@ -203,6 +284,7 @@ cmd_drive() {
 RUN_ID=$RUN_ID
 FLOW=${flow_abs#"$ROOT"/}
 UDID=$UDID
+AGENT_DEVICE_UDID=$bound
 SHA=$SHA
 BUNDLE_SHA256=$BUNDLE_SHA256
 EXIT_CODE=$rc
@@ -231,6 +313,15 @@ cmd_evidence() {
 
 cmd_cleanup() {
   require_run
+  local lock
+  for lock in "$LOCK_BASE"/*; do
+    [ -d "$lock" ] || continue
+    case "$lock" in *.stale.*) continue ;; esac
+    [ "$(lock_field "$lock" RUN_ID)" = "$RUN_ID" ] && [ "$(lock_field "$lock" WORKTREE)" = "$ROOT" ] || continue
+    lock_alive "$lock" && die "um drive deste run ainda roda: $(lock_describe "$lock")"
+    rm -rf "$lock"
+    log "lock órfão deste run liberado: $lock"
+  done
   rm -rf "$STATE"
   log "run $RUN_ID limpo; build em cache mantido em $STATE_BASE/builds, evidência em $EVIDENCE"
   [ -d "$EVIDENCE" ] || die "a evidência sumiu: $EVIDENCE"

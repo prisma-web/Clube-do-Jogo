@@ -18,7 +18,7 @@ O membro escreve uma anotação privada sobre o jogo do mês, edita, apaga, e o 
 
 Preconditions:
 
-- Doctor ok, modo demonstração ativo e `Votação rápida` fechada. Hoje o defeito da tela travada (SKILL.md) bloqueia esta receita depois desse fechamento.
+- Doctor ok, modo demonstração ativo e `Votação rápida` fechada. Esta receita não foi verificada: com toques do agent-device, a tela principal não responde depois desse fechamento (observação reproduzida no SKILL.md, ainda sem toque humano).
 
 - **Criar.** Toque `Notas`, preencha o campo e salve. Rode `<agent-device> fill <ref do campo> "verificação mobile" --settle` e `<agent-device> press <ref de Salvar anotação> --settle`. Uma linha com `verificação mobile` aparece.
 - **Rascunho.** Digite sem salvar e reabra o app com `<agent-device> open com.clubedojogo.mobile.dev --relaunch`. Em demo o relaunch volta ao login, então o rascunho só pode ser provado com fixture Supabase.

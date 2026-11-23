@@ -28,7 +28,7 @@ Preconditions:
 
 ## Gotchas
 
-- Hoje esta receita falha: depois que a `Votação rápida` fecha, o toque na aba `Ranking` não navega (defeito descrito no SKILL.md). O fluxo para ao procurar `Cocoon`. Não contorne o deck por outro caminho para fazer a receita passar.
+- Hoje esta receita falha: depois que a `Votação rápida` fecha, o toque do agent-device na aba `Ranking` não navega (observação reproduzida no SKILL.md, ainda sem toque humano). O fluxo para ao procurar `Cocoon`. Não contorne o deck por outro caminho para fazer a receita passar.
 
 - O ranking demo já tem votos de outros membros. Use `Cocoon`, que nasce sem escolha do `demo-user`.
 - Mire o botão `Não` pela posição relativa ao título do cartão (`below: Cocoon`). Só `Não` casa com o botão de qualquer cartão.

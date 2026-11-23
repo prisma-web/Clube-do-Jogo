@@ -18,7 +18,7 @@ O membro troca o status do jogo do mês entre `Não iniciado`, `Comecei` e `Fina
 
 Preconditions:
 
-- Doctor ok, app aberto com `<agent-device> open com.clubedojogo.mobile.dev --relaunch`, modo demonstração ativo e `Votação rápida` fechada. Hoje o defeito da tela travada (SKILL.md) bloqueia esta receita depois desse fechamento.
+- Doctor ok, app aberto com `<agent-device> open com.clubedojogo.mobile.dev --relaunch`, modo demonstração ativo e `Votação rápida` fechada. Esta receita não foi verificada: com toques do agent-device, a tela principal não responde depois desse fechamento (observação reproduzida no SKILL.md, ainda sem toque humano).
 
 - **Abrir a confirmação.** Toque `Comecei`. Rode `<agent-device> snapshot -i` e depois `<agent-device> press <ref de Comecei> --settle`. A folha `Marcar como Comecei` aparece.
 - **Cancelar.** Rode `<agent-device> press <ref de Cancelar> --settle`. A folha fecha e `Comecei` continua não selecionado.
