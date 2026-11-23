@@ -6,6 +6,7 @@ set -euo pipefail
 
 ROOT=$(git rev-parse --show-toplevel)
 EVIDENCE_BASE="${VERIFY_MOBILE_EVIDENCE_BASE:-$ROOT/evidence/verify-clube-do-jogo-mobile}"
+case "$EVIDENCE_BASE" in /*) ;; *) EVIDENCE_BASE="$PWD/$EVIDENCE_BASE" ;; esac
 STATE_BASE="$ROOT/state/verify-clube-do-jogo-mobile"
 # O lock é do aparelho, não do checkout: cada thread do T3 tem seu worktree, e todas veem esta pasta.
 LOCK_BASE="${XDG_STATE_HOME:-$HOME/.local/state}/clube-do-jogo/device-locks"
@@ -67,7 +68,7 @@ parse() {
 
 # Um id é um nome de pasta simples: sem barra, sem começar por ponto, e nunca a pasta do cache.
 check_run_id() {
-  [[ "$RUN_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] && [ "$RUN_ID" != builds ] || die "RUN_ID inválido: $RUN_ID"
+  [[ "$RUN_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] && [ "$(printf %s "$RUN_ID" | tr "[:upper:]" "[:lower:]")" != builds ] || die "RUN_ID inválido: $RUN_ID"
 }
 
 latest_run() {
@@ -78,6 +79,8 @@ require_run() {
   [ -n "$RUN_ID" ] || RUN_ID=$(latest_run)
   [ -n "$RUN_ID" ] || die "nenhum run; rode launch primeiro"
   check_run_id
+  # A base também não pode ser symlink: realpath dos dois lados passaria pelo mesmo link.
+  [ ! -L "$ROOT/state" ] && [ ! -L "$STATE_BASE" ] || die "$STATE_BASE (ou state/) é symlink; recuso"
   STATE="$STATE_BASE/$RUN_ID"
   [ -d "$STATE" ] && [ ! -L "$STATE" ] || die "run $RUN_ID não existe em $STATE_BASE"
   [ "$(cd "$STATE" && pwd -P)" = "$(cd "$STATE_BASE" && pwd -P)/$RUN_ID" ] || die "estado do run fora de $STATE_BASE: $STATE"
