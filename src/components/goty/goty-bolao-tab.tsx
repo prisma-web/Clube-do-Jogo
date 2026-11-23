@@ -1015,7 +1015,7 @@ function CategoryCard({
               aria-pressed={isSelected}
               onClick={() => void onSelect(nominee.id)}
               className={cn(
-                'group relative flex flex-col overflow-hidden rounded-2xl border text-left transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f1d37e] disabled:cursor-default',
+                'group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border text-left transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f1d37e] disabled:cursor-default',
                 isSelected
                   ? 'border-[#f0cf72] bg-[#1d180d] shadow-[0_0_0_1px_rgba(240,207,114,0.4),0_14px_30px_rgba(218,176,72,0.18)]'
                   : 'border-white/[0.08] bg-[#13121a] hover:border-[#dfc06c]/40 hover:-translate-y-0.5',
@@ -1044,12 +1044,12 @@ function CategoryCard({
                 )}
               </div>
 
-              <div className="flex flex-1 flex-col justify-between p-2.5">
-                <strong className="line-clamp-2 text-xs font-extrabold leading-snug text-[#fbf5e3]">
+              <div className="flex min-w-0 flex-1 flex-col justify-between p-2.5">
+                <strong className="line-clamp-2 break-words text-xs font-extrabold leading-snug text-[#fbf5e3]">
                   {nominee.title}
                 </strong>
                 {nominee.subtitle && (
-                  <span className="mt-1 line-clamp-1 text-[10px] font-medium text-[#9f937a]">
+                  <span className="mt-1 line-clamp-1 break-words text-[10px] font-medium text-[#9f937a]">
                     {nominee.subtitle}
                   </span>
                 )}

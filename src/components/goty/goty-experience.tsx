@@ -64,7 +64,7 @@ export function GotyExperience() {
     { staleTime: 20_000 },
   );
 
-  // Em produção com Supabase + IGDB, tenta preencher capas ausentes em segundo plano uma vez por sessão
+  // Em produção com Supabase + IGDB, preenche em lotes todas as capas ausentes em segundo plano
   useEffect(() => {
     if (isDemo || !query.data || autoCoverTriggered.current) return;
     const hasUnresolvedGameCovers = query.data.categories.some(category =>
@@ -72,18 +72,29 @@ export function GotyExperience() {
     );
     if (!hasUnresolvedGameCovers) return;
     autoCoverTriggered.current = true;
-    void apiFetch('/api/goty/resolve-covers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ limit: 15 }),
-    })
-      .then(res => (res.ok ? res.json() : null))
-      .then(payload => {
-        if (payload && typeof payload.updated === 'number' && payload.updated > 0) {
-          void query.refresh();
+
+    let cancelled = false;
+    void (async () => {
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        if (cancelled) return;
+        const response = await apiFetch('/api/goty/resolve-covers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ limit: 20 }),
+        }).catch(() => null);
+        if (!response?.ok) return;
+        const payload = await response.json().catch(() => null) as { updated?: number; remaining?: number } | null;
+        if (!payload) return;
+        if (typeof payload.updated === 'number' && payload.updated > 0 && !cancelled) {
+          await query.refresh();
         }
-      })
-      .catch(() => undefined);
+        if (!payload.remaining || payload.remaining <= 0) return;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isDemo, query]);
 
   const state = query.data;
@@ -299,17 +310,22 @@ export function GotyExperience() {
       return;
     }
     await runOperation('Atualizando capas dos indicados via IGDB…', async () => {
-      const response = await apiFetch('/api/goty/resolve-covers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ limit: 30 }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Não foi possível atualizar as capas.');
+      let totalUpdated = 0;
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        const response = await apiFetch('/api/goty/resolve-covers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ limit: 25 }),
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Não foi possível atualizar as capas.');
+        totalUpdated += Number(payload.updated || 0);
+        if (!payload.remaining || payload.remaining <= 0) break;
+      }
       await query.refresh();
       notify(
-        payload.updated > 0
-          ? `${payload.updated} capas atualizadas com sucesso`
+        totalUpdated > 0
+          ? `${totalUpdated} capas atualizadas com sucesso`
           : 'Todas as capas disponíveis já estão sincronizadas',
       );
     });

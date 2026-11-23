@@ -59,8 +59,8 @@ export function GotyPosterArt({
   className?: string;
   compact?: boolean;
 }) {
-  const [failed, setFailed] = useState(false);
-  const showImage = Boolean(imageUrl && !failed);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const showImage = Boolean(imageUrl && failedUrl !== imageUrl);
   const palette = POSTER_PALETTES[hashString(title) % POSTER_PALETTES.length];
 
   if (showImage && imageUrl) {
@@ -70,7 +70,7 @@ export function GotyPosterArt({
           src={imageUrl}
           alt={title}
           loading="lazy"
-          onError={() => setFailed(true)}
+          onError={() => setFailedUrl(imageUrl)}
           className="size-full object-cover transition duration-500 ease-out group-hover:scale-[1.04]"
         />
         <div
@@ -84,7 +84,7 @@ export function GotyPosterArt({
   return (
     <div
       className={cn(
-        'relative flex flex-col justify-between overflow-hidden bg-gradient-to-br p-3 text-left',
+        'relative flex min-w-0 flex-col justify-between overflow-hidden bg-gradient-to-br p-3 text-left',
         palette,
         className,
       )}
@@ -105,14 +105,14 @@ export function GotyPosterArt({
         )}
       />
 
-      <div className="relative z-10 flex items-center justify-between gap-1">
-        <span className="inline-flex items-center gap-1 rounded-full border border-[#dfc06c]/25 bg-black/45 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-[#efd58b]">
-          <KindIcon kind={kind} className="size-2.5" />
-          {compact ? '26' : 'TGA 26'}
+      <div className="relative z-10 flex min-w-0 items-center justify-between gap-1">
+        <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-[#dfc06c]/25 bg-black/45 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-[#efd58b]">
+          <KindIcon kind={kind} className="size-2.5 shrink-0" />
+          <span className="truncate">{compact ? '26' : 'TGA 26'}</span>
         </span>
       </div>
 
-      <div className="relative z-10 my-auto py-1">
+      <div className="relative z-10 my-auto min-w-0 w-full py-1">
         {!compact && (
           <div className="mb-1 text-[28px] font-black leading-none tracking-tighter text-[#dfc06c]/25 select-none">
             {monogram(title)}
@@ -120,14 +120,14 @@ export function GotyPosterArt({
         )}
         <p
           className={cn(
-            'font-black leading-tight tracking-tight text-[#fbf5e3]',
-            compact ? 'line-clamp-2 text-[11px]' : 'line-clamp-3 text-sm sm:text-[15px]',
+            'w-full whitespace-normal break-words font-black leading-tight tracking-tight text-[#fbf5e3]',
+            compact ? 'line-clamp-2 text-[11px]' : 'line-clamp-3 text-xs sm:text-sm',
           )}
         >
           {title}
         </p>
         {!compact && subtitle && (
-          <p className="mt-1 line-clamp-1 text-[10px] font-semibold text-[#cbb98a]/80">
+          <p className="mt-1 line-clamp-2 w-full whitespace-normal break-words text-[10px] font-semibold leading-snug text-[#cbb98a]/80">
             {subtitle}
           </p>
         )}
