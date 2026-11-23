@@ -16,6 +16,7 @@ import { CosmicAmbienceController } from './cosmic-ambience-controller';
 import { CosmicBackdrop } from './cosmic-backdrop';
 import { CosmicInteractionSounds } from './cosmic-interaction-sounds';
 import { QuickVotingDeck } from './quick-voting-deck';
+import { GotyFloatingBadge } from './goty/goty-floating-badge';
 
 const navigation: Array<{ href: string; label: string; mobileLabel?: string; icon: typeof Gamepad2 }> = [
   { href: '/jogo-do-mes', label: 'Jogo do mês', icon: Gamepad2 },
@@ -99,7 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     const warmApp = () => {
       if (cancelled) return;
-      [...navigation.map(item => item.href), '/configuracoes'].forEach(route => router.prefetch(route));
+      [...navigation.map(item => item.href), '/configuracoes', '/goty-2026'].forEach(route => router.prefetch(route));
       const supabase = createClient();
       void prefetchStaleQuery(`profile-games:${user.id}`, () => fetchProfileWithGames(supabase, user.id, isDemo), 120_000).catch(() => undefined);
       void prefetchStaleQuery(
@@ -212,6 +213,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       <main className="relative z-10 mx-auto w-full max-w-5xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-8 sm:pt-7 min-[960px]:ml-56 min-[960px]:w-[calc(100%-14rem)] min-[960px]:max-w-none min-[960px]:pb-12 min-[960px]:pt-8">{children}</main>
       {SHOW_COSMIC_BACKGROUND_VIEW && theme === 'cosmic-campfire' && <button type="button" onClick={() => setBackgroundOnly(true)} aria-label="Apreciar plano de fundo" title="Apreciar plano de fundo" className="cosmic-background-view fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-4 z-40 grid size-10 place-items-center border min-[960px]:bottom-5"><Telescope className="size-4" /></button>}
+      <GotyFloatingBadge navVisible={navVisible} />
       <nav aria-label="Navegação principal" className={cn('theme-nav fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-2xl border-t border-white/[0.08] pb-[max(.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-2xl transition-transform duration-150 ease-[cubic-bezier(.22,1,.36,1)] min-[960px]:hidden', navVisible ? 'translate-y-0' : 'translate-y-[calc(100%+env(safe-area-inset-bottom))]')}>
         <div className="grid grid-cols-5">
           {navigation.map(item => {

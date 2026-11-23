@@ -1,4 +1,13 @@
+import { evaluate2026ReleaseEligibility, type GotyReleaseEligibility } from '@clube-do-jogo/domain';
 import { isOfflineCatalogEnabled, offlineBrowseGames, offlineGameById, offlineGameMugshots, offlineSearchGames, offlineSearchPlatforms } from './igdb-offline';
+
+export interface IGDBGotyGameResult extends IGDBGameResult {
+  release_eligibility: GotyReleaseEligibility;
+  effective_release_year: number | null;
+  effective_release_date: string | null;
+  eligibility_label: string;
+  is_eligible_2026: boolean;
+}
 
 export interface IGDBGameResult {
   id: number;
@@ -46,6 +55,15 @@ interface IGDBGame {
   videos?: Array<{ video_id?: string }>;
   genres?: Array<{ name?: string }>;
   platforms?: Array<{ id?: number; name?: string }>;
+  game_type?: number;
+  game_status?: number;
+  version_parent?: number | null;
+  release_dates?: Array<{
+    date?: number;
+    y?: number;
+    date_format?: number;
+    status?: { name?: string } | number;
+  }>;
 }
 
 interface IGDBPlatform {
@@ -399,5 +417,157 @@ export async function getGameByIGDBId(igdbId: number): Promise<IGDBGameResult | 
     trailer_url: trailerUrl,
     genres,
     ...platformData,
+  };
+}
+
+function mapIGDBGotyGame(game: IGDBGame, durationHours = 10, targetYear = 2026): IGDBGotyGameResult {
+  const base = mapIGDBGame(game, durationHours);
+  const evaluation = evaluate2026ReleaseEligibility(
+    {
+      gameType: game.game_type ?? null,
+      gameStatus: game.game_status ?? null,
+      versionParent: game.version_parent ?? null,
+      firstReleaseDate: game.first_release_date ?? null,
+      releaseDates: (game.release_dates || []).map(entry => ({
+        date: entry.date ?? null,
+        y: entry.y ?? null,
+        dateFormat: entry.date_format ?? null,
+        statusName: typeof entry.status === 'object' && entry.status ? (entry.status.name ?? null) : null,
+      })),
+    },
+    targetYear,
+  );
+  return {
+    ...base,
+    release_year: evaluation.effectiveYear ?? base.release_year,
+    release_eligibility: evaluation.eligibility,
+    effective_release_year: evaluation.effectiveYear,
+    effective_release_date: evaluation.effectiveDate,
+    eligibility_label: evaluation.label,
+    is_eligible_2026: evaluation.eligible,
+  };
+}
+
+export async function searchGoty2026GamesWithIGDB(options: {
+  query?: string;
+  includeAllYears?: boolean;
+  limit?: number;
+  year?: number;
+}): Promise<IGDBGotyGameResult[]> {
+  const targetYear = options.year ?? 2026;
+  const limit = Math.max(1, Math.min(30, options.limit ?? 18));
+  const trimmed = options.query?.trim() || '';
+
+  if (isOfflineCatalogEnabled()) {
+    const matches = trimmed
+      ? offlineSearchGames(trimmed)
+      : offlineBrowseGames({ year: options.includeAllYears ? undefined : targetYear, limit });
+    return matches
+      .map(game => {
+        const eligible = game.release_year === targetYear;
+        return {
+          ...game,
+          release_eligibility: eligible ? 'commercial_2026' : 'ineligible',
+          effective_release_year: game.release_year,
+          effective_release_date: game.release_year ? `${game.release_year}` : null,
+          eligibility_label: eligible ? `Lançamento ${targetYear}` : (game.release_year ? `Lançado em ${game.release_year}` : 'Sem data confirmada'),
+          is_eligible_2026: eligible,
+        } satisfies IGDBGotyGameResult;
+      })
+      .filter(game => options.includeAllYears || game.is_eligible_2026)
+      .slice(0, limit);
+  }
+
+  const clientId = process.env.IGDB_CLIENT_ID;
+  if (!clientId) throw new Error('IGDB_CLIENT_ID não configurado.');
+  const token = await getTwitchToken();
+
+  const start2026 = Math.floor(new Date(Date.UTC(targetYear, 0, 1)).getTime() / 1000);
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const end2026 = Math.min(nowSeconds, Math.floor(new Date(Date.UTC(targetYear + 1, 0, 1)).getTime() / 1000));
+
+  const conditions = [
+    'version_parent = null',
+    'cover != null',
+    'game_type = (0, 4, 8, 9, 10)',
+  ];
+
+  if (!trimmed && !options.includeAllYears) {
+    conditions.push(`release_dates.date >= ${start2026}`, `release_dates.date <= ${end2026}`);
+  } else if (trimmed && !options.includeAllYears) {
+    // Inclui jogos com lançamento em 2026 ou graduação de Early Access em 2026 via release_dates.y
+    conditions.push(`release_dates.y = ${targetYear}`);
+  }
+
+  const searchClause = trimmed ? `search "${escapeSearchQuery(trimmed)}";` : '';
+  const sortClause = trimmed ? '' : 'sort total_rating_count desc;';
+  const fetchLimit = Math.min(50, limit * 2);
+
+  const response = await fetch('https://api.igdb.com/v4/games', {
+    method: 'POST',
+    headers: {
+      'Client-ID': clientId,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'text/plain',
+    },
+    body: `${searchClause}
+      fields name, summary, cover.image_id, screenshots.image_id, videos.video_id, genres.name, platforms.id, platforms.name, first_release_date, total_rating, rating, aggregated_rating, total_rating_count, game_type, game_status, version_parent, release_dates.date, release_dates.y, release_dates.date_format, release_dates.status.name;
+      where ${conditions.join(' & ')};
+      ${sortClause}
+      limit ${fetchLimit};
+    `,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Erro na busca GOTY 2026 IGDB: ${await response.text()}`);
+  }
+
+  const games: IGDBGame[] = await response.json();
+  if (!games || games.length === 0) return [];
+
+  const durations = await fetchGameDurations(clientId, token, games.map(game => game.id));
+  const evaluated = games.map(game => mapIGDBGotyGame(game, durations.get(game.id), targetYear));
+  const filtered = options.includeAllYears ? evaluated : evaluated.filter(game => game.is_eligible_2026);
+  return filtered.slice(0, limit);
+}
+
+export async function lookupIGDBCoverByTitle(title: string): Promise<{ igdb_id: number; image_url: string; title: string } | null> {
+  if (isOfflineCatalogEnabled()) {
+    const hit = offlineSearchGames(title)[0];
+    return hit && hit.image_url ? { igdb_id: hit.id, image_url: hit.image_url, title: hit.title } : null;
+  }
+  const clientId = process.env.IGDB_CLIENT_ID;
+  const clientSecret = process.env.IGDB_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+
+  const token = await getTwitchToken();
+  const response = await fetch('https://api.igdb.com/v4/games', {
+    method: 'POST',
+    headers: {
+      'Client-ID': clientId,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'text/plain',
+    },
+    body: `
+      search "${escapeSearchQuery(title)}";
+      fields id, name, cover.image_id, version_parent;
+      where version_parent = null & cover != null;
+      limit 3;
+    `,
+  });
+
+  if (!response.ok) return null;
+  const games: IGDBGame[] = await response.json();
+  if (!games?.length) return null;
+
+  const normalizedTarget = title.trim().toLowerCase();
+  const exact = games.find(item => item.name.trim().toLowerCase() === normalizedTarget);
+  const chosen = exact || games[0];
+  if (!chosen?.cover?.image_id) return null;
+
+  return {
+    igdb_id: chosen.id,
+    title: chosen.name,
+    image_url: `https://images.igdb.com/igdb/image/upload/t_cover_big/${chosen.cover.image_id}.jpg`,
   };
 }

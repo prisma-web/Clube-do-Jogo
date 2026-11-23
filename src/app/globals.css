@@ -4069,3 +4069,84 @@ iframe {
   .discover-card-menu,
   .rating-stars { transition: none !important; }
 }
+
+/* GOTY 2026 — Palco de premiação (obsidiana + ouro metálico), preservado em todos os temas */
+@keyframes gotyFabHalo {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgb(227 193 104 / 30%);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgb(227 193 104 / 0%);
+  }
+}
+
+.goty-fab-glow {
+  animation: gotyFabHalo 3.4s ease-in-out infinite;
+}
+
+:root[data-reduce-motion='true'] .goty-fab-glow {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goty-fab-glow {
+    animation: none !important;
+  }
+}
+
+:root[data-theme] .goty-stage {
+  border-color: rgb(223 192 108 / 26%) !important;
+  background-color: #07070b !important;
+  background-image: radial-gradient(circle at 50% 0%, rgb(223 180 81 / 9%), transparent 56%) !important;
+  color: #fbf5e3 !important;
+  box-shadow: 0 28px 90px rgb(0 0 0 / 72%) !important;
+}
+
+:root[data-theme] .goty-stage .goty-surface {
+  border-color: rgb(223 192 108 / 22%) !important;
+  background-color: #100f15 !important;
+  background-image: none !important;
+  color: #fbf5e3 !important;
+  box-shadow: 0 14px 36px rgb(0 0 0 / 42%) !important;
+}
+
+:root[data-theme] .goty-stage .goty-tabs {
+  border-color: rgb(223 192 108 / 25%) !important;
+  background-color: #100f16 !important;
+}
+
+:root[data-theme] .goty-stage [role='tab'] {
+  font-size: 0.75rem !important;
+  text-transform: none !important;
+  letter-spacing: -0.01em !important;
+}
+
+:root[data-theme] .goty-stage button {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+:root[data-theme] .goty-dialog {
+  border-color: rgb(223 192 108 / 30%) !important;
+  background-color: #0b0a0f !important;
+  background-image: none !important;
+  color: #faf4e4 !important;
+  box-shadow: 0 28px 90px rgb(0 0 0 / 82%) !important;
+}
+
+:root[data-theme] .goty-dialog .app-dialog-header {
+  border-color: rgb(223 192 108 / 16%) !important;
+  background-color: #111017 !important;
+  background-image: none !important;
+}
+
+:root[data-theme] .goty-dialog .app-dialog-header h2,
+:root[data-theme] .goty-dialog [class*='DialogTitle'] {
+  color: #fff9e8 !important;
+}
+
+:root[data-theme] .goty-fab {
+  border-color: rgb(227 193 104 / 45%) !important;
+  background-color: rgb(12 11 16 / 95%) !important;
+  color: #faf2d8 !important;
+}

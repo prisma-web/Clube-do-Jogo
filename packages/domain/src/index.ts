@@ -8,6 +8,8 @@ export * from './demo';
 export * from './game-cover';
 export * from './avatar';
 export * from './product-updates';
+export * from './goty';
+export * from './goty-data-2026';
 export { DEFAULT_THEME, getSelectableThemes, isThemeId, themes, THEME_STORAGE_KEY } from './themes';
 export type { ThemeAvailability, ThemeDefinition, ThemeId } from './themes';
 export { isRewardEligibility, themeIdFromReward, unlockedThemeIds } from './rewards';
