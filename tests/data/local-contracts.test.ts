@@ -321,6 +321,29 @@ test('voto permite primeiro, troca e remoção e rejeita outro mês', { skip: co
   assert.equal(removed, null);
 });
 
+test('upsert do web troca voto existente e não move nem transfere o voto', { skip: config ? false : localSkip, concurrency: false }, async () => {
+  const { accounts: current } = await readyOwnData();
+  const { member } = current;
+  const upsertVote = (voteMonth: string, choice: 'would_play' | 'would_not_play') => member.client.from('votes').upsert(
+    { user_id: member.id, game_id: testGameId, vote_month: voteMonth, choice, reason: null, reason_text: null },
+    { onConflict: 'user_id,game_id,vote_month' },
+  );
+
+  try {
+    noError(await upsertVote(testVoteMonth, 'would_not_play'), 'primeiro upsert');
+    noError(await upsertVote(testVoteMonth, 'would_play'), 'troca de voto por upsert');
+    const changed = noError(await member.client.from('votes').select('choice').eq('user_id', member.id).eq('game_id', testGameId).eq('vote_month', testVoteMonth).single(), 'voto trocado');
+    assert.equal(changed?.choice, 'would_play');
+
+    const updateOwnVote = (values: { vote_month?: string; user_id?: string }) => member.client.from('votes').update(values)
+      .eq('user_id', member.id).eq('game_id', testGameId).eq('vote_month', testVoteMonth);
+    rejected(await updateOwnVote({ vote_month: previousMonth(testVoteMonth) }), 'voto movido para fora do mês ativo');
+    rejected(await updateOwnVote({ user_id: current.other.id }), 'voto transferido para outro membro');
+  } finally {
+    await member.client.from('votes').delete().eq('user_id', member.id).eq('game_id', testGameId).eq('vote_month', testVoteMonth);
+  }
+});
+
 test('progresso persiste limites 0 e 10 e rejeita fora da faixa', { skip: config ? false : localSkip, concurrency: false }, async () => {
   const { accounts: current } = await readyOwnData();
   const { member } = current;
