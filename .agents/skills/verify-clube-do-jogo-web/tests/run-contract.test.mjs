@@ -287,7 +287,9 @@ test('launch stops an unpublished process when the checkout dirties after spawn'
     f.initGit();
     const bin = join(f.root, 'bin');
     mkdirSync(bin, { recursive: true });
+    // The delay lands the write after spawn returns, so only a check made once the port is bound sees it.
     writeFileSync(join(bin, 'npm'), `#!/bin/sh
+sleep 1
 printf '%s\\n' 'changed after spawn' > fixture.txt
 exec ${process.execPath} -e 'const http = require("node:http"); const args = process.argv.slice(1); const port = Number(args[args.indexOf("--port") + 1]); http.createServer((request, response) => { response.end("Clube do Jogo"); }).listen(port, "127.0.0.1"); setInterval(() => {}, 1000);' "$@"
 `);

@@ -30,7 +30,7 @@ Não use `pkill`, `killall` nem limpeza ampla de diretórios.
 $H launch --port 3102
 ```
 
-Sobe `npm run dev -- --hostname 127.0.0.1 --port <port>` em grupo de processos próprio, com ambiente reduzido a uma allowlist sem segredos, `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` vazios e `NEXT_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE=false`. Só publica o manifesto depois de confirmar cwd, PGID e identidade (boot + instante de criação) do processo, e só termina quando `/jogo-do-mes` responde. Imprime `runId`, `pid`, `port`, `baseUrl` e `evidenceDir`. A primeira compilação do Next leva dezenas de segundos.
+Sobe `npm run dev -- --hostname 127.0.0.1 --port <port>` em grupo de processos próprio, com ambiente reduzido a uma allowlist sem segredos, `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` vazios e `NEXT_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE=false`. Só publica o manifesto depois de confirmar cwd, PGID e identidade (boot + instante de criação) do processo e de ver o grupo do run dono da porta com o checkout ainda limpo, e só termina quando `/jogo-do-mes` responde. Imprime `runId`, `pid`, `port`, `baseUrl` e `evidenceDir`. A primeira compilação do Next leva dezenas de segundos.
 
 Se falhar, rode `cleanup --run-id <id>` antes de tentar de novo; o log da tentativa fica em `evidence/.../launch.log`.
 

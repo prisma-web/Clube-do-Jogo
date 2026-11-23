@@ -350,6 +350,22 @@ async function waitForProcessInfo(pid, timeoutMs = 5_000) {
   return info;
 }
 
+/** Waits until only processes of the group `pgid` listen on `port`; returns an error message or null. */
+async function waitForPortBind(port, pgid, timeoutMs = 60_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const owners = portPids(port);
+    const group = processGroupPids(pgid);
+    if (!owners || !group) return `Não foi possível inspecionar a porta ${port} ou o grupo ${pgid}`;
+    const foreign = owners.filter(pid => !group.includes(pid));
+    if (foreign.length) return `A porta ${port} foi ocupada pelos PIDs externos ${foreign.join(', ')}`;
+    if (owners.length) return null;
+    if (!group.length) return `O processo ${pgid} terminou sem abrir a porta ${port}`;
+    await new Promise(resolvePromise => setTimeout(resolvePromise, 250));
+  }
+  return `Timeout aguardando o processo ${pgid} abrir a porta ${port}`;
+}
+
 async function terminateUnpublishedChild(child) {
   if (!child?.pid) return;
   const info = processInfo(child.pid);
@@ -440,6 +456,13 @@ async function launchManifest(options) {
   if (!info.alive || info.cwd !== rootDir || info.pgid !== child.pid || !info.identity) {
     await terminateUnpublishedChild(child);
     fail(`Não foi possível estabelecer a identidade do processo ${child.pid} antes do manifesto`);
+  }
+  // The after-launch checkout check runs once the run's group owns the port, so
+  // anything the dev command writes before it starts serving is caught here.
+  const bindError = await waitForPortBind(port, child.pid);
+  if (bindError) {
+    await terminateUnpublishedChild(child);
+    fail(`${bindError} antes do manifesto`);
   }
   const initialPids = processGroupPids(info.pgid);
   if (!initialPids || !initialPids.includes(child.pid)) {
