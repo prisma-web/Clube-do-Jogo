@@ -14,7 +14,7 @@ test('never auto-shows again once the member finished the update', () => {
   assert.equal(shouldShowProductUpdate({ loading: false, seen: true, reopenSignal: 0, closedSignal: -1 }), false);
 });
 
-test('closing without finishing hides the sheet for the rest of the session', () => {
+test('a closed sheet stays hidden even before the seen flag is persisted', () => {
   const closedAfterDismiss = { loading: false, seen: false, reopenSignal: 0, closedSignal: 0 };
   assert.equal(shouldShowProductUpdate(closedAfterDismiss), false);
 });

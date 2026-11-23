@@ -66,13 +66,22 @@ export function ProductUpdateDialog({ update = currentProductUpdate }: { update?
     });
   }, [open, update.steps]);
 
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (nextOpen) return;
+    try {
+      window.localStorage.setItem(storageKey, 'true');
+    } catch {
+      // Storage unavailable (private mode, quota): the modal still closes.
+    }
+  }
+
   function finishUpdate() {
-    window.localStorage.setItem(storageKey, 'true');
-    setOpen(false);
+    handleOpenChange(false);
   }
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
+    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="update-notes-overlay animated-overlay fixed inset-0 z-[380] bg-black/80 backdrop-blur-md" />
         <Dialog.Content className="update-notes-dialog fixed left-1/2 top-1/2 z-[381] flex max-h-[min(92dvh,820px)] w-[calc(100%-1rem)] max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[30px] border border-white/10 bg-zinc-950 shadow-[0_32px_100px_rgba(0,0,0,.72)] outline-none sm:w-[calc(100%-2rem)]">

@@ -1,7 +1,7 @@
 export interface ProductUpdateVisibilityState {
   /** True while the "seen" flag is still hydrating from storage. */
   loading: boolean;
-  /** Persisted flag: the member reached the final step and finished the update once. */
+  /** Persisted flag: the member closed or finished the update once. */
   seen: boolean;
   /** Monotonically increasing counter, bumped once per explicit "ver novamente" request. */
   reopenSignal: number;

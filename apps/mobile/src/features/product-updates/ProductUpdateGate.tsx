@@ -23,15 +23,18 @@ export function ProductUpdateGate() {
     autoOpenEnabled: isProductUpdateAutoOpenEnabled(),
   });
 
+  // Any dismissal counts as seen: closing on the first step must not auto-show it again.
+  const dismiss = () => {
+    setSeen(true);
+    setClosedSignal(reopenSignal);
+  };
+
   return (
     <ProductUpdateSheet
       update={currentProductUpdate}
       visible={visible}
-      onClose={() => setClosedSignal(reopenSignal)}
-      onFinish={() => {
-        setSeen(true);
-        setClosedSignal(reopenSignal);
-      }}
+      onClose={dismiss}
+      onFinish={dismiss}
     />
   );
 }
