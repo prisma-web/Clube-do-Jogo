@@ -33,7 +33,7 @@ O script precisa de Java 11 ou mais novo, e de rede na primeira vez. Ele baixa o
 
 | Checagem | Config | Registrado |
 |---|---|---|
-| `base` | `model/PendingNotes.cfg` | passa |
+| `base` | `model/PendingNotes.cfg` | passa, só sob as suposições de "Escopo e limites" (uma tela de anotações por jogo, saída sem envio aguardando). Não é garantia sobre o app: o F1 viola as duas. |
 | `finding-F1-two-screens` | `model/TwoScreens.cfg` | viola `NoLostNote`, achado F1 |
 | `finding-F1-remount-in-flight` | `model/RemountInFlight.cfg` | viola `NoLostNote`, achado F1 |
 | `mutant-drop-on-conflict` | base com o conflito descartando a entrada | viola |
@@ -47,10 +47,13 @@ Os mutantes provam que a propriedade ainda consegue falhar. Se um mutante passar
 | `0` | Todas as checagens bateram com o registro. |
 | `1` | Uma checagem diferiu, na linha `DIFERE`. A saída completa do TLC fica em `.cache/<checagem>.out`. |
 | `2` | O TLC bateu com o registro, mas um arquivo coberto mudou desde o sync commit. |
+| `64` | Argumento inválido. |
+
+Java ausente ou sync commit inexistente também saem com `1`. Antes de tratar um `1` como divergência, confira se a saída tem a linha `DIFERE`. O drift só compara texto: `--reviewed` sem ler o diff e ajustar o modelo não prova nada.
 
 Na saída `2`, leia `git diff <sync> -- <arquivos>`. Se o diff tocar algo que o mapa abaixo descreve, ajuste o modelo primeiro. Depois rode de novo com `--reviewed`.
 
-`--deep` roda o `base` com `MaxRevs = 3`. São uns 10 milhões de estados, e levou 68 s num M1 Pro. Rode antes de mover o sync commit.
+`--deep` roda o `base` com `MaxRevs = 3`. São uns 10 milhões de estados, e levou de 68 s a 104 s num M1 Pro. Rode antes de mover o sync commit.
 
 ## Ler um resultado
 
@@ -77,7 +80,7 @@ O caminho 1 tem duas telas montadas. Ele vem de `TwoScreens.cfg`, tem 11 estados
 4. O `flushOne(A)` da aba falha. `applyQueue(markAttempt(queueRef.current, A))` grava a cópia da aba, que é `[A]`.
 5. O AsyncStorage passa a conter só `[A]`. B existe apenas na memória de `jogos/[id]`, marcada como "enviando…".
 
-Se o app for fechado neste ponto, B some. O mesmo defeito leva a uma perda permanente sem fechar o app, num caminho deduzido deste trace e não checado à parte. O usuário volta para a aba, e `jogos/[id]` desmonta e perde os listeners. Quando a conexão volta, a aba envia A, grava `[]`, e nenhuma instância envia B.
+Se o app for fechado neste ponto, B some. Sem fechar o app, o `flushOne(B)` de `jogos/[id]` ainda regrava `[A, B]` quando falhar, então a perda nesse ponto é uma janela. Ela fica permanente quando a resposta de A, na aba, chega depois da de B e `jogos/[id]` desmonta antes de outro flush: a aba grava a cópia dela sem B, e nenhuma instância montada envia B. A revisão reproduziu esse caso no modelo, sem crash, com um invariante extra numa cópia de rascunho.
 
 O caminho 2 tem uma tela só. Ele vem de `RemountInFlight.cfg` e tem 12 estados. O usuário envia A, sai da tela antes de a resposta chegar, reabre a tela e envia B. A resposta atrasada de A roda no hook desmontado e grava `[A]` por cima de `[A, B]`.
 
@@ -136,6 +139,7 @@ Falhas de rede e respostas perdidas não têm limite. O `base` supõe uma tela d
 O modelo deixa de fora:
 
 - A passagem do rascunho para a fila. `submit()` chama `submitCreate`, que grava na chave da fila, e depois `clearDraft`, que remove a chave do rascunho. As duas chaves têm cadeias independentes. Se a cadeia da fila estiver ocupada, a remoção do rascunho pode chegar antes da gravação da fila, e um crash nessa janela perde o texto. Esta análise vem da leitura do código e não foi verificada. A janela dura uma ida e volta ao AsyncStorage.
+- A recarga do efeito de carga com o hook montado. O efeito (`discussion-queries.ts:696-720`) depende de `context`, um `useMemo` sobre o `state` do provider (`app-provider.tsx:360`). Qualquer `setState` do provider, como `refresh` ou hidratação de sessão, reroda `getItem` e sobrescreve `queueRef` com o composer ainda habilitado. Um envio feito durante essa ida e volta ao AsyncStorage some da memória. A revisão acrescentou uma ação `Reload` numa cópia de rascunho e o `base` passou a violar `NoLostNote`. É um candidato a achado, ainda não modelado no commit.
 - A troca de sessão ou de usuário, com `sessionEpoch` e `isSessionCurrent`. O modelo fixa um usuário logado.
 - `parseQueue` com dado corrompido, `generation` e `lastError`. Os testes unitários cobrem esses pontos, e o modelo os abstrai.
 - O que a lista mostra, em `mergePendingIntoList`, a ordem e as duplicatas no servidor, e o apagar nota, em `useDeleteNote`.
@@ -153,5 +157,6 @@ apps/mobile/src/features/notes/PrivateNotes.tsx PrivateNotes key, NotesEditor bu
 apps/mobile/app/(app)/(tabs)/jogo-do-mes.tsx PrivateNotes na sub-aba Anotações, cartaz que abre jogos/[id]
 apps/mobile/app/(app)/jogos/[id].tsx PrivateNotes em "Minhas anotações"
 apps/mobile/app/(app)/_layout.tsx Stack em que jogos/[id] empilha sobre (tabs), que continua montado
+apps/mobile/src/state/app-provider.tsx context useMemo que reroda o efeito de carga (fora do modelo, ver Escopo)
 packages/data/src/notes.ts createNotesClient create com matchesSavedNote, update com expectedUpdatedAt
 ```
