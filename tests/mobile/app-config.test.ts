@@ -8,7 +8,7 @@ const expoBin = fileURLToPath(new URL('../../node_modules/expo/bin/cli', import.
 
 function readConfig(variables: Record<string, string> = {}) {
   const env = { ...process.env };
-  for (const key of ['APP_VARIANT', 'EAS_BUILD_PROFILE', 'EXPO_APPLICATION_ID', 'EXPO_EAS_PROJECT_ID', 'EXPO_LOCAL_HTTP', 'EXPO_PUBLIC_SITE_URL']) {
+  for (const key of ['APP_VARIANT', 'APP_VERSION', 'EAS_BUILD_PROFILE', 'EXPO_APPLICATION_ID', 'EXPO_EAS_PROJECT_ID', 'EXPO_LOCAL_HTTP', 'EXPO_PUBLIC_SITE_URL']) {
     delete env[key];
   }
   return spawnSync(process.execPath, [expoBin, 'config', '--type', 'public', '--json'], {
@@ -101,6 +101,60 @@ test('HTTP local exige opt-in de desenvolvimento e não entra em preview', () =>
   });
   assert.notEqual(preview.status, 0);
   assert.match(preview.stderr, /EXPO_LOCAL_HTTP só pode ser usado/);
+});
+
+function readDistributedConfig(variant: string, variables: Record<string, string> = {}) {
+  return readConfig({ APP_VARIANT: variant, EXPO_APPLICATION_ID: `com.example.club.${variant}`, ...variables });
+}
+
+test('versão vem de APP_VERSION e o versionCode do Android deriva dela', () => {
+  const fallback = readConfig();
+  assert.equal(fallback.status, 0, fallback.stderr);
+  assert.equal(JSON.parse(fallback.stdout).version, '0.1.0');
+  assert.equal(JSON.parse(fallback.stdout).android.versionCode, 100);
+
+  const cases: Array<[string, number]> = [['1.2.3', 10203], ['0.10.0', 1000], ['2.0.99', 20099], ['10.99.99', 109999]];
+  for (const [version, versionCode] of cases) {
+    const result = readDistributedConfig('production', { APP_VERSION: version });
+    assert.equal(result.status, 0, `${version}: ${result.stderr}`);
+    const config = JSON.parse(result.stdout);
+    assert.equal(config.version, version);
+    assert.equal(config.android.versionCode, versionCode, `APP_VERSION=${version}`);
+    assert.equal(config.ios.buildNumber, '1');
+  }
+});
+
+test('builds distribuídos recusam APP_VERSION fora de X.Y.Z com minor e patch abaixo de 100', () => {
+  for (const version of ['1.2', 'v1.2.3', '1.2.3-beta', '1.100.0', '1.2.100', '01.2.3', 'abc']) {
+    for (const variant of ['preview', 'production']) {
+      const result = readDistributedConfig(variant, { APP_VERSION: version });
+      assert.notEqual(result.status, 0, `${variant} aceitou APP_VERSION=${version}`);
+      assert.match(result.stderr, /APP_VERSION/);
+    }
+  }
+});
+
+test('desenvolvimento com APP_VERSION mal formada volta para a versão padrão', () => {
+  const result = readConfig({ APP_VERSION: 'v1.2' });
+  assert.equal(result.status, 0, result.stderr);
+  const config = JSON.parse(result.stdout);
+  assert.equal(config.version, '0.1.0');
+  assert.equal(config.android.versionCode, 100);
+});
+
+test('só a produção checa atualização do APK e pede permissão para instalar pacotes', () => {
+  const production = readDistributedConfig('production');
+  assert.equal(production.status, 0, production.stderr);
+  const config = JSON.parse(production.stdout);
+  assert.deepEqual(config.extra?.apkUpdates, { repo: 'prisma-web/Clube-do-Jogo' });
+  assert.ok(config.android.permissions?.includes('android.permission.REQUEST_INSTALL_PACKAGES'));
+
+  for (const result of [readConfig(), readDistributedConfig('preview')]) {
+    assert.equal(result.status, 0, result.stderr);
+    const other = JSON.parse(result.stdout);
+    assert.equal(other.extra?.apkUpdates, undefined);
+    assert.ok(!(other.android.permissions ?? []).includes('android.permission.REQUEST_INSTALL_PACKAGES'));
+  }
 });
 
 function readIntrospectedSchemes(variables: Record<string, string>) {
