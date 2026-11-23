@@ -1,0 +1,255 @@
+#!/usr/bin/env bash
+# Helper da skill verify-clube-do-jogo-mobile. Rode a partir de qualquer pasta do checkout.
+# Subcomandos: launch, doctor, drive, evidence, cleanup, status. Veja SKILL.md.
+# Não sobe processo de longa duração: build e drive terminam dentro do próprio comando.
+set -euo pipefail
+
+ROOT=$(git rev-parse --show-toplevel)
+EVIDENCE_BASE="$ROOT/evidence/verify-clube-do-jogo-mobile"
+STATE_BASE="$ROOT/state/verify-clube-do-jogo-mobile"
+BUNDLE_ID="com.clubedojogo.mobile.dev"
+
+die() { echo "verify-mobile: $*" >&2; exit 1; }
+log() { echo "verify-mobile: $*" >&2; }
+
+usage() {
+  cat <<'EOF'
+uso:
+  verify-mobile launch   [--run-id ID]
+  verify-mobile doctor   --run-id ID --udid UDID
+  verify-mobile drive    --run-id ID --agent-device CMD --udid UDID FLOW.yaml [-e K=V ...]
+  verify-mobile evidence --run-id ID
+  verify-mobile cleanup  --run-id ID
+  verify-mobile status   [--run-id ID]
+EOF
+  exit 2
+}
+
+RUN_ID="${RUN_ID:-}"
+UDID=""
+AGENT_DEVICE=""
+FLOW=""
+FLOW_ENV=()
+
+parse() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --run-id) RUN_ID="$2"; shift 2 ;;
+      --udid) UDID="$2"; shift 2 ;;
+      --agent-device) AGENT_DEVICE="$2"; shift 2 ;;
+      -e) FLOW_ENV+=(-e "$2"); shift 2 ;;
+      -h|--help) usage ;;
+      -*) die "opção desconhecida: $1" ;;
+      *) FLOW="$1"; shift ;;
+    esac
+  done
+}
+
+latest_run() {
+  /bin/ls -1t "$STATE_BASE" 2>/dev/null | { grep -v -E '^(builds|device-locks)$' || true; } | head -1
+}
+
+require_run() {
+  [ -n "$RUN_ID" ] || RUN_ID=$(latest_run)
+  [ -n "$RUN_ID" ] || die "nenhum run; rode launch primeiro"
+  STATE="$STATE_BASE/$RUN_ID"
+  EVIDENCE="$EVIDENCE_BASE/$RUN_ID"
+  [ -f "$STATE/manifest.env" ] || die "manifesto ausente em $STATE"
+  # shellcheck disable=SC1091
+  . "$STATE/manifest.env"
+}
+
+clean_tree() { [ -z "$(git -C "$ROOT" status --porcelain)" ]; }
+
+build_key() { git -C "$ROOT" ls-tree HEAD apps/mobile packages package.json package-lock.json | shasum -a 256 | cut -c1-16; }
+
+sha256() { shasum -a 256 "$1" | cut -d' ' -f1; }
+
+cmd_launch() {
+  [ "$(uname)" = Darwin ] || die "launch compila iOS e precisa de macOS com Xcode"
+  [ -d "$ROOT/node_modules" ] || die "rode 'npm ci' na raiz do checkout antes"
+  [ -n "$RUN_ID" ] || RUN_ID="$(date +%Y%m%dT%H%M%S)-$$"
+  case "$RUN_ID" in *[!A-Za-z0-9._-]*) die "RUN_ID inválido: $RUN_ID" ;; esac
+  STATE="$STATE_BASE/$RUN_ID"
+  EVIDENCE="$EVIDENCE_BASE/$RUN_ID"
+  clean_tree || die "checkout sujo; o bundle embarcado precisa corresponder a um commit"
+  [ ! -e "$STATE" ] || die "run $RUN_ID já existe"
+  mkdir -p "$STATE" "$EVIDENCE"
+  # Launch que falha antes do manifesto não deixa estado; a evidência (build.log) fica.
+  trap '[ -f "$STATE/manifest.env" ] || rm -rf "$STATE"' EXIT
+  # Pastas que se ignoram sozinhas: nada de evidência ou estado entra no git.
+  echo '*' > "$EVIDENCE_BASE/.gitignore"
+  echo '*' > "$STATE_BASE/.gitignore"
+  local sha key build app
+  sha=$(git -C "$ROOT" rev-parse HEAD)
+  # O cache segue a árvore que entra no app, não o HEAD: um commit só de docs reaproveita o build.
+  key=$(build_key)
+  build="$STATE_BASE/builds/ios-$key"
+  app="$build/ClubedoJogo.app"
+
+  if [ -f "$build/build.env" ] && [ -d "$app" ]; then
+    log "reaproveitando build da árvore $key em $app"
+  else
+    mkdir -p "$build"
+    log "compilando Release iOS (demo, sem Supabase) de $sha; log em $EVIDENCE/build.log"
+    (
+      cd "$ROOT/apps/mobile"
+      # Allowlist: nada do shell (Supabase, API, tokens) entra no bundle.
+      env -i HOME="$HOME" PATH="$PATH" USER="${USER:-}" LANG=en_US.UTF-8 TMPDIR="${TMPDIR:-/tmp}" \
+        CI=1 EXPO_NO_DOTENV=1 APP_VARIANT=development EXPO_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE=false \
+        bash -c '
+          set -euo pipefail
+          echo "== prebuild $(date)"
+          npx expo prebuild --platform ios --no-install
+          echo "== pod install $(date)"
+          (cd ios && pod install)
+          ws=$(ls -d ios/*.xcworkspace | head -1)
+          scheme=$(basename "$ws" .xcworkspace)
+          echo "== xcodebuild $ws $scheme $(date)"
+          xcodebuild -workspace "$ws" -scheme "$scheme" -configuration Release \
+            -sdk iphonesimulator -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath "$1" CODE_SIGNING_ALLOWED=NO build
+          echo "== done $(date)"
+        ' _ "$STATE_BASE/builds/ios-dd"
+    ) > "$EVIDENCE/build.log" 2>&1 || die "build falhou; veja $EVIDENCE/build.log"
+    local built
+    built=$(find "$STATE_BASE/builds/ios-dd/Build/Products/Release-iphonesimulator" -maxdepth 1 -name '*.app' | head -1)
+    [ -n "$built" ] || die "build sem .app; veja $EVIDENCE/build.log"
+    rm -rf "$app"; cp -R "$built" "$app"
+    printf 'BUILD_SHA=%s\nBUILD_KEY=%s\nBUNDLE_SHA256=%s\n' "$sha" "$key" "$(sha256 "$app/main.jsbundle")" > "$build/build.env"
+  fi
+  clean_tree || die "o checkout mudou durante o build (git status): arquivo gerado fora do .gitignore ou edição concorrente"
+
+  # O bundle não pode carregar nenhum host Supabase: este lane é só demo.
+  if grep -aoE 'https?://[a-z0-9.-]*supabase\.(co|in)' "$app/main.jsbundle" | head -1 | grep -q .; then
+    die "o bundle contém um host Supabase; recuso dirigir"
+  fi
+
+  # shellcheck disable=SC1091
+  . "$build/build.env"
+  cat > "$STATE/manifest.env" <<EOF
+RUN_ID=$RUN_ID
+WORKTREE=$ROOT
+SHA=$sha
+BUILD_KEY=$key
+BUILT_FROM=$BUILD_SHA
+APP_PATH=$app
+BUNDLE_ID=$BUNDLE_ID
+BUNDLE_SHA256=$BUNDLE_SHA256
+MODE=demo
+STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+EOF
+  cp "$STATE/manifest.env" "$EVIDENCE/manifest.env"
+  echo "RUN_ID=$RUN_ID"
+  echo "APP_PATH=$app"
+  echo "Instale com o comando do device_open: <agent-device> install $BUNDLE_ID $app"
+}
+
+cmd_doctor() {
+  require_run
+  [ -n "$UDID" ] || die "doctor precisa de --udid (o id que device_open devolveu)"
+  local ok=1 container installed
+  echo "run      $RUN_ID  sha=$SHA  modo=$MODE"
+  if [ "$(build_key)" = "$BUILD_KEY" ]; then echo "ok       a árvore do app no HEAD é a do build ($BUILD_KEY)"
+  else echo "FALHA    apps/mobile, packages ou package*.json mudaram desde o launch; rode launch de novo"; ok=0; fi
+  if [ -f "$APP_PATH/main.jsbundle" ]; then echo "ok       build em $APP_PATH"; else echo "FALHA    build ausente"; ok=0; fi
+  if xcrun simctl list devices booted | grep -q "$UDID"; then echo "ok       simulador $UDID ligado"; else echo "FALHA    simulador $UDID não está ligado neste Mac"; ok=0; fi
+  if container=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" app 2>/dev/null); then
+    installed=$(sha256 "$container/main.jsbundle")
+    if [ "$installed" = "$BUNDLE_SHA256" ]; then echo "ok       app instalado no simulador é o build deste run"
+    else echo "FALHA    app instalado ($installed) não é o build deste run ($BUNDLE_SHA256); reinstale"; ok=0; fi
+    if grep -aqE 'https?://[a-z0-9.-]*supabase\.(co|in)' "$container/main.jsbundle"; then echo "FALHA    bundle instalado aponta para Supabase remoto"; ok=0
+    else echo "ok       bundle instalado sem host Supabase (demo)"; fi
+  else
+    echo "FALHA    $BUNDLE_ID não está instalado em $UDID"; ok=0
+  fi
+  if [ -d "$STATE_BASE/device-locks/$UDID.lock" ]; then echo "aviso    lock de dispositivo presente: outro drive está rodando ou morreu sem limpar"; fi
+  [ "$ok" = 1 ] && echo "doctor: ok" || { echo "doctor: falhou"; exit 1; }
+}
+
+cmd_drive() {
+  require_run
+  [ -n "$AGENT_DEVICE" ] && [ -x "$AGENT_DEVICE" ] || die "drive precisa de --agent-device <caminho devolvido por device_open>"
+  [ -n "$UDID" ] || die "drive precisa de --udid"
+  [ -n "$FLOW" ] && [ -f "$FLOW" ] || die "fluxo não encontrado: $FLOW"
+  local name out rc flow_abs
+  flow_abs="$(cd "$(dirname "$FLOW")" && pwd)/$(basename "$FLOW")"
+  name=$(basename "$FLOW" .yaml)
+  out="$EVIDENCE/drive-$name"
+  mkdir -p "$out" "$STATE_BASE/device-locks"
+  DEVICE_LOCK="$STATE_BASE/device-locks/$UDID.lock"
+  mkdir "$DEVICE_LOCK" 2>/dev/null || die "dispositivo $UDID em uso por outro drive ($DEVICE_LOCK); aborte"
+  trap 'rmdir "$DEVICE_LOCK" 2>/dev/null || true' EXIT
+  clean_tree || die "checkout sujo antes do drive"
+  [ "$(build_key)" = "$BUILD_KEY" ] || die "a árvore do app mudou desde o launch; rode launch de novo"
+  log "rodando $FLOW em $UDID; saída em $out"
+  set +e
+  # O test abre sessão própria e recusa o aparelho se uma sessão interativa (open/snapshot) estiver aberta.
+  "$AGENT_DEVICE" close > /dev/null 2>&1 || true
+  # takeScreenshot grava no diretório corrente: rode dentro da pasta de evidência.
+  (cd "$out" && "$AGENT_DEVICE" test "$flow_abs" --maestro --artifacts-dir "$out/artifacts" ${FLOW_ENV[@]+"${FLOW_ENV[@]}"}) > "$out/run.log" 2>&1
+  rc=$?
+  set -e
+  # O agent-device grava o takeScreenshot sem extensão; o Maestro acrescenta .png. Normalize.
+  local f
+  for f in "$out"/*; do
+    case "$(basename "$f")" in *.*) continue ;; esac
+    [ -f "$f" ] || continue
+    case "$(file -b "$f")" in PNG*) mv "$f" "$f.png" ;; esac
+  done
+  clean_tree || { echo "checkout sujo depois do drive" >> "$out/run.log"; rc=1; }
+  local status=failed; [ "$rc" = 0 ] && status=passed
+  cat > "$out/result.env" <<EOF
+RUN_ID=$RUN_ID
+FLOW=${flow_abs#"$ROOT"/}
+UDID=$UDID
+SHA=$SHA
+BUNDLE_SHA256=$BUNDLE_SHA256
+EXIT_CODE=$rc
+STATUS=$status
+FINISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+EOF
+  cat "$out/run.log"
+  echo "drive $name: $status (exit $rc)"
+  [ "$rc" = 0 ]
+}
+
+cmd_evidence() {
+  require_run
+  [ -d "$EVIDENCE" ] || die "evidência ausente em $EVIDENCE"
+  ( cd "$EVIDENCE" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 shasum -a 256 ) > "$EVIDENCE/SHA256SUMS"
+  local failed=0 r
+  for r in "$EVIDENCE"/drive-*/result.env; do
+    [ -f "$r" ] || continue
+    grep -q '^STATUS=passed$' "$r" || failed=1
+    echo "$(grep '^FLOW=' "$r" | cut -d= -f2) $(grep '^STATUS=' "$r" | cut -d= -f2)"
+  done
+  echo "pngs: $(find "$EVIDENCE" -name '*.png' | wc -l | tr -d ' ')"
+  echo "evidência: $EVIDENCE"
+  [ "$failed" = 0 ]
+}
+
+cmd_cleanup() {
+  require_run
+  rm -rf "$STATE"
+  log "run $RUN_ID limpo; build em cache mantido em $STATE_BASE/builds, evidência em $EVIDENCE"
+  [ -d "$EVIDENCE" ] || die "a evidência sumiu: $EVIDENCE"
+}
+
+cmd_status() {
+  require_run
+  cat "$STATE/manifest.env"
+}
+
+[ $# -ge 1 ] || usage
+sub="$1"; shift
+parse "$@"
+case "$sub" in
+  launch) cmd_launch ;;
+  doctor) cmd_doctor ;;
+  drive) cmd_drive ;;
+  evidence) cmd_evidence ;;
+  cleanup) cmd_cleanup ;;
+  status) cmd_status ;;
+  *) usage ;;
+esac

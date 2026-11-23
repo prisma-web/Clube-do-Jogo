@@ -1,0 +1,21 @@
+appId: com.clubedojogo.mobile.dev
+---
+# Demo sem credenciais: limpa o estado, entra no modo demonstração e vota Não em Cocoon
+# pela Votação rápida, que abre sozinha logo depois do login.
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: Boas-vindas de volta
+    timeout: 30000
+- tapOn: Entrar no modo demonstração
+- extendedWaitUntil:
+    visible: Qual jogo você quer no clube?
+    timeout: 30000
+- assertVisible: Cocoon, jogo 1 de 5
+- takeScreenshot: deck-antes-do-voto
+- tapOn: Votar não em Cocoon
+- extendedWaitUntil:
+    visible: Celeste, jogo 2 de 5
+    timeout: 10000
+- assertNotVisible: Votar não em Cocoon
+- takeScreenshot: deck-depois-do-voto
