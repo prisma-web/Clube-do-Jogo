@@ -332,30 +332,30 @@ export function GotyExperience() {
   }, [isDemo, notify, query, runOperation]);
 
   return (
-    <div className="goty-stage relative mx-auto max-w-6xl animate-fade-in rounded-[32px] border border-[#dfc06c]/25 bg-[#07070b] p-4 text-[#fbf5e3] shadow-[0_28px_90px_rgba(0,0,0,0.72)] sm:p-6 lg:p-8">
+    <div className="goty-stage relative -mx-2 max-w-6xl animate-fade-in overflow-x-clip rounded-[24px] border border-[#dfc06c]/25 bg-[#07070b] p-3.5 text-[#fbf5e3] shadow-[0_28px_90px_rgba(0,0,0,0.72)] sm:mx-auto sm:rounded-[32px] sm:p-6 lg:p-8">
       {/* Iluminação de palco de premiação */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-72 rounded-t-[32px] bg-[radial-gradient(ellipse_at_50%_0%,rgba(223,180,81,0.22),rgba(223,180,81,0.04)_48%,transparent_75%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-72 rounded-t-[24px] bg-[radial-gradient(ellipse_at_50%_0%,rgba(223,180,81,0.22),rgba(223,180,81,0.04)_48%,transparent_75%)] sm:rounded-t-[32px]"
       />
 
       {/* Cabeçalho de gala GOTY 2026 */}
-      <header className="relative flex flex-col gap-5 border-b border-[#dfc06c]/18 pb-6 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex items-start gap-4">
-          <div className="grid size-14 shrink-0 place-items-center rounded-2xl border border-[#f0cf72]/45 bg-gradient-to-br from-[#2d2210] via-[#13100b] to-[#08080b] shadow-[0_12px_32px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,244,200,0.35)] sm:size-16">
-            <TgaEmblem className="size-9 sm:size-10" />
+      <header className="relative flex flex-col gap-4 border-b border-[#dfc06c]/18 pb-5 sm:flex-row sm:items-end sm:justify-between sm:gap-5 sm:pb-6">
+        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+          <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-[#f0cf72]/45 bg-gradient-to-br from-[#2d2210] via-[#13100b] to-[#08080b] shadow-[0_12px_32px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,244,200,0.35)] sm:size-16">
+            <TgaEmblem className="size-7 sm:size-10" />
           </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full border border-[#e5c369]/40 bg-[#dfc06c]/14 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#f5de96]">
-                Evento Especial do Clube
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full border border-[#e5c369]/40 bg-[#dfc06c]/14 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#f5de96] sm:tracking-[0.2em]">
+                Evento Especial
               </span>
               <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#a99c7f]">
-                <CalendarDays className="size-3.5 text-[#d7b458]" />
-                Cerimônia em {formatCeremonyDate(state?.event.ceremony_at)}
+                <CalendarDays className="size-3.5 shrink-0 text-[#d7b458]" />
+                {formatCeremonyDate(state?.event.ceremony_at)}
               </span>
             </div>
-            <h1 className="mt-2 bg-gradient-to-r from-[#fff8e0] via-[#f1d483] to-[#c79935] bg-clip-text text-3xl font-black tracking-tight text-transparent sm:text-4xl">
+            <h1 className="mt-1.5 bg-gradient-to-r from-[#fff8e0] via-[#f1d483] to-[#c79935] bg-clip-text text-2xl font-black tracking-tight text-transparent sm:mt-2 sm:text-4xl">
               GOTY 2026
             </h1>
             <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[#b9ae92] sm:text-sm">
@@ -368,15 +368,15 @@ export function GotyExperience() {
           href={state?.event.source_url || 'https://thegameawards.com/nominees'}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-[#dfc06c]/25 bg-black/40 px-3 py-1.5 text-[11px] font-bold text-[#dcc790] transition hover:border-[#e8c66d]/55 hover:text-[#fff5d6] sm:self-end"
+          className="inline-flex max-w-full shrink-0 items-center gap-1.5 self-start rounded-full border border-[#dfc06c]/25 bg-black/40 px-3 py-1.5 text-[11px] font-bold text-[#dcc790] transition hover:border-[#e8c66d]/55 hover:text-[#fff5d6] sm:self-end"
         >
-          Fonte oficial TGA 2026
-          <ExternalLink className="size-3" />
+          <span className="truncate">Fonte oficial TGA 2026</span>
+          <ExternalLink className="size-3 shrink-0" />
         </a>
       </header>
 
       {/* Conteúdo principal com as duas abas */}
-      <div className="relative mt-6">
+      <div className="relative mt-5 sm:mt-6">
         {query.isInitialLoading || !state ? (
           <ListSkeleton count={5} />
         ) : query.error ? (
@@ -396,21 +396,21 @@ export function GotyExperience() {
           <Tabs.Root value={activeTab} onValueChange={handleTabChange}>
             <Tabs.List
               aria-label="Seções do GOTY 2026"
-              className="goty-tabs mb-6 grid w-full grid-cols-2 gap-2 rounded-2xl border border-[#dfc06c]/25 bg-[#100f16] p-1.5 sm:max-w-md"
+              className="goty-tabs mb-5 grid w-full grid-cols-2 gap-1.5 rounded-2xl border border-[#dfc06c]/25 bg-[#100f16] p-1 sm:mb-6 sm:max-w-md sm:gap-2 sm:p-1.5"
             >
               <Tabs.Trigger
                 value="bolao"
-                className="flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black tracking-tight text-[#b7aa8c] transition hover:text-[#fff8e4] data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#c89a34] data-[state=active]:via-[#e5c160] data-[state=active]:to-[#f4df9a] data-[state=active]:text-[#171105] data-[state=active]:shadow-[0_8px_24px_rgba(220,178,74,0.28)]"
+                className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-xl px-2.5 text-xs font-black tracking-tight text-[#b7aa8c] transition hover:text-[#fff8e4] data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#c89a34] data-[state=active]:via-[#e5c160] data-[state=active]:to-[#f4df9a] data-[state=active]:text-[#171105] data-[state=active]:shadow-[0_8px_24px_rgba(220,178,74,0.28)] sm:h-11 sm:gap-2 sm:px-4"
               >
-                <Trophy className="size-4" />
-                Bolão GOTY
+                <Trophy className="size-3.5 shrink-0 sm:size-4" />
+                <span className="truncate">Bolão GOTY</span>
               </Tabs.Trigger>
               <Tabs.Trigger
                 value="seu-goty"
-                className="flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black tracking-tight text-[#b7aa8c] transition hover:text-[#fff8e4] data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#c89a34] data-[state=active]:via-[#e5c160] data-[state=active]:to-[#f4df9a] data-[state=active]:text-[#171105] data-[state=active]:shadow-[0_8px_24px_rgba(220,178,74,0.28)]"
+                className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-xl px-2.5 text-xs font-black tracking-tight text-[#b7aa8c] transition hover:text-[#fff8e4] data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#c89a34] data-[state=active]:via-[#e5c160] data-[state=active]:to-[#f4df9a] data-[state=active]:text-[#171105] data-[state=active]:shadow-[0_8px_24px_rgba(220,178,74,0.28)] sm:h-11 sm:gap-2 sm:px-4"
               >
-                <Heart className="size-4" />
-                Seu GOTY
+                <Heart className="size-3.5 shrink-0 sm:size-4" />
+                <span className="truncate">Seu GOTY</span>
               </Tabs.Trigger>
             </Tabs.List>
 

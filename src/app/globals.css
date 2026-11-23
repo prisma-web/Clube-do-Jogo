@@ -4123,6 +4123,10 @@ iframe {
   letter-spacing: normal;
 }
 
+:root[data-theme] .goty-stage :where(.uppercase, [class*='tracking-']) {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
 :root[data-theme] .goty-dialog {
   border-color: rgb(223 192 108 / 30%) !important;
   background-color: #0b0a0f !important;

@@ -202,35 +202,40 @@ export function GotyBolaoTab({
   return (
     <div className="space-y-6">
       {/* Sub-navegação interna do Bolão */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-2xl border border-[#dfc06c]/20 bg-[#100f15] p-1">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+        <div
+          className={cn(
+            'grid w-full gap-1 rounded-2xl border border-[#dfc06c]/20 bg-[#100f15] p-1 sm:inline-flex sm:w-auto',
+            isAdmin ? 'grid-cols-3' : 'grid-cols-2',
+          )}
+        >
           <button
             type="button"
             onClick={() => setView('ballot')}
             className={cn(
-              'inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-extrabold transition',
+              'inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-extrabold transition sm:gap-1.5 sm:px-3.5 sm:text-xs',
               view === 'ballot'
                 ? 'bg-gradient-to-r from-[#d4ab48] to-[#f0d586] text-[#140f05] shadow-md'
                 : 'text-[#b7ab8f] hover:text-[#f6ecd0]',
             )}
           >
-            <ClipboardCheck className="size-3.5" />
-            Meus palpites
+            <ClipboardCheck className="size-3.5 shrink-0" />
+            <span className="truncate">Palpites</span>
           </button>
           <button
             type="button"
             onClick={() => setView('leaderboard')}
             className={cn(
-              'inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-extrabold transition',
+              'inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-extrabold transition sm:gap-1.5 sm:px-3.5 sm:text-xs',
               view === 'leaderboard'
                 ? 'bg-gradient-to-r from-[#d4ab48] to-[#f0d586] text-[#140f05] shadow-md'
                 : 'text-[#b7ab8f] hover:text-[#f6ecd0]',
             )}
           >
-            <Trophy className="size-3.5" />
-            Classificação
+            <Trophy className="size-3.5 shrink-0" />
+            <span className="truncate">Ranking</span>
             {announcedCount > 0 && (
-              <span className="rounded-full bg-black/25 px-1.5 py-0.5 text-[10px]">
+              <span className="hidden rounded-full bg-black/25 px-1.5 py-0.5 text-[10px] sm:inline">
                 {announcedCount}/30
               </span>
             )}
@@ -240,28 +245,30 @@ export function GotyBolaoTab({
               type="button"
               onClick={() => setView('admin')}
               className={cn(
-                'inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-extrabold transition',
+                'inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-extrabold transition sm:gap-1.5 sm:px-3.5 sm:text-xs',
                 view === 'admin'
                   ? 'bg-gradient-to-r from-[#d4ab48] to-[#f0d586] text-[#140f05] shadow-md'
                   : 'text-[#b7ab8f] hover:text-[#f6ecd0]',
               )}
             >
-              <ShieldCheck className="size-3.5" />
-              Apuração
+              <ShieldCheck className="size-3.5 shrink-0" />
+              <span className="truncate">Apuração</span>
             </button>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px] font-bold">
           {votingOpen ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-3 py-1 text-emerald-200">
-              <Unlock className="size-3" />
-              Bolão aberto · até {formatDateTimePt(state.event.voting_closes_at)}
+            <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1 text-emerald-200 sm:px-3">
+              <Unlock className="size-3 shrink-0" />
+              <span className="truncate">Bolão aberto · até {formatDateTimePt(state.event.voting_closes_at)}</span>
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#dfc06c]/30 bg-[#dfc06c]/10 px-3 py-1 text-[#f2d68a]">
-              <Lock className="size-3" />
-              {state.event.status === 'results_published' ? 'Resultados oficiais publicados' : 'Bolão encerrado para palpites'}
+            <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#dfc06c]/30 bg-[#dfc06c]/10 px-2.5 py-1 text-[#f2d68a] sm:px-3">
+              <Lock className="size-3 shrink-0" />
+              <span className="truncate">
+                {state.event.status === 'results_published' ? 'Resultados oficiais publicados' : 'Bolão encerrado para palpites'}
+              </span>
             </span>
           )}
         </div>
@@ -270,58 +277,61 @@ export function GotyBolaoTab({
       {/* Painel de progresso & revisão */}
       {view === 'ballot' && (
         <>
-          <section className="goty-surface sticky top-[calc(4.25rem+env(safe-area-inset-top))] z-30 rounded-3xl border border-[#dfc06c]/25 bg-[#0e0d13]/95 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.65)] backdrop-blur-xl min-[960px]:top-4 sm:p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <section className="goty-surface sticky top-[calc(4.15rem+env(safe-area-inset-top))] z-30 rounded-2xl border border-[#dfc06c]/25 bg-[#0e0d13]/95 px-3 py-2.5 shadow-[0_14px_38px_rgba(0,0,0,0.68)] backdrop-blur-xl min-[960px]:top-4 sm:rounded-3xl sm:p-5">
+            <div className="flex items-center justify-between gap-2.5 sm:gap-4">
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#e3c168]">
-                    Progresso do Bolão
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[#e3c168] sm:tracking-[0.18em]">
+                    Progresso
                   </span>
                   {isConfirmed ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/35 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-200">
-                      <CheckCircle2 className="size-3" />
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/35 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-200 sm:text-[10px]">
+                      <CheckCircle2 className="size-2.5 sm:size-3" />
                       Confirmado
                     </span>
                   ) : progress.answered > 0 ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-[#dfc06c]/25 bg-[#dfc06c]/10 px-2.5 py-0.5 text-[10px] font-bold text-[#efd68e]">
+                    <span className="hidden items-center gap-1 rounded-full border border-[#dfc06c]/25 bg-[#dfc06c]/10 px-2.5 py-0.5 text-[10px] font-bold text-[#efd68e] sm:inline-flex">
                       Rascunho salvo automaticamente
                     </span>
                   ) : null}
                   {announcedCount > 0 && myLeaderboardEntry && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-[#dfc06c]/35 bg-[#dfc06c]/15 px-2.5 py-0.5 text-[10px] font-black text-[#fae39f]">
-                      <Trophy className="size-3" />
-                      {myLeaderboardEntry.correctCount}/{announcedCount} acertos
+                    <span className="inline-flex items-center gap-1 rounded-full border border-[#dfc06c]/35 bg-[#dfc06c]/15 px-2 py-0.5 text-[9px] font-black text-[#fae39f] sm:text-[10px]">
+                      <Trophy className="size-2.5 sm:size-3" />
+                      {myLeaderboardEntry.correctCount}/{announcedCount}
                     </span>
                   )}
                 </div>
 
-                <div className="mt-2 flex items-center gap-3">
-                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/[0.08]">
+                <div className="mt-1.5 flex items-center gap-2 sm:mt-2 sm:gap-3">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.08] sm:h-2.5">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-[#a87e24] via-[#e2bc5b] to-[#fff0b3] transition-all duration-500 ease-out"
                       style={{ width: `${progress.percent}%` }}
                     />
                   </div>
-                  <span className="shrink-0 text-xs font-black tabular-nums text-[#f9f1d8]">
+                  <span className="shrink-0 text-[11px] font-black tabular-nums text-[#f9f1d8] sm:text-xs">
                     {progress.answered}/{progress.total}
-                    <span className="ml-1 text-[10px] font-bold text-[#a99c7f]">({progress.percent}%)</span>
+                    <span className="ml-1 hidden text-[10px] font-bold text-[#a99c7f] sm:inline">({progress.percent}%)</span>
                   </span>
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center">
                 <button
                   type="button"
                   onClick={() => setReviewOpen(true)}
                   className={cn(
-                    'inline-flex h-10 items-center gap-2 rounded-xl px-4 text-xs font-black transition active:scale-[0.98]',
+                    'inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-[11px] font-black transition active:scale-[0.98] sm:h-10 sm:gap-2 sm:px-4 sm:text-xs',
                     votingOpen && !isConfirmed
                       ? 'bg-gradient-to-r from-[#c79933] via-[#e6c263] to-[#f4df9a] text-[#171106] shadow-[0_8px_24px_rgba(218,176,72,0.3)] hover:brightness-105'
                       : 'border border-[#dfc06c]/30 bg-[#181620] text-[#f4e4b5] hover:border-[#dfc06c]/55',
                   )}
                 >
-                  <Eye className="size-3.5" />
-                  {isConfirmed ? 'Ver minhas previsões' : votingOpen ? 'Revisar e confirmar' : 'Consultar palpites'}
+                  <Eye className="size-3.5 shrink-0" />
+                  <span className="sm:hidden">{isConfirmed ? 'Ver' : votingOpen ? 'Revisar' : 'Palpites'}</span>
+                  <span className="hidden sm:inline">
+                    {isConfirmed ? 'Ver minhas previsões' : votingOpen ? 'Revisar e confirmar' : 'Consultar palpites'}
+                  </span>
                 </button>
               </div>
             </div>
@@ -334,12 +344,12 @@ export function GotyBolaoTab({
               <input
                 value={search}
                 onChange={event => setSearch(event.target.value)}
-                placeholder="Filtrar categorias ou indicados (ex: Game of the Year, GTA VI, RPG, Cellbit…)"
+                placeholder="Filtrar categorias ou indicados…"
                 className="h-11 w-full rounded-2xl border border-[#dfc06c]/18 bg-[#111017] pl-10 pr-4 text-sm text-[#faf4e4] placeholder:text-[#7f745c] outline-none transition focus:border-[#e3c168]/55"
               />
             </div>
 
-            <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+            <div className="-mx-3.5 overflow-x-auto px-3.5 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
               <div className="flex w-max items-center gap-1.5">
                 <Filter className="mr-1 size-3.5 text-[#9d8f70]" />
                 {FILTER_OPTIONS.map(option => {
@@ -933,7 +943,7 @@ function CategoryCard({
     <article
       id={`goty-cat-${category.id}`}
       className={cn(
-        'goty-surface relative overflow-hidden rounded-[26px] border p-4 transition sm:p-6',
+        'goty-surface relative overflow-hidden rounded-[22px] border p-3.5 transition sm:rounded-[26px] sm:p-6',
         isGoty
           ? 'border-[#e8c66d]/55 bg-gradient-to-br from-[#1d170b] via-[#111016] to-[#0a0a0f] shadow-[0_22px_65px_rgba(0,0,0,0.65),0_0_40px_rgba(220,178,74,0.12)]'
           : isAnswered
@@ -950,49 +960,52 @@ function CategoryCard({
         </div>
       )}
 
-      <div className="relative flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
+      <div className="relative space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
             <span
               className={cn(
-                'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.16em]',
+                'inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] sm:tracking-[0.14em]',
                 isGoty
                   ? 'bg-gradient-to-r from-[#d4aa47] to-[#f4df9b] text-[#171105]'
                   : 'border border-[#dfc06c]/25 bg-[#dfc06c]/10 text-[#e8ca77]',
               )}
             >
-              {isGoty && <Crown className="size-3" />}
-              {isGoty ? 'Categoria Principal' : `Categoria ${category.display_order}`}
+              {isGoty && <Crown className="size-3 shrink-0" />}
+              {isGoty ? 'Principal' : `Cat. ${category.display_order}`}
             </span>
-            <span className="text-[11px] font-bold text-[#9a8e74]">{category.name}</span>
+            <span className="hidden truncate text-[11px] font-bold text-[#9a8e74] sm:inline">{category.name}</span>
           </div>
 
-          <h3 className={cn('mt-2 font-black tracking-tight text-[#fff9ea]', isGoty ? 'text-xl sm:text-2xl' : 'text-base sm:text-lg')}>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {didHit ? (
+              <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-emerald-400/35 bg-emerald-500/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-200">
+                <CheckCircle2 className="size-3" /> Acertou!
+              </span>
+            ) : didMiss ? (
+              <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-red-400/30 bg-red-500/12 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-red-200">
+                <XCircle className="size-3" /> Errou
+              </span>
+            ) : isAnswered ? (
+              <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-[#dfc06c]/35 bg-[#dfc06c]/14 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#f5dd95]">
+                <Check className="size-3 stroke-[3]" /> {isConfirmed ? 'Confirmado' : 'Salvo'}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#9c9077]">
+                <CalendarClock className="size-3" /> Pendente
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <h3 className={cn('font-black tracking-tight text-[#fff9ea]', isGoty ? 'text-lg sm:text-2xl' : 'text-base sm:text-lg')}>
             {category.name_pt}
           </h3>
+          <p className="mt-0.5 text-[10px] font-bold text-[#9a8e74] sm:hidden">{category.name}</p>
           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[#a89c7f]">
             {category.description}
           </p>
-        </div>
-
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-          {didHit ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/35 bg-emerald-500/15 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-200">
-              <CheckCircle2 className="size-3.5" /> Acertou!
-            </span>
-          ) : didMiss ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-red-400/30 bg-red-500/12 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-red-200">
-              <XCircle className="size-3.5" /> Errou
-            </span>
-          ) : isAnswered ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-[#dfc06c]/35 bg-[#dfc06c]/14 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#f5dd95]">
-              <Check className="size-3 stroke-[3]" /> {isConfirmed ? 'Confirmado' : 'Respondida'}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#9c9077]">
-              <CalendarClock className="size-3" /> Pendente
-            </span>
-          )}
         </div>
       </div>
 

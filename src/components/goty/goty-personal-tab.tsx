@@ -123,21 +123,21 @@ export function GotyPersonalTab({
   return (
     <div className="space-y-6">
       {/* Switcher Minhas Escolhas / Mural do Clube */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-2xl border border-[#dfc06c]/20 bg-[#100f15] p-1">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+        <div className="grid w-full grid-cols-2 gap-1 rounded-2xl border border-[#dfc06c]/20 bg-[#100f15] p-1 sm:inline-flex sm:w-auto">
           <button
             type="button"
             onClick={() => setSubView('mine')}
             className={cn(
-              'inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-extrabold transition',
+              'inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-xl px-2.5 text-[11px] font-extrabold transition sm:px-3.5 sm:text-xs',
               subView === 'mine'
                 ? 'bg-gradient-to-r from-[#d4ab48] to-[#f0d586] text-[#140f05] shadow-md'
                 : 'text-[#b7ab8f] hover:text-[#f6ecd0]',
             )}
           >
-            <Heart className="size-3.5" />
-            Minhas escolhas
-            <span className="rounded-full bg-black/20 px-1.5 py-0.5 text-[10px]">
+            <Heart className="size-3.5 shrink-0" />
+            <span className="truncate">Minhas escolhas</span>
+            <span className="shrink-0 rounded-full bg-black/20 px-1.5 py-0.5 text-[10px]">
               {myPicks.length}/{state.personalCategories.length}
             </span>
           </button>
@@ -145,15 +145,15 @@ export function GotyPersonalTab({
             type="button"
             onClick={() => setSubView('wall')}
             className={cn(
-              'inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-extrabold transition',
+              'inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-xl px-2.5 text-[11px] font-extrabold transition sm:px-3.5 sm:text-xs',
               subView === 'wall'
                 ? 'bg-gradient-to-r from-[#d4ab48] to-[#f0d586] text-[#140f05] shadow-md'
                 : 'text-[#b7ab8f] hover:text-[#f6ecd0]',
             )}
           >
-            <LayoutGrid className="size-3.5" />
-            Os GOTYs do clube
-            <span className="rounded-full bg-black/20 px-1.5 py-0.5 text-[10px]">
+            <LayoutGrid className="size-3.5 shrink-0" />
+            <span className="truncate">Mural do clube</span>
+            <span className="shrink-0 rounded-full bg-black/20 px-1.5 py-0.5 text-[10px]">
               {fullWall.totalParticipants}
             </span>
           </button>
@@ -379,7 +379,7 @@ export function GotyPersonalTab({
             </div>
 
             {/* Filtro por categoria no mural */}
-            <div className="-mx-5 mt-5 overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+            <div className="-mx-4 mt-5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
               <div className="flex w-max items-center gap-1.5">
                 <button
                   type="button"
