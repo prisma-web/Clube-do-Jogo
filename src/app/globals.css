@@ -2670,16 +2670,14 @@ iframe {
   background: color-mix(in srgb, var(--support-danger) 14%, transparent);
   color: var(--support-danger);
 }
-.preference-choice[data-choice='unavailable'][data-selected='true'] {
-  border-style: dashed;
-  border-color: color-mix(in srgb, var(--support-backlog) 42%, transparent);
-  background: color-mix(in srgb, var(--support-backlog) 10%, transparent);
-  color: var(--support-backlog);
+.preference-choice[data-choice='neutral'][data-selected='true'] {
+  border-color: color-mix(in srgb, var(--foreground) 34%, transparent);
+  background: color-mix(in srgb, var(--foreground) 9%, transparent);
+  color: var(--foreground);
 }
 .preference-count[data-choice='would_play'] { color: var(--support-completed); }
+.preference-count[data-choice='neutral'] { color: color-mix(in srgb, var(--foreground) 64%, transparent); }
 .preference-count[data-choice='would_not_play'] { color: var(--support-danger); }
-.preference-count[data-choice='unavailable'] { color: var(--support-backlog); }
-.ranking-card[data-my-choice='unavailable'] { border-style: dashed; }
 
 .library-filter-chip {
   border-color: var(--hairline);
@@ -2737,7 +2735,6 @@ iframe {
 :root[data-theme='nier'] :where(.preference-choice, .library-filter-chip, .club-progress-card, .progress-person) { border-radius: 0 !important; }
 :root[data-theme='nier'] .preference-choice[data-selected='true'],
 :root[data-theme='nier'] .library-filter-chip[data-selected='true'] { border-color: #4b413d !important; background: #4b413d !important; color: #e3deca !important; }
-:root[data-theme='nier'] .ranking-card[data-my-choice='unavailable'] { border-style: solid; border-left-style: dashed !important; }
 
 :root[data-theme='crossing'] :where(.preference-choice, .library-filter-chip) {
   border: 0 !important;
@@ -2747,7 +2744,7 @@ iframe {
 }
 :root[data-theme='crossing'] .preference-choice[data-choice='would_play'][data-selected='true'] { background: #83bd73 !important; color: #fff !important; }
 :root[data-theme='crossing'] .preference-choice[data-choice='would_not_play'][data-selected='true'] { background: #d57972 !important; color: #fff !important; }
-:root[data-theme='crossing'] .preference-choice[data-choice='unavailable'][data-selected='true'] { background: #77aeba !important; color: #fff !important; }
+:root[data-theme='crossing'] .preference-choice[data-choice='neutral'][data-selected='true'] { background: #6f6654 !important; color: #fff !important; }
 :root[data-theme='crossing'] .library-filter-chip[data-selected='true'] { background: #955138 !important; color: #fff !important; }
 :root[data-theme='crossing'] .club-progress-card { border: 0 !important; background: #fffaf0 !important; box-shadow: 0 5px 14px rgb(78 112 83 / 6%) !important; }
 

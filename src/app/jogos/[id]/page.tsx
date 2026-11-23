@@ -6,8 +6,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Tabs from '@radix-ui/react-tabs';
-import { CalendarDays, CheckCircle2, Clock3, Gamepad2, Heart, ImageIcon, LayoutDashboard, ListChecks, NotebookPen, Share2, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react';
-import { gameCoverUrl } from '@clube-do-jogo/domain';
+import { CalendarDays, CheckCircle2, Clock3, Gamepad2, Heart, ImageIcon, LayoutDashboard, ListChecks, NotebookPen, Share2, Trash2 } from 'lucide-react';
+import { byChoice, choiceParticipants, countChoices, emptyChoiceProfiles, gameCoverUrl, isVoteChoice, moveParticipant } from '@clube-do-jogo/domain';
 import { createClient } from '@/lib/supabase/client';
 import { demoRanking } from '@/lib/demo-data';
 import { fetchGame, fetchUserPlatforms } from '@/lib/data';
@@ -25,6 +25,7 @@ import { FloatingTrailer } from '@/components/floating-trailer';
 import { ClubGameAdminDialog } from '@/components/club-game-admin-dialog';
 import { ProgressList } from '@/components/progress-list';
 import { NotesChat } from '@/components/notes-chat';
+import { voteChoiceOptions } from '@/components/vote-choice-options';
 import { PreferenceParticipantsDialog } from '@/components/preference-participants-dialog';
 import { VoteReasonDialog } from '@/components/vote-reason-dialog';
 import { useUrlTab } from '@/hooks/use-url-state';
@@ -41,11 +42,6 @@ interface GamePeople {
   inBacklog: boolean;
   favorite: boolean;
 }
-
-const preferenceOptions = [
-  { value: 'would_not_play', label: 'Não', Icon: ThumbsDown },
-  { value: 'would_play', label: 'Jogaria', Icon: ThumbsUp },
-] as const;
 
 export default function GamePage() {
   const params = useParams<{ id: string }>();
@@ -77,17 +73,14 @@ export default function GamePage() {
       profiles = response.data as Profile[];
     }
     const profileMap = new Map(profiles.map(profile => [profile.id, profile]));
-    const validVotes = (votes || []).filter(item => item.choice === 'would_play' || item.choice === 'would_not_play');
-    const choiceProfiles: Record<VoteChoice, VoteParticipant[]> = {
-      would_play: validVotes.filter(item => item.choice === 'would_play').map(item => ({ ...(profileMap.get(item.user_id) || { id: item.user_id, name: 'Membro', avatar_url: null }), reason: null, reasonText: null })),
-      would_not_play: validVotes.filter(item => item.choice === 'would_not_play').map(item => ({ ...(profileMap.get(item.user_id) || { id: item.user_id, name: 'Membro', avatar_url: null }), reason: item.reason as VoteReason | null, reasonText: item.reason_text })),
-    };
+    const validVotes = (votes || []).filter(item => isVoteChoice(item.choice));
+    const choiceProfiles = byChoice<VoteParticipant[]>(choice => validVotes.filter(item => item.choice === choice).map(item => ({ ...(profileMap.get(item.user_id) || { id: item.user_id, name: 'Membro', avatar_url: null }), reason: item.reason as VoteReason | null, reasonText: item.reason_text })));
     const myVote = validVotes.find(item => item.user_id === user!.id);
     return {
-      voters: validVotes.map(item => profileMap.get(item.user_id) || { id: item.user_id, name: 'Membro', avatar_url: null }),
+      voters: choiceParticipants(choiceProfiles),
       completed: (completed || []).map(item => profileMap.get(item.user_id) || { id: item.user_id, name: 'Membro', avatar_url: null }),
       choiceProfiles,
-      myChoice: myVote ? (myVote.choice || 'would_play') as VoteChoice : null,
+      myChoice: myVote?.choice ?? null,
       myReason: (myVote?.reason as VoteReason | null) || null,
       myReasonText: myVote?.reason_text || null,
       votedByMe: Boolean(myVote),
@@ -97,7 +90,7 @@ export default function GamePage() {
     };
   }, Boolean(user));
   const game = gameQuery.data;
-  const people = peopleQuery.data || { voters: [], completed: [], choiceProfiles: { would_play: [], would_not_play: [] }, myChoice: null, myReason: null, myReasonText: null, votedByMe: false, completedByMe: false, inBacklog: false, favorite: false };
+  const people = peopleQuery.data || { voters: [], completed: [], choiceProfiles: emptyChoiceProfiles(), myChoice: null, myReason: null, myReasonText: null, votedByMe: false, completedByMe: false, inBacklog: false, favorite: false };
   const platformsQuery = useStaleQuery<UserPlatform[]>(`user-platforms:${user?.id}`, () => fetchUserPlatforms(supabase, user!.id, isDemo), Boolean(user));
   const ownedPlatformIds = new Set((platformsQuery.data || []).map(platform => platform.igdb_platform_id));
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
@@ -130,12 +123,8 @@ export default function GamePage() {
   async function setPreference(choice: VoteChoice | null, reason?: VoteReason | null, reasonText?: string | null) {
     if (!game || isHistorical) return;
     const mine: VoteParticipant = { id: user!.id, name: 'Você', avatar_url: null, reason: choice === 'would_not_play' ? reason : null, reasonText: choice === 'would_not_play' ? reasonText : null };
-    const choiceProfiles = {
-      would_play: people.choiceProfiles.would_play.filter(person => person.id !== user!.id),
-      would_not_play: people.choiceProfiles.would_not_play.filter(person => person.id !== user!.id),
-    };
-    if (choice) choiceProfiles[choice] = [...choiceProfiles[choice], mine];
-    const voters = [...choiceProfiles.would_play, ...choiceProfiles.would_not_play];
+    const choiceProfiles = moveParticipant(people.choiceProfiles, mine, choice);
+    const voters = choiceParticipants(choiceProfiles);
     const next = { ...people, myChoice: choice, myReason: choice === 'would_not_play' ? reason : null, myReasonText: choice === 'would_not_play' ? reasonText : null, votedByMe: choice !== null, choiceProfiles, voters };
     if (isDemo) {
       peopleQuery.setData(next);
@@ -171,7 +160,7 @@ export default function GamePage() {
   const trailer = youtubeEmbedUrl(game.trailer_url);
   const screenshots = game.screenshot_urls || [];
   const galleryImages = Array.from(new Set([game.image_url, ...screenshots].filter((url): url is string => Boolean(url))));
-  const choiceCounts = { would_play: people.choiceProfiles.would_play.length, would_not_play: people.choiceProfiles.would_not_play.length };
+  const choiceCounts = countChoices(people.choiceProfiles);
   const totalPoints = rankingScore(ACTIVE_RANKING_FORMULA, game, choiceCounts, people.completed.length);
   const ratingValue = game.average_rating === null || game.average_rating === undefined ? null : Math.max(0, Math.min(10, game.average_rating / 10));
   const orderedPlatforms = (game.platforms || [])
@@ -206,8 +195,8 @@ export default function GamePage() {
         </section>
 
         <section className="game-detail-surface game-detail-people-card rounded-3xl border border-white/8 bg-white/[.035] p-4 sm:p-5">
-          <PreferenceParticipantsDialog profiles={people.choiceProfiles}>{openAt => <div className="preference-summary grid w-full grid-cols-2 gap-2">{preferenceOptions.map(option => <button type="button" onClick={() => openAt(option.value)} key={option.value} data-choice={option.value} className="preference-count flex min-w-0 flex-col items-center gap-1 rounded-xl bg-black/20 px-2 py-2.5 text-[10px] font-bold"><option.Icon className="size-4" /><span>{choiceCounts[option.value]}</span><span className="max-w-full truncate">{option.label}</span></button>)}</div>}</PreferenceParticipantsDialog>
-          <div className="preference-picker mt-3 grid grid-cols-2 gap-2">{preferenceOptions.map(option => <button key={option.value} disabled={isHistorical} data-choice={option.value} data-selected={people.myChoice === option.value} onClick={() => option.value === 'would_not_play' && people.myChoice !== option.value ? setReasonOpen(true) : void setPreference(people.myChoice === option.value ? null : option.value)} className="preference-choice flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-[10px] font-extrabold transition active:scale-[.97]"><option.Icon className="size-3.5 shrink-0" /><span className="truncate">{option.label}</span></button>)}</div>
+          <PreferenceParticipantsDialog profiles={people.choiceProfiles}>{openAt => <div className="preference-summary grid w-full grid-cols-3 gap-2">{voteChoiceOptions.map(option => <button type="button" onClick={() => openAt(option.value)} key={option.value} data-choice={option.value} className="preference-count flex min-w-0 flex-col items-center gap-1 rounded-xl bg-black/20 px-2 py-2.5 text-[10px] font-bold"><option.Icon className="size-4" /><span>{choiceCounts[option.value]}</span><span className="max-w-full truncate">{option.label}</span></button>)}</div>}</PreferenceParticipantsDialog>
+          <div className="preference-picker mt-3 grid grid-cols-3 gap-2">{voteChoiceOptions.map(option => <button key={option.value} disabled={isHistorical} data-choice={option.value} data-selected={people.myChoice === option.value} onClick={() => option.value === 'would_not_play' && people.myChoice !== option.value ? setReasonOpen(true) : void setPreference(people.myChoice === option.value ? null : option.value)} className="preference-choice flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-[10px] font-extrabold transition active:scale-[.97]"><option.Icon className="size-3.5 shrink-0" /><span className="truncate">{option.label}</span></button>)}</div>
         </section>
       </div>}
 

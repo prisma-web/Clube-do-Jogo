@@ -3,16 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import * as Tabs from '@radix-ui/react-tabs';
-import { ArrowUpRight, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import type { VoteChoice, VoteParticipant } from '@/lib/types';
 import { Dialog, DialogContent } from './ui/dialog';
 import { Avatar } from './ui/avatar';
 import { voteReasonLabel } from './vote-reason-dialog';
-
-const choices = [
-  { value: 'would_not_play', label: 'Não', Icon: ThumbsDown },
-  { value: 'would_play', label: 'Jogaria', Icon: ThumbsUp },
-] as const;
+import { voteChoiceOptions } from './vote-choice-options';
 
 function OtherReason({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
@@ -44,10 +40,10 @@ export function PreferenceParticipantsDialog({ profiles, children, initialTab = 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent title="Escolhas do clube">
         <Tabs.Root value={active} onValueChange={value => setActive(value as VoteChoice)}>
-          <Tabs.List className="participants-tabs app-tabs mx-4 mt-4 grid grid-cols-2 rounded-xl p-1">
-            {choices.map(({ value, label, Icon }) => <Tabs.Trigger key={value} value={value} className="flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-[10px] font-bold text-zinc-500 outline-none data-[state=active]:bg-white/8 data-[state=active]:text-violet-300"><Icon className="size-3.5" /><span>{label} · {profiles[value].length}</span></Tabs.Trigger>)}
+          <Tabs.List className="participants-tabs app-tabs mx-4 mt-4 grid grid-cols-3 rounded-xl p-1">
+            {voteChoiceOptions.map(({ value, label, Icon }) => <Tabs.Trigger key={value} value={value} className="flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-[10px] font-bold text-zinc-500 outline-none data-[state=active]:bg-white/8 data-[state=active]:text-violet-300"><Icon className="size-3.5" /><span>{label} · {profiles[value].length}</span></Tabs.Trigger>)}
           </Tabs.List>
-          {choices.map(choice => <Tabs.Content key={choice.value} value={choice.value} className="outline-none data-[state=active]:animate-tab-in"><People people={profiles[choice.value]} showReason={choice.value === 'would_not_play'} /></Tabs.Content>)}
+          {voteChoiceOptions.map(choice => <Tabs.Content key={choice.value} value={choice.value} className="outline-none data-[state=active]:animate-tab-in"><People people={profiles[choice.value]} showReason={choice.value === 'would_not_play'} /></Tabs.Content>)}
         </Tabs.Root>
       </DialogContent>
     </Dialog>

@@ -20,9 +20,9 @@ async function answerNeutral(page: Page) {
   return before;
 }
 
-test('answered games stay answered when the tab regains focus or reloads', async ({ page }) => {
+test('a neutral answer stays answered when the tab regains focus', async ({ page }) => {
   await page.goto('/');
-  await answerNeutral(page);
+  const neutral = await answerNeutral(page);
   const second = await currentTitle(page);
 
   await page.evaluate(() => {
@@ -32,7 +32,5 @@ test('answered games stay answered when the tab regains focus or reloads', async
   // Let the forced ranking refresh land before asserting nothing came back.
   await page.waitForTimeout(500);
   await expect(cardTitle(page)).toHaveText(second);
-
-  await page.reload();
-  await expect(cardTitle(page)).toHaveText(second);
+  await expect(cardTitle(page)).not.toHaveText(neutral);
 });

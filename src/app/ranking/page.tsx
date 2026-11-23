@@ -7,11 +7,11 @@ import Link from 'next/link';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
-import { CalendarPlus, Check, ChevronDown, ChevronUp, Clock3, Library, ListOrdered, MoreHorizontal, Plus, Search, ThumbsDown, ThumbsUp, Trophy } from 'lucide-react';
-import { gameCoverUrl } from '@clube-do-jogo/domain';
+import { CalendarPlus, Check, ChevronDown, ChevronUp, Clock3, Library, ListOrdered, MoreHorizontal, Plus, Search, Trophy } from 'lucide-react';
+import { applyMyVote, countChoices, emptyChoiceProfiles, gameCoverUrl } from '@clube-do-jogo/domain';
 import { createClient } from '@/lib/supabase/client';
 import { fetchRankingData } from '@/lib/data';
-import { ACTIVE_RANKING_FORMULA, compareRankingItems, legacyPlaytimePoints, legacyRankingScore, rankingScore } from '@/lib/ranking';
+import { ACTIVE_RANKING_FORMULA, compareRankingItems, legacyPlaytimePoints } from '@/lib/ranking';
 import type { Game, RankingItem, VoteChoice, VoteParticipant, VoteReason } from '@/lib/types';
 import { formatMonth, formatShortDate, shiftMonth } from '@/lib/utils';
 import { useStaleQuery } from '@/hooks/use-stale-query';
@@ -24,11 +24,7 @@ import { LoadingToast } from '@/components/ui/loading-toast';
 import { ClubGameAdminDialog } from '@/components/club-game-admin-dialog';
 import { VoteReasonDialog } from '@/components/vote-reason-dialog';
 import { usePersistentState } from '@/hooks/use-persistent-state';
-
-const preferenceOptions = [
-  { value: 'would_not_play', label: 'Não', shortLabel: 'Não', Icon: ThumbsDown },
-  { value: 'would_play', label: 'Jogaria', shortLabel: 'Jogaria', Icon: ThumbsUp },
-] as const;
+import { voteChoiceOptions } from '@/components/vote-choice-options';
 
 type RankingView = 'ranking' | 'recent';
 
@@ -51,14 +47,10 @@ function PreferenceButtons({ value, disabled, onChange, compact = false }: {
   onChange: (choice: VoteChoice) => void;
   compact?: boolean;
 }) {
-  return <div className={`preference-picker grid grid-cols-2 gap-1.5 ${compact ? 'min-w-[210px]' : ''}`}>{preferenceOptions.map(option => {
+  return <div className={`preference-picker grid grid-cols-3 gap-1.5 ${compact ? 'min-w-[264px]' : ''}`}>{voteChoiceOptions.map(option => {
     const active = value === option.value;
-    return <button key={option.value} type="button" disabled={disabled} data-choice={option.value} data-selected={active} aria-label={option.label} aria-pressed={active} onClick={() => onChange(option.value)} className={`preference-choice flex min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 font-extrabold transition active:scale-[.97] disabled:cursor-default ${compact ? 'h-9 text-[9px]' : 'h-11 text-[10px]'}`}><option.Icon className="size-3.5 shrink-0" /><span className="truncate">{option.shortLabel}</span></button>;
+    return <button key={option.value} type="button" disabled={disabled} data-choice={option.value} data-selected={active} aria-label={option.label} aria-pressed={active} onClick={() => onChange(option.value)} className={`preference-choice flex min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 font-extrabold transition active:scale-[.97] disabled:cursor-default ${compact ? 'h-9 text-[9px]' : 'h-11 text-[10px]'}`}><option.Icon className="size-3.5 shrink-0" /><span className="truncate">{option.label}</span></button>;
   })}</div>;
-}
-
-function emptyChoiceProfiles(): Record<VoteChoice, VoteParticipant[]> {
-  return { would_play: [], would_not_play: [] };
 }
 
 function friendlyDay(value: string) {
@@ -146,32 +138,14 @@ export default function RankingPage() {
     });
   }
 
-  function changedItem(item: RankingItem, choice: VoteChoice | null, reason?: VoteReason | null, reasonText?: string | null): RankingItem {
-    const me: VoteParticipant = { ...(profile || { id: user!.id, name: 'Você', avatar_url: null }), reason: choice === 'would_not_play' ? reason : null, reasonText: choice === 'would_not_play' ? reasonText : null };
-    const choiceProfiles = Object.fromEntries(preferenceOptions.map(option => [option.value, item.choiceProfiles[option.value].filter(person => person.id !== user!.id)])) as Record<VoteChoice, VoteParticipant[]>;
-    if (choice) choiceProfiles[choice] = [...choiceProfiles[choice], me];
-    const choiceCounts = Object.fromEntries(preferenceOptions.map(option => [option.value, choiceProfiles[option.value].length])) as Record<VoteChoice, number>;
-    const voters = preferenceOptions.flatMap(option => choiceProfiles[option.value]);
-    const legacyTotalPoints = legacyRankingScore(item.game, voters.length, item.completedCount);
-    return {
-      ...item,
-      choiceProfiles,
-      choiceCounts,
-      myChoice: choice,
-      myReason: choice === 'would_not_play' ? reason : null,
-      myReasonText: choice === 'would_not_play' ? reasonText : null,
-      voters,
-      votesCount: voters.length,
-      votedByMe: choice !== null,
-      legacyTotalPoints,
-      totalPoints: rankingScore(ACTIVE_RANKING_FORMULA, item.game, choiceCounts, item.completedCount),
-    };
+  function me(reason?: VoteReason | null, reasonText?: string | null): VoteParticipant {
+    return { ...(profile || { id: user!.id, name: 'Você', avatar_url: null }), reason: reason ?? null, reasonText: reasonText ?? null };
   }
 
   async function setPreference(item: RankingItem, choice: VoteChoice | null, reason?: VoteReason | null, reasonText?: string | null) {
     if (isHistorical) return;
     const previous = ranking;
-    const next = ranking.map(row => row.game.id === item.game.id ? changedItem(row, choice, reason, reasonText) : row)
+    const next = ranking.map(row => row.game.id === item.game.id ? applyMyVote(row, me(reason, reasonText), choice, ACTIVE_RANKING_FORMULA) : row)
       .filter(row => row.votesCount > 0)
       .sort(compareRankingItems);
     if (isDemo) { rankingQuery.setData(next); return; }
@@ -213,16 +187,13 @@ export default function RankingPage() {
     const existing = ranking.find(item => item.game.id === game.id);
     if (existing) { await setPreference(existing, choice, reason, reasonText); return; }
     const choiceProfiles = emptyChoiceProfiles();
-    choiceProfiles[choice] = [{ ...(profile || { id: user!.id, name: 'Você', avatar_url: null }), reason: choice === 'would_not_play' ? reason : null, reasonText: choice === 'would_not_play' ? reasonText : null }];
-    const choiceCounts = { would_play: 0, would_not_play: 0, [choice]: 1 } as Record<VoteChoice, number>;
-    const legacyTotalPoints = legacyRankingScore(game, 1, 0);
-    const item: RankingItem = {
-      game, addedAt: new Date().toISOString(), choiceCounts, choiceProfiles, myChoice: choice, myReason: reason || null, myReasonText: reasonText || null,
-      votesCount: 1, completedCount: 0, voters: choiceProfiles[choice], completedBy: [],
+    const unvoted: RankingItem = {
+      game, addedAt: new Date().toISOString(), choiceCounts: countChoices(choiceProfiles), choiceProfiles, myChoice: null,
+      votesCount: 0, completedCount: 0, voters: [], completedBy: [],
       playtimePoints: legacyPlaytimePoints(game.duration_hours), ratingMultiplier: Number(game.average_rating ?? 50) / 100,
-      totalPoints: rankingScore(ACTIVE_RANKING_FORMULA, game, choiceCounts, 0), legacyTotalPoints,
-      votedByMe: true, completedByMe: false, inBacklog: false,
+      totalPoints: 0, legacyTotalPoints: 0, votedByMe: false, completedByMe: false, inBacklog: false,
     };
+    const item = applyMyVote(unvoted, me(reason, reasonText), choice, ACTIVE_RANKING_FORMULA);
     const next = [...ranking, item].sort(compareRankingItems);
     if (isDemo) { rankingQuery.setData(next); return; }
     const saved = await runOptimistic('Salvando escolha…', () => rankingQuery.setData(next), () => rankingQuery.setData(ranking), () => supabase.from('votes').upsert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth, choice, reason: choice === 'would_not_play' ? reason : null, reason_text: choice === 'would_not_play' ? reasonText : null }, { onConflict: 'user_id,game_id,vote_month' }));
@@ -298,7 +269,7 @@ export default function RankingPage() {
               <div className={`flex min-w-0 flex-1 flex-col justify-center py-1 ${isAdmin ? 'pr-16' : 'pr-7'}`}><Link href={`/jogos/${item.game.id}`} className="break-words text-sm font-extrabold leading-snug hover:text-violet-300">{item.game.title}</Link><div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-zinc-500"><span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{item.game.duration_hours} h</span>{rankingView === 'recent' && <span className="inline-flex items-center gap-1"><CalendarPlus className="size-3" />{formatShortDate(item.addedAt)}</span>}</div><div className="ranking-score mt-3 whitespace-nowrap text-3xl font-black leading-none text-emerald-400"><AnimatedPoints value={item.totalPoints} /><span className="ml-1 text-[10px] font-bold text-zinc-500">pts</span></div></div>
             </div>
 
-            <PreferenceParticipantsDialog profiles={item.choiceProfiles}>{openAt => <div className="preference-summary mt-3 grid w-full grid-cols-2 gap-1.5 border-t border-white/[0.07] pt-3">{preferenceOptions.map(option => <button type="button" onClick={() => openAt(option.value)} key={option.value} data-choice={option.value} className="preference-count flex min-w-0 items-center justify-center gap-1.5 rounded-lg bg-black/20 px-1.5 py-2 text-[10px] font-bold"><option.Icon className="size-3.5 shrink-0" /><span className="tabular-nums">{item.choiceCounts[option.value]}</span></button>)}</div>}</PreferenceParticipantsDialog>
+            <PreferenceParticipantsDialog profiles={item.choiceProfiles}>{openAt => <div className="preference-summary mt-3 grid w-full grid-cols-3 gap-1.5 border-t border-white/[0.07] pt-3">{voteChoiceOptions.map(option => <button type="button" onClick={() => openAt(option.value)} key={option.value} data-choice={option.value} className="preference-count flex min-w-0 items-center justify-center gap-1.5 rounded-lg bg-black/20 px-1.5 py-2 text-[10px] font-bold"><option.Icon className="size-3.5 shrink-0" /><span className="tabular-nums">{item.choiceCounts[option.value]}</span></button>)}</div>}</PreferenceParticipantsDialog>
             <div className="mt-2"><PreferenceButtons value={item.myChoice} disabled={isHistorical} onChange={choice => choose(item, choice)} /></div>
           </article>)}</div></section>)}
           {rankingGroups.length > 10 && <button onClick={() => setShowAll(value => !value)} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/8 bg-white/[0.025] text-xs font-bold">{showAll ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}{showAll ? `Mostrar 10 ${rankingView === 'recent' ? 'dias' : 'colocações'}` : `Ver todos os ${rankingGroups.length} ${rankingView === 'recent' ? 'dias' : 'colocações'}`}</button>}

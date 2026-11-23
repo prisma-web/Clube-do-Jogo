@@ -2,16 +2,10 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { dispatchPushNotification, isPushConfigured } from '@/lib/push';
-import { ACTIVE_RANKING_FORMULA } from '@/lib/ranking';
+import { ACTIVE_RANKING_FORMULA, compareRankingItems, rankingScore } from '@/lib/ranking';
+import { byChoice } from '@clube-do-jogo/domain';
 
 type RequestBody = { voteMonth?: unknown; previousLeaderId?: unknown; leaderId?: unknown };
-
-function playtimePoints(hours: number) {
-  if (hours < 8) return 1;
-  if (hours <= 15) return 3;
-  if (hours <= 20) return 2;
-  return 1;
-}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -50,18 +44,10 @@ export async function POST(request: Request) {
 
   const leader = (games || []).map(game => {
     const gameVotes = (votes || []).filter(vote => vote.game_id === game.id);
-    const voteCount = gameVotes.length;
     const completedCount = (completed || []).filter(progress => progress.game_id === game.id).length;
-    const wouldPlayCount = gameVotes.filter(vote => vote.choice === 'would_play').length;
-    const wouldNotPlayCount = gameVotes.filter(vote => vote.choice === 'would_not_play').length;
-    const legacyScore = (voteCount * 2 * playtimePoints(Number(game.duration_hours)) * (Number(game.average_rating ?? 50) / 100)) / (completedCount ? completedCount * 2 : 1);
-    return {
-      ...game,
-      score: ACTIVE_RANKING_FORMULA === 'legacy' ? legacyScore : wouldPlayCount - wouldNotPlayCount,
-      wouldPlayCount,
-      wouldNotPlayCount,
-    };
-  }).sort((left, right) => right.score - left.score || right.wouldPlayCount - left.wouldPlayCount || left.wouldNotPlayCount - right.wouldNotPlayCount || left.title.localeCompare(right.title, 'pt-BR'))[0];
+    const choiceCounts = byChoice(choice => gameVotes.filter(vote => vote.choice === choice).length);
+    return { game, choiceCounts, totalPoints: rankingScore(ACTIVE_RANKING_FORMULA, game, choiceCounts, completedCount) };
+  }).sort(compareRankingItems)[0]?.game;
   if (!leader || (expectedLeaderId && expectedLeaderId !== leader.id)) return NextResponse.json({ sent: 0, changed: false });
 
   const { data: changed, error: stateError } = await admin.rpc('claim_ranking_leader_notification', {

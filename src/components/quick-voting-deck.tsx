@@ -12,11 +12,9 @@ import { fetchRankingData } from '@/lib/data';
 import { useStaleQuery } from '@/hooks/use-stale-query';
 import { useApp } from './app-provider';
 import { shiftMonth } from '@/lib/utils';
-import { usePersistentState } from '@/hooks/use-persistent-state';
 import { apiFetch } from '@/lib/api-client';
 
 const SWIPE_THRESHOLD = 90;
-const NO_REVIEWED_GAMES: readonly string[] = [];
 
 export function QuickVotingDeck() {
   const supabase = useMemo(() => createClient(), []);
@@ -24,16 +22,14 @@ export function QuickVotingDeck() {
   const [closed, setClosed] = useState(false);
   const [sessionReviewedIds, setSessionReviewedIds] = useState<readonly string[]>([]);
   const voteMonth = shiftMonth(selectedMonth, 1);
-  // A neutral answer deletes the vote, so the server alone can't tell it was answered.
-  const [storedReviewedIds, setStoredReviewedIds] = usePersistentState(`quick-voting:reviewed:${voteMonth}`, NO_REVIEWED_GAMES);
   const rankingQuery = useStaleQuery(
     `ranking:${selectedMonth}:${isHistorical}:${user?.id}:${clubRevision}`,
     () => fetchRankingData(supabase, selectedMonth, user!.id, isDemo, isHistorical),
     Boolean(user) && !isHistorical,
   );
   const cards = useMemo(
-    () => pendingGames(rankingQuery.data || [], [...storedReviewedIds, ...sessionReviewedIds]),
-    [rankingQuery.data, storedReviewedIds, sessionReviewedIds],
+    () => pendingGames(rankingQuery.data || [], sessionReviewedIds),
+    [rankingQuery.data, sessionReviewedIds],
   );
   const card = cards[0];
 
@@ -74,37 +70,17 @@ export function QuickVotingDeck() {
 
   if (!card || closed || isHistorical) return null;
 
-  const persistReviewed = (update: (current: readonly string[]) => readonly string[]) => {
-    try {
-      setStoredReviewedIds(update);
-    } catch {
-      // Storage unavailable: the session list still hides the game until reload.
-    }
-  };
-  const review = (gameId: string) => {
-    setSessionReviewedIds(current => [...current, gameId]);
-    persistReviewed(current => current.includes(gameId) ? current : [...current, gameId]);
-  };
-  const restore = (gameId: string) => {
-    setSessionReviewedIds(current => current.filter(id => id !== gameId));
-    persistReviewed(current => current.filter(id => id !== gameId));
-  };
-
-  async function choose(choice: VoteChoice | null) {
+  function choose(choice: VoteChoice) {
     const gameId = card.game.id;
-    const save = () => {
-      review(gameId);
-      if (isDemo) return;
-      void runOptimistic(
-        choice ? 'Salvando escolha…' : 'Mantendo voto neutro…',
-        () => undefined,
-        () => restore(gameId),
-        () => choice
-          ? supabase.from('votes').upsert({ user_id: user!.id, game_id: gameId, vote_month: voteMonth, choice, reason: null, reason_text: null }, { onConflict: 'user_id,game_id,vote_month' })
-          : supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', gameId).eq('vote_month', voteMonth),
-      );
-    };
-    save();
+    // Hides the card until the ranking refresh reports the stored vote.
+    setSessionReviewedIds(current => [...current, gameId]);
+    if (isDemo) return;
+    void runOptimistic(
+      'Salvando escolha…',
+      () => undefined,
+      () => setSessionReviewedIds(current => current.filter(id => id !== gameId)),
+      () => supabase.from('votes').upsert({ user_id: user!.id, game_id: gameId, vote_month: voteMonth, choice, reason: null, reason_text: null }, { onConflict: 'user_id,game_id,vote_month' }),
+    );
   }
 
   const position = sessionReviewedIds.length + 1;
@@ -126,8 +102,8 @@ export function QuickVotingDeck() {
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.84}
           onDragEnd={(_event, info) => {
-            if (info.offset.x >= SWIPE_THRESHOLD) void choose('would_play');
-            else if (info.offset.x <= -SWIPE_THRESHOLD) void choose('would_not_play');
+            if (info.offset.x >= SWIPE_THRESHOLD) choose('would_play');
+            else if (info.offset.x <= -SWIPE_THRESHOLD) choose('would_not_play');
           }}
           className="mt-5 touch-pan-y overflow-hidden rounded-2xl border border-white/10 bg-white/[.035] shadow-xl shadow-black/30"
         >
@@ -142,9 +118,9 @@ export function QuickVotingDeck() {
         </motion.article>
 
         <div className="mt-4 grid grid-cols-3 gap-2">
-          <VoteButton label="Não" icon={<ThumbsDown className="size-4" />} tone="text-red-300" onClick={() => void choose('would_not_play')} />
-          <VoteButton label="Neutro" icon={<Minus className="size-4" />} tone="text-zinc-300" onClick={() => void choose(null)} />
-          <VoteButton label="Jogaria" icon={<ThumbsUp className="size-4" />} tone="text-emerald-300" onClick={() => void choose('would_play')} />
+          <VoteButton label="Não" icon={<ThumbsDown className="size-4" />} tone="text-red-300" onClick={() => choose('would_not_play')} />
+          <VoteButton label="Neutro" icon={<Minus className="size-4" />} tone="text-zinc-300" onClick={() => choose('neutral')} />
+          <VoteButton label="Jogaria" icon={<ThumbsUp className="size-4" />} tone="text-emerald-300" onClick={() => choose('would_play')} />
         </div>
         <p className="mt-4 text-center text-[10px] font-black uppercase tracking-[.16em] text-zinc-600">{position} de {total}</p>
       </section>

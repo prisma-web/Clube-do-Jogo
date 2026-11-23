@@ -14,7 +14,7 @@ test('shows the newest eight unanswered games', () => {
   assert.deepEqual(ids(pendingGames(games, [])), ['game-10', 'game-9', 'game-8', 'game-7', 'game-6', 'game-5', 'game-4', 'game-3']);
 });
 
-test('games reviewed as neutral make room for older pending games', () => {
+test('games answered this session make room for older pending games', () => {
   const neutral = ['game-10', 'game-9', 'game-8', 'game-7', 'game-6', 'game-5', 'game-4', 'game-3'];
   assert.deepEqual(ids(pendingGames(games, neutral)), ['game-2', 'game-1']);
 });
