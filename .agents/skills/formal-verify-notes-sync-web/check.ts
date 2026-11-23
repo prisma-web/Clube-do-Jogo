@@ -212,7 +212,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: 'unsynced-edit-sync-vs-device-delete',
-    summary: 'edição local que não subiu; aba A sincroniza enquanto outro aparelho apaga (update sem linha e nota sumida, notes-sync.ts:332-335)',
+    summary: 'edição local que não subiu; aba A sincroniza enquanto outro aparelho apaga (alcança o remote.get de notes-sync.ts:332-335, sem assertiva sobre o resultado)',
     setup: seedUnsyncedEdit,
     actors: [sync('A'), deviceDelete('n')],
     reaches: ['A:n:synced', 'A:n:conflict/remote-deleted', 'passo A  remote.get(n) → —'],

@@ -133,6 +133,8 @@ Em `SCENARIOS`, no `check.ts`: `name`, `summary`, `setup` (com `seedSynced`, `se
 - O outro aparelho é uma escrita atômica com CAS. A fila de notas do app mobile não é verificada aqui.
 - `NoLostLocalEdit` olha só o `saveNote` da sincronização automática. Uma versão local escondida por um `accepted-remote-deletion` que o usuário não escolheu passa sem alarme.
 - `shapeOf` pareia as gravações de cada ator em ordem, o que supõe uma operação por ator (`createThenRemove` é a exceção, e sua segunda operação só grava metadado).
+- Guardas sem cenário que as derrube: o ramo `!current` de `notes-sync.ts:333` só é alcançado (o resultado `conflict/remote-deleted` vem de `:274`), os `|| currentRemote` de `:456` e `:470` (não há ator que recrie a nota no servidor) e os `markConfirmed` de `:282` e `:497`, cuja falta a sincronização seguinte cura. Quebrar qualquer um deles dá só exit 3.
+- `createSupabaseNotesRemote` não roda; o CAS de `.eq('updated_at', …)` (`:634`) é imitado pelo remoto falso. Exit 3 sinaliza código mudado, não bug: o sinal de bug é exit 1.
 - Fora do escopo: snapshots de ciclo (`cycle_note_snapshots`), RLS e modo demo.
 
 ## Registro de cobertura
