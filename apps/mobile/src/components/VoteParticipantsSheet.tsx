@@ -7,11 +7,7 @@ import { Sheet } from './Sheet';
 import { voteReasonLabel } from './VoteReasonSheet';
 import { radii, spacing, themedStyles, typography, useThemeColors } from '@/theme';
 import type { VoteChoice, VoteParticipant } from '@clube-do-jogo/domain';
-
-const choices: Array<{ value: VoteChoice; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
-  { value: 'would_not_play', label: 'Não', icon: 'thumbs-down' },
-  { value: 'would_play', label: 'Jogaria', icon: 'thumbs-up' },
-];
+import { voteChoiceOptions } from './vote-choice-options';
 
 export function VoteParticipantsSheet({ visible, onClose, profiles, initialChoice }: {
   visible: boolean;
@@ -34,7 +30,7 @@ export function VoteParticipantsSheet({ visible, onClose, profiles, initialChoic
     <Sheet visible={visible} title="Escolhas do clube" onClose={onClose}>
       <View style={styles.body}>
         <View style={styles.tabs}>
-          {choices.map(option => {
+          {voteChoiceOptions.map(option => {
             const selected = active === option.value;
             return (
               <Pressable

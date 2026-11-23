@@ -7,8 +7,8 @@ function item(id: string, addedAt: string, votedByMe = false): RankingItem {
   return {
     game: { id, title: id, duration_hours: 4, image_url: null, description: '' },
     addedAt,
-    choiceCounts: { would_play: 0, would_not_play: 0 },
-    choiceProfiles: { would_play: [], would_not_play: [] },
+    choiceCounts: { would_play: 0, neutral: 0, would_not_play: 0 },
+    choiceProfiles: { would_play: [], neutral: [], would_not_play: [] },
     myChoice: null,
     votesCount: 0,
     completedCount: 0,
@@ -30,7 +30,17 @@ test('opening voting deck lists newest games that the current user has not voted
     item('new', '2026-10-03T00:00:00.000Z'),
     item('already-voted', '2026-10-04T00:00:00.000Z', true),
     item('middle', '2026-10-02T00:00:00.000Z'),
-  ], 2);
+  ], new Set(), 2);
 
   assert.deepEqual(cards.map(card => card.game.id), ['new', 'middle']);
+});
+
+test('games answered this session make room for older games before the limit', () => {
+  const cards = recentVotingItems([
+    item('old', '2026-10-01T00:00:00.000Z'),
+    item('new', '2026-10-03T00:00:00.000Z'),
+    item('middle', '2026-10-02T00:00:00.000Z'),
+  ], new Set(['new']), 2);
+
+  assert.deepEqual(cards.map(card => card.game.id), ['middle', 'old']);
 });

@@ -22,8 +22,6 @@ import { recentVotingItems } from './voting-deck';
 
 const swipeThreshold = 88;
 
-type DeckAction = VoteChoice | null;
-
 export function VotingDeckGate() {
   const router = useRouter();
   const colors = useThemeColors();
@@ -36,7 +34,7 @@ export function VotingDeckGate() {
   const translateX = useRef(new Animated.Value(0)).current;
 
   const cards = useMemo(
-    () => recentVotingItems(ranking.data ?? []).filter(item => !dismissedGameIds.has(item.game.id)),
+    () => recentVotingItems(ranking.data ?? [], dismissedGameIds),
     [dismissedGameIds, ranking.data],
   );
   const card = cards[0];
@@ -75,7 +73,7 @@ export function VotingDeckGate() {
 
   const advance = () => setDismissedGameIds(current => new Set([...current, card?.game.id].filter((id): id is string => Boolean(id))));
 
-  const commit = (choice: DeckAction, direction: -1 | 0 | 1 = 0) => {
+  const commit = (choice: VoteChoice, direction: -1 | 0 | 1 = 0) => {
     if (!card || vote.isPending) return;
     const finish = () => {
       translateX.setValue(0);
@@ -189,7 +187,7 @@ export function VotingDeckGate() {
               icon="remove"
               label="Neutro"
               color={colors.zinc300}
-              onPress={() => commit(null)}
+              onPress={() => commit('neutral')}
               disabled={vote.isPending}
               testID="voting-deck-neutral"
             />

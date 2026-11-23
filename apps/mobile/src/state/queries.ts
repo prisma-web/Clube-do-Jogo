@@ -5,9 +5,8 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
+  applyMyVote,
   compareRankingItems,
-  legacyRankingScore,
-  preferenceRankingScore,
   shiftMonth,
   transitionProgress,
 } from '@clube-do-jogo/domain';
@@ -91,34 +90,9 @@ function profileForVote(profile: Profile | null, input: VoteVariables): VotePart
 
 function optimisticRanking(items: RankingItem[] | undefined, input: VoteVariables, profile: Profile | null, formula: 'preference' | 'legacy') {
   if (!items) return items;
-  return items.map(item => {
-    if (item.game.id !== input.gameId) return item;
-    const choiceProfiles = {
-      would_play: item.choiceProfiles.would_play.filter(person => person.id !== profile?.id),
-      would_not_play: item.choiceProfiles.would_not_play.filter(person => person.id !== profile?.id),
-    };
-    if (input.choice) choiceProfiles[input.choice].push(profileForVote(profile, input));
-    const choiceCounts = {
-      would_play: choiceProfiles.would_play.length,
-      would_not_play: choiceProfiles.would_not_play.length,
-    };
-    const voters = [...choiceProfiles.would_play, ...choiceProfiles.would_not_play];
-    return {
-      ...item,
-      choiceCounts,
-      choiceProfiles,
-      myChoice: input.choice,
-      myReason: input.choice ? input.reason || null : null,
-      myReasonText: input.choice ? input.reasonText?.trim() || null : null,
-      votesCount: voters.length,
-      voters,
-      totalPoints: formula === 'legacy'
-        ? legacyRankingScore(item.game, voters.length, item.completedCount)
-        : preferenceRankingScore(choiceCounts),
-      legacyTotalPoints: legacyRankingScore(item.game, voters.length, item.completedCount),
-      votedByMe: input.choice !== null,
-    };
-  }).sort(compareRankingItems);
+  return items
+    .map(item => item.game.id === input.gameId ? applyMyVote(item, profileForVote(profile, input), input.choice, formula) : item)
+    .sort(compareRankingItems);
 }
 
 function optimisticProgress(items: GameProgress[] | undefined, userId: string, gameId: string, status: ProgressStatus, profile: Profile | null) {

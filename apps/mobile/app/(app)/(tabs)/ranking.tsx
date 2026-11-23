@@ -10,6 +10,7 @@ import { Chip } from '@/components/Chip';
 import { PreferenceButtons } from '@/components/PreferenceButtons';
 import { Sheet } from '@/components/Sheet';
 import { VoteParticipantsSheet } from '@/components/VoteParticipantsSheet';
+import { voteChoiceOptions } from '@/components/vote-choice-options';
 import { VoteReasonSheet, voteReasonLabel } from '@/components/VoteReasonSheet';
 import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
 import { formatMonth, formatShortDate, shiftMonth } from '@/lib/format';
@@ -27,7 +28,7 @@ import {
   type RankingGroup,
   type RankingView as RankingViewMode,
 } from '@/features/ranking/ranking-view';
-import { gameCoverUrl, type Game, type RankingItem, type VoteChoice, type VoteReason } from '@clube-do-jogo/domain';
+import { emptyChoiceProfiles, gameCoverUrl, type Game, type RankingItem, type VoteChoice, type VoteReason } from '@clube-do-jogo/domain';
 
 const rankingViews: Array<{ value: RankingViewMode; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
   { value: 'ranking', label: 'Ranking atual', icon: 'reorder-four-outline' },
@@ -129,7 +130,7 @@ export default function RankingScreen() {
       setReasonTarget({ game });
       return;
     }
-    vote.mutate({ gameId: game.id, choice: 'would_play' });
+    vote.mutate({ gameId: game.id, choice });
   }
 
   function confirmReason(reason: VoteReason, reasonText: string | null) {
@@ -227,24 +228,18 @@ export default function RankingScreen() {
               </Pressable>
 
               <View style={styles.countsRow}>
-                <Pressable
-                  onPress={() => setParticipantsTarget({ item, choice: 'would_play' })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Ver quem votou Jogaria em ${item.game.title}`}
-                  style={styles.countChip}
-                >
-                  <Ionicons name="thumbs-up" size={13} color={colors.emerald400} />
-                  <Text style={styles.countText}>{item.choiceCounts.would_play}</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setParticipantsTarget({ item, choice: 'would_not_play' })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Ver quem votou Não em ${item.game.title}`}
-                  style={styles.countChip}
-                >
-                  <Ionicons name="thumbs-down" size={13} color={colors.red400} />
-                  <Text style={styles.countText}>{item.choiceCounts.would_not_play}</Text>
-                </Pressable>
+                {voteChoiceOptions.map(option => (
+                  <Pressable
+                    key={option.value}
+                    onPress={() => setParticipantsTarget({ item, choice: option.value })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Ver quem votou ${option.label} em ${item.game.title}`}
+                    style={styles.countChip}
+                  >
+                    <Ionicons name={option.icon} size={13} color={option.accent(colors)} />
+                    <Text style={styles.countText}>{item.choiceCounts[option.value]}</Text>
+                  </Pressable>
+                ))}
               </View>
 
               {item.myChoice === 'would_not_play' && item.myReason ? (
@@ -350,7 +345,7 @@ export default function RankingScreen() {
         key={participantsTarget ? `${participantsTarget.item.game.id}:${participantsTarget.choice}` : 'closed'}
         visible={Boolean(participantsTarget)}
         onClose={() => setParticipantsTarget(null)}
-        profiles={participantsTarget?.item.choiceProfiles ?? { would_play: [], would_not_play: [] }}
+        profiles={participantsTarget?.item.choiceProfiles ?? emptyChoiceProfiles()}
         initialChoice={participantsTarget?.choice ?? 'would_play'}
       />
 

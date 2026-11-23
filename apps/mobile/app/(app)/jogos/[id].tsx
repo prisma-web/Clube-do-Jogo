@@ -24,10 +24,11 @@ import { TrailerModal } from '@/features/media/TrailerModal';
 import { AvatarCropEditor, DEFAULT_AVATAR_SELECTION_CROP } from '@/features/profile/AvatarCropEditor';
 import { useClubGameAdminAction } from '@/features/admin';
 import { VoteParticipantsSheet } from '@/components/VoteParticipantsSheet';
+import { voteChoiceOptions } from '@/components/vote-choice-options';
 import { getCanonicalGameUrl } from '@/features/media/canonical-url';
 import { getRankingFormula } from '@/platform/config';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
-import { gameCoverUrl, type AvatarCrop, type GameMugshot, type ProgressStatus, type RatingDetails, type RatingMode, type VoteChoice, type VoteReason } from '@clube-do-jogo/domain';
+import { emptyChoiceProfiles, gameCoverUrl, type AvatarCrop, type GameMugshot, type ProgressStatus, type RatingDetails, type RatingMode, type VoteChoice, type VoteReason } from '@clube-do-jogo/domain';
 
 const rankingFormula = getRankingFormula();
 const DESCRIPTION_EXPAND_THRESHOLD = 180;
@@ -324,24 +325,18 @@ export default function GameDetailScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Sua preferência</Text>
         <View style={styles.countsRow}>
-          <Pressable
-            onPress={() => setParticipantsChoice('would_play')}
-            accessibilityRole="button"
-            accessibilityLabel="Ver quem escolheu Jogaria"
-            style={styles.countChip}
-          >
-            <Ionicons name="thumbs-up" size={13} color={colors.emerald400} />
-            <Text style={styles.countText}>{rankingEntry?.choiceCounts.would_play ?? 0}</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setParticipantsChoice('would_not_play')}
-            accessibilityRole="button"
-            accessibilityLabel="Ver quem escolheu Não jogaria"
-            style={styles.countChip}
-          >
-            <Ionicons name="thumbs-down" size={13} color={colors.red400} />
-            <Text style={styles.countText}>{rankingEntry?.choiceCounts.would_not_play ?? 0}</Text>
-          </Pressable>
+          {voteChoiceOptions.map(option => (
+            <Pressable
+              key={option.value}
+              onPress={() => setParticipantsChoice(option.value)}
+              accessibilityRole="button"
+              accessibilityLabel={`Ver quem escolheu ${option.label}`}
+              style={styles.countChip}
+            >
+              <Ionicons name={option.icon} size={13} color={option.accent(colors)} />
+              <Text style={styles.countText}>{rankingEntry?.choiceCounts[option.value] ?? 0}</Text>
+            </Pressable>
+          ))}
         </View>
         {myChoice === 'would_not_play' && rankingEntry?.myReason ? (
           <Text style={styles.myReason}>Meu motivo: {voteReasonLabel(rankingEntry.myReason)}</Text>
@@ -433,7 +428,7 @@ export default function GameDetailScreen() {
       {participantsChoice ? (
         <VoteParticipantsSheet
           visible={participantsChoice !== null}
-          profiles={rankingEntry?.choiceProfiles ?? { would_play: [], would_not_play: [] }}
+          profiles={rankingEntry?.choiceProfiles ?? emptyChoiceProfiles()}
           initialChoice={participantsChoice}
           onClose={() => setParticipantsChoice(null)}
         />
