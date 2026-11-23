@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Testes de regressão do verify-mobile que não precisam de simulador nem de build.
+# Cada caso roda o helper copiado num repositório git temporário, com lock em XDG_STATE_HOME próprio.
+set -euo pipefail
+
+HELPER="$(cd "$(dirname "$0")" && pwd)/verify-mobile"
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/verify-mobile-test.XXXXXX")
+trap 'rm -rf "$WORK"' EXIT
+FAILS=0
+
+pass() { echo "ok    $1"; }
+fail() { echo "FALHA $1"; FAILS=$((FAILS + 1)); }
+
+REPO="$WORK/repo"
+export XDG_STATE_HOME="$WORK/xdg"
+LOCKS="$XDG_STATE_HOME/clube-do-jogo/device-locks"
+UDID=FAKE-UDID-1
+
+setup() {
+  rm -rf "$REPO" "$XDG_STATE_HOME"
+  mkdir -p "$REPO/scripts" "$REPO/state/verify-clube-do-jogo-mobile" "$REPO/evidence/verify-clube-do-jogo-mobile" "$LOCKS"
+  cp "$HELPER" "$REPO/scripts/verify-mobile"
+  echo '*' > "$REPO/state/verify-clube-do-jogo-mobile/.gitignore"
+  echo '*' > "$REPO/evidence/verify-clube-do-jogo-mobile/.gitignore"
+  git -C "$REPO" init -q
+  git -C "$REPO" add -A
+  git -C "$REPO" -c user.email=t@t -c user.name=t commit -q -m init
+  # Wrapper falso no formato do device_open: um sh que executa um launcher com o array bound.
+  mkdir -p "$WORK/device"
+  printf 'const bound = ["--platform","ios","--udid","%s","--session","s"];\n' "$UDID" > "$WORK/device/agent-device-launcher.mjs"
+  printf "#!/bin/sh\nexec node '%s' \"\$@\"\n" "$WORK/device/agent-device-launcher.mjs" > "$WORK/device/agent-device"
+  chmod +x "$WORK/device/agent-device"
+  touch "$WORK/flow.yaml"
+}
+
+make_run() {
+  local id=$1 state="$REPO/state/verify-clube-do-jogo-mobile/$1" ev="$REPO/evidence/verify-clube-do-jogo-mobile/$1"
+  mkdir -p "$state" "$ev"
+  printf 'RUN_ID=%s\nEVIDENCE=%s\nSHA=x\nBUILD_KEY=nao-bate\nAPP_PATH=/nada\nBUNDLE_SHA256=x\nMODE=demo\n' "$id" "$ev" > "$state/manifest.env"
+  cp "$state/manifest.env" "$ev/manifest.env"
+  echo prova > "$ev/prova.txt"
+}
+
+vm() { (cd "$REPO" && ./scripts/verify-mobile "$@"); }
+
+dead_pid() { sh -c 'echo $$'; }
+
+write_lock() {
+  mkdir -p "$LOCKS/$1"
+  printf 'PID=%s\nPROC_START=%s\nRUN_ID=%s\nWORKTREE=%s\n' "$2" "$3" "$4" "$(cd "$REPO" && pwd -P)" > "$LOCKS/$1/owner"
+}
+
+# 1. cleanup com --run-id que sai do estado é recusado e não apaga a evidência.
+setup; make_run r1
+if vm cleanup --run-id ../../evidence/verify-clube-do-jogo-mobile/r1 2>/dev/null; then fail "cleanup aceitou run-id com ../"
+elif [ -f "$REPO/evidence/verify-clube-do-jogo-mobile/r1/prova.txt" ]; then pass "cleanup recusa run-id com ../ e mantém a evidência"
+else fail "cleanup recusou mas a evidência sumiu"; fi
+
+for bad in .. . builds 'r1/..' '-x'; do
+  if vm cleanup --run-id "$bad" 2>/dev/null; then fail "cleanup aceitou run-id '$bad'"; else pass "cleanup recusa run-id '$bad'"; fi
+done
+
+# 2. um symlink no estado apontando para a evidência é recusado.
+setup; make_run r1
+ln -s "$REPO/evidence/verify-clube-do-jogo-mobile/r1" "$REPO/state/verify-clube-do-jogo-mobile/evil"
+if vm cleanup --run-id evil 2>/dev/null; then fail "cleanup seguiu symlink"
+elif [ -f "$REPO/evidence/verify-clube-do-jogo-mobile/r1/prova.txt" ]; then pass "cleanup recusa estado que é symlink"
+else fail "symlink recusado mas a evidência sumiu"; fi
+
+# 3. cleanup do próprio run limpa o estado, libera o próprio lock órfão e mantém o de outro run.
+setup; make_run r1
+write_lock "$UDID" "$(dead_pid)" "" r1
+write_lock OUTRO-UDID "$(dead_pid)" "" r2
+vm cleanup --run-id r1 2>/dev/null
+if [ ! -e "$REPO/state/verify-clube-do-jogo-mobile/r1" ] && [ -f "$REPO/evidence/verify-clube-do-jogo-mobile/r1/prova.txt" ] \
+  && [ ! -e "$LOCKS/$UDID" ] && [ -d "$LOCKS/OUTRO-UDID" ]; then pass "cleanup libera só o lock órfão do próprio run"
+else fail "cleanup não limpou estado/lock como esperado"; fi
+
+# 4. cleanup recusa enquanto um drive vivo do run segura o lock.
+setup; make_run r1
+sleep 30 & live=$!
+write_lock "$UDID" "$live" "$(ps -o lstart= -p "$live" | sed 's/^ *//')" r1
+if vm cleanup --run-id r1 2>/dev/null; then fail "cleanup apagou com drive vivo"
+elif [ -d "$LOCKS/$UDID" ] && [ -d "$REPO/state/verify-clube-do-jogo-mobile/r1" ]; then pass "cleanup recusa com drive vivo"
+else fail "cleanup recusou mas mexeu no estado"; fi
+
+# 5. drive recusa aparelho com lock vivo de outra sessão.
+if out=$(vm drive --run-id r1 --udid "$UDID" --agent-device "$WORK/device/agent-device" "$WORK/flow.yaml" 2>&1); then fail "drive ignorou lock vivo"
+elif grep -q "em uso" <<<"$out" && [ "$(sed -n 's/^PID=//p' "$LOCKS/$UDID/owner")" = "$live" ]; then pass "drive recusa lock vivo e não o toca"
+else fail "drive falhou por outro motivo: $out"; fi
+kill "$live" 2>/dev/null || true; wait "$live" 2>/dev/null || true
+
+# 6. drive quebra lock cujo dono morreu (kill -9) e solta o lock ao sair.
+write_lock "$UDID" "$live" "data antiga" r-morto
+out=$(vm drive --run-id r1 --udid "$UDID" --agent-device "$WORK/device/agent-device" "$WORK/flow.yaml" 2>&1 || true)
+if grep -q "órfão" <<<"$out" && grep -q "árvore do app mudou" <<<"$out" && [ ! -e "$LOCKS/$UDID" ]; then pass "drive quebra lock órfão e libera o seu ao sair"
+else fail "lock órfão: $out"; fi
+
+# 7. drive recusa wrapper preso a outro aparelho.
+if out=$(vm drive --run-id r1 --udid OUTRO-UDID --agent-device "$WORK/device/agent-device" "$WORK/flow.yaml" 2>&1); then fail "drive aceitou UDID diferente do wrapper"
+elif grep -q "está preso a $UDID" <<<"$out"; then pass "drive recusa UDID diferente do wrapper"
+else fail "UDID: $out"; fi
+
+# 8. drive não sobrescreve evidência de um fluxo já rodado.
+mkdir -p "$REPO/evidence/verify-clube-do-jogo-mobile/r1/drive-flow"
+if out=$(vm drive --run-id r1 --udid "$UDID" --agent-device "$WORK/device/agent-device" "$WORK/flow.yaml" 2>&1); then fail "drive sobrescreveu"
+elif grep -q "já há evidência" <<<"$out"; then pass "drive recusa reusar drive-<fluxo>"
+else fail "drive repetido: $out"; fi
+
+# 9. launch não reaproveita um run-id que já tem evidência.
+setup; mkdir -p "$REPO/evidence/verify-clube-do-jogo-mobile/r9"
+if out=$(vm launch --run-id r9 2>&1); then fail "launch reusou run-id"
+elif grep -q "já há evidência" <<<"$out"; then pass "launch recusa run-id com evidência"
+else fail "launch: $out"; fi
+
+[ "$FAILS" = 0 ] && echo "test-verify-mobile: ok" || { echo "test-verify-mobile: $FAILS falha(s)"; exit 1; }

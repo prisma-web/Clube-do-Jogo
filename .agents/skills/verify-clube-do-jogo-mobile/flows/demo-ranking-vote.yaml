@@ -1,0 +1,43 @@
+appId: com.clubedojogo.mobile.dev
+---
+# Demo sem credenciais: limpa o estado, entra no modo demonstração, fecha a Votação rápida
+# e vota Não em Cocoon pela aba Ranking.
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: Boas-vindas de volta
+    timeout: 30000
+- tapOn: Entrar no modo demonstração
+# A Votação rápida abre sozinha por cima das abas.
+- extendedWaitUntil:
+    visible: Fechar votação rápida
+    timeout: 30000
+- tapOn: Fechar votação rápida
+- waitForAnimationToEnd
+- tapOn:
+    text: 'Ranking(, tab, 2 of 5)?'
+    index: 0
+- scrollUntilVisible:
+    element: Cocoon
+    direction: DOWN
+- takeScreenshot: antes-do-voto
+- tapOn:
+    text: Não
+    enabled: true
+    below: Cocoon
+    index: 0
+- assertVisible: Por que você não jogaria?
+- tapOn: Não consigo rodar
+- tapOn: Confirmar Não
+- extendedWaitUntil:
+    visible: 'Meu motivo: Não consigo rodar'
+    timeout: 10000
+- takeScreenshot: depois-do-voto
+# Restaura: tocar de novo na escolha remove o voto.
+- tapOn:
+    text: Não
+    enabled: true
+    above: 'Meu motivo: Não consigo rodar'
+    index: 0
+- assertNotVisible: 'Meu motivo: Não consigo rodar'
+- takeScreenshot: voto-removido
