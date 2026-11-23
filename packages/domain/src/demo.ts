@@ -1,5 +1,5 @@
 import type { ClubComment, Game, GameProgress, Profile, RankingFormula, RankingItem } from './types';
-import { compareRankingItems, legacyPlaytimePoints, legacyRankingScore, preferenceRankingScore } from './ranking';
+import { choiceParticipants, compareRankingItems, countChoices, legacyPlaytimePoints, rankingScore } from './ranking';
 import { monthKey, shiftMonth } from './dates';
 
 export const demoProfiles: Profile[] = [
@@ -96,15 +96,20 @@ export function demoRanking(formula: RankingFormula = 'preference'): RankingItem
     const voters = index % 2 === 0 ? demoProfiles.slice(0, voterCount) : demoProfiles.slice(1, voterCount + 1);
     const wouldNotPlay = index % 3 === 1 ? demoProfiles.slice(-Math.min(2, 1 + index % 2)) : [];
     const wouldPlay = voters.filter(person => !wouldNotPlay.some(other => other.id === person.id));
+    const neutral = index % 4 === 2 && wouldPlay.length > 1 ? wouldPlay.slice(-1) : [];
     const completedBy = demoProfiles.slice(index % 3, index % 3 + (index % 2));
-    const choiceProfiles = { would_play: wouldPlay, would_not_play: wouldNotPlay.map((person, reasonIndex) => ({ ...person, reason: reasonIndex % 2 ? 'cannot_run' as const : 'other' as const, reasonText: reasonIndex % 2 ? null : 'Não é o tipo de jogo que estou querendo jogar neste mês.' })) };
-    const choiceCounts = { would_play: wouldPlay.length, would_not_play: wouldNotPlay.length };
-    const allVoters = [...wouldPlay, ...choiceProfiles.would_not_play];
+    const choiceProfiles = {
+      would_play: wouldPlay.filter(person => !neutral.includes(person)),
+      neutral,
+      would_not_play: wouldNotPlay.map((person, reasonIndex) => ({ ...person, reason: reasonIndex % 2 ? 'cannot_run' as const : 'other' as const, reasonText: reasonIndex % 2 ? null : 'Não é o tipo de jogo que estou querendo jogar neste mês.' })),
+    };
+    const choiceCounts = countChoices(choiceProfiles);
+    const allVoters = choiceParticipants(choiceProfiles);
     const playtimePoints = legacyPlaytimePoints(game.duration_hours);
-    const legacyTotalPoints = legacyRankingScore(game, allVoters.length, completedBy.length);
+    const legacyTotalPoints = rankingScore('legacy', game, choiceCounts, completedBy.length);
     const myChoice = (Object.entries(choiceProfiles).find(([, people]) => people.some(person => person.id === 'demo-user'))?.[0] || null) as RankingItem['myChoice'];
     const myParticipant = myChoice === 'would_not_play' ? choiceProfiles.would_not_play.find(person => person.id === 'demo-user') : null;
-    return { game, addedAt: new Date(Date.now() - index * 7_200_000).toISOString(), choiceCounts, choiceProfiles, myChoice, myReason: myParticipant?.reason || null, myReasonText: myParticipant?.reasonText || null, votesCount: allVoters.length, completedCount: completedBy.length, voters: allVoters, completedBy, playtimePoints, ratingMultiplier: (game.average_rating ?? 50) / 100, totalPoints: formula === 'legacy' ? legacyTotalPoints : preferenceRankingScore(choiceCounts), legacyTotalPoints, votedByMe: myChoice !== null, completedByMe: completedBy.some(item => item.id === 'demo-user'), inBacklog: demoGames.slice(1, 6).some(item => item.id === game.id) };
+    return { game, addedAt: new Date(Date.now() - index * 7_200_000).toISOString(), choiceCounts, choiceProfiles, myChoice, myReason: myParticipant?.reason || null, myReasonText: myParticipant?.reasonText || null, votesCount: allVoters.length, completedCount: completedBy.length, voters: allVoters, completedBy, playtimePoints, ratingMultiplier: (game.average_rating ?? 50) / 100, totalPoints: rankingScore(formula, game, choiceCounts, completedBy.length), legacyTotalPoints, votedByMe: myChoice !== null, completedByMe: completedBy.some(item => item.id === 'demo-user'), inBacklog: demoGames.slice(1, 6).some(item => item.id === game.id) };
   }).sort(compareRankingItems);
 }
 

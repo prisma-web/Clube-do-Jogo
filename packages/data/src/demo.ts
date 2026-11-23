@@ -5,7 +5,7 @@ import {
   demoProgress,
   demoRanking,
 } from '@clube-do-jogo/domain/demo';
-import { compareRankingItems, legacyRankingScore, preferenceRankingScore } from '@clube-do-jogo/domain';
+import { applyMyVote, byChoice, compareRankingItems } from '@clube-do-jogo/domain';
 import type {
   AppRole,
   ClubCycle,
@@ -47,10 +47,7 @@ function cloneRankingItem(item: RankingItem): RankingItem {
     ...item,
     game: { ...item.game },
     choiceCounts: { ...item.choiceCounts },
-    choiceProfiles: {
-      would_play: item.choiceProfiles.would_play.map(cloneProfile),
-      would_not_play: item.choiceProfiles.would_not_play.map(profile => ({ ...profile })),
-    },
+    choiceProfiles: byChoice(choice => item.choiceProfiles[choice].map(cloneProfile)),
     voters: item.voters.map(cloneProfile),
     completedBy: item.completedBy.map(cloneProfile),
   };
@@ -153,40 +150,8 @@ export class DemoStore {
         return { ...item, inBacklog: this.isBacklog(userId, item.game.id) };
       }
 
-      const profiles = {
-        would_play: item.choiceProfiles.would_play.filter(profile => profile.id !== userId),
-        would_not_play: item.choiceProfiles.would_not_play.filter(profile => profile.id !== userId),
-      };
-      if (override) {
-        profiles[override.choice].push({
-          ...demoUserProfile(userId),
-          reason: override.reason,
-          reasonText: override.reasonText,
-        });
-      }
-      const choiceCounts = {
-        would_play: profiles.would_play.length,
-        would_not_play: profiles.would_not_play.length,
-      };
-      const voters = [...profiles.would_play, ...profiles.would_not_play];
-      const myChoice = override?.choice || null;
-      const totalPoints = formula === 'legacy'
-        ? legacyRankingScore(item.game, voters.length, item.completedCount)
-        : preferenceRankingScore(choiceCounts);
-      return {
-        ...item,
-        choiceCounts,
-        choiceProfiles: profiles,
-        myChoice,
-        myReason: override?.reason || null,
-        myReasonText: override?.reasonText || null,
-        votesCount: voters.length,
-        voters,
-        totalPoints,
-        legacyTotalPoints: legacyRankingScore(item.game, voters.length, item.completedCount),
-        votedByMe: myChoice !== null,
-        inBacklog: this.isBacklog(userId, item.game.id),
-      };
+      const me = { ...demoUserProfile(userId), reason: override?.reason ?? null, reasonText: override?.reasonText ?? null };
+      return { ...applyMyVote(item, me, override?.choice ?? null, formula), inBacklog: this.isBacklog(userId, item.game.id) };
     }).sort(compareRankingItems);
   }
 

@@ -84,7 +84,7 @@ export interface RankingItem {
   inBacklog: boolean;
 }
 
-export type VoteChoice = 'would_play' | 'would_not_play';
+export type VoteChoice = 'would_play' | 'neutral' | 'would_not_play';
 export type VoteReason = 'played_before' | 'cannot_run' | 'too_expensive' | 'other';
 
 export interface VoteParticipant extends Profile {

@@ -1,12 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
+  byChoice,
+  choiceParticipants,
   compareRankingItems,
+  countChoices,
+  isVoteChoice,
   legacyPlaytimePoints,
-  legacyRankingScore,
   normalizeAvatarCrop,
-  preferenceRankingScore,
+  rankingScore,
   shiftMonth,
   transitionProgress,
+  voteChoices,
 } from '@clube-do-jogo/domain';
 import type {
   ClubCycle,
@@ -42,7 +46,6 @@ import type {
   UserPlatformRemoval,
 } from './profiles';
 
-const voteChoices: VoteChoice[] = ['would_play', 'would_not_play'];
 const ratingCriteria: RatingCriterion[] = ['graphics', 'gameplay', 'story', 'music', 'fun'];
 
 export interface DataScope {
@@ -172,8 +175,10 @@ type RawSnapshot = {
   finalized_at?: string;
   legacy_total_points?: number | null;
   would_play_count?: number;
+  neutral_count?: number;
   would_not_play_count?: number;
   would_play_user_ids?: string[];
+  neutral_user_ids?: string[];
   would_not_play_user_ids?: string[];
   games: Game | null;
 };
@@ -201,10 +206,6 @@ function profileMap(profiles: Profile[]) {
 
 function asProfiles(value: unknown): Profile[] {
   return Array.isArray(value) ? value as Profile[] : [];
-}
-
-function isVoteChoice(value: unknown): value is VoteChoice {
-  return value === 'would_play' || value === 'would_not_play';
 }
 
 function validateRatingValue(value: unknown, label: string): number | null {
@@ -346,12 +347,6 @@ function mugshotsFromPayload(payload: unknown): GameMugshot[] {
   });
 }
 
-function points(formula: RankingFormula, game: Game, counts: Record<VoteChoice, number>, completed: number) {
-  return formula === 'legacy'
-    ? legacyRankingScore(game, counts.would_play + counts.would_not_play, completed)
-    : preferenceRankingScore(counts);
-}
-
 function rankingFromRows(
   games: Game[],
   votes: RawVote[],
@@ -365,20 +360,17 @@ function rankingFromRows(
   return games.map(game => {
     const gameVotes = votes.filter(vote => vote.game_id === game.id && isVoteChoice(vote.choice));
     const gameCompleted = completed.filter(item => item.game_id === game.id);
-    const choiceProfiles = Object.fromEntries(voteChoices.map(choice => [choice, gameVotes
+    const choiceProfiles = byChoice<VoteParticipant[]>(choice => gameVotes
       .filter(vote => vote.choice === choice)
       .map(vote => ({
         ...(profilesById.get(vote.user_id) || fallbackProfile(vote.user_id)),
         reason: vote.reason,
         reasonText: vote.reason_text,
-      }))])) as Record<VoteChoice, VoteParticipant[]>;
-    const choiceCounts = {
-      would_play: choiceProfiles.would_play.length,
-      would_not_play: choiceProfiles.would_not_play.length,
-    };
+      })));
+    const choiceCounts = countChoices(choiceProfiles);
     const myVote = gameVotes.find(vote => vote.user_id === userId);
     const myChoice = myVote?.choice || null;
-    const voters = [...choiceProfiles.would_play, ...choiceProfiles.would_not_play];
+    const voters = choiceParticipants(choiceProfiles);
     const addedAt = gameVotes.reduce((earliest, vote) => !earliest || vote.created_at < earliest ? vote.created_at : earliest, '');
     return {
       game,
@@ -394,8 +386,8 @@ function rankingFromRows(
       completedBy: gameCompleted.map(item => profilesById.get(item.user_id) || fallbackProfile(item.user_id)),
       playtimePoints: legacyPlaytimePoints(Number(game.duration_hours)),
       ratingMultiplier: Number(game.average_rating ?? 50) / 100,
-      totalPoints: points(formula, game, choiceCounts, gameCompleted.length),
-      legacyTotalPoints: legacyRankingScore(game, voters.length, gameCompleted.length),
+      totalPoints: rankingScore(formula, game, choiceCounts, gameCompleted.length),
+      legacyTotalPoints: rankingScore('legacy', game, choiceCounts, gameCompleted.length),
       votedByMe: myChoice !== null,
       completedByMe: gameCompleted.some(item => item.user_id === userId),
       inBacklog: backlogIds.has(game.id),
@@ -416,10 +408,12 @@ function snapshotRanking(
     const game = row.games as Game;
     const choiceIds: Record<VoteChoice, string[]> = {
       would_play: row.would_play_user_ids || row.voter_ids || [],
+      neutral: row.neutral_user_ids || [],
       would_not_play: row.would_not_play_user_ids || [],
     };
     const choiceCounts: Record<VoteChoice, number> = {
       would_play: row.would_play_count ?? choiceIds.would_play.length,
+      neutral: row.neutral_count ?? choiceIds.neutral.length,
       would_not_play: row.would_not_play_count ?? choiceIds.would_not_play.length,
     };
     const myChoice = voteChoices.find(choice => choiceIds[choice].includes(userId)) || null;
@@ -428,8 +422,7 @@ function snapshotRanking(
       game,
       addedAt: row.finalized_at || `${month}-01T00:00:00.000Z`,
       choiceCounts,
-      choiceProfiles: Object.fromEntries(voteChoices.map(choice => [choice, choiceIds[choice]
-        .map(id => profilesById.get(id) || fallbackProfile(id))])) as Record<VoteChoice, VoteParticipant[]>,
+      choiceProfiles: byChoice<VoteParticipant[]>(choice => choiceIds[choice].map(id => profilesById.get(id) || fallbackProfile(id))),
       myChoice,
       myReason: null,
       myReasonText: null,
@@ -439,7 +432,7 @@ function snapshotRanking(
       completedBy: (row.completed_user_ids || []).map(id => profilesById.get(id) || fallbackProfile(id)),
       playtimePoints: Number(row.playtime_points),
       ratingMultiplier: Number(row.rating_multiplier),
-      totalPoints: points(formula, game, choiceCounts, Number(row.completed_count)),
+      totalPoints: rankingScore(formula, game, choiceCounts, Number(row.completed_count)),
       legacyTotalPoints,
       votedByMe: myChoice !== null,
       completedByMe: (row.completed_user_ids || []).includes(userId),
@@ -605,6 +598,7 @@ export class DataClient {
         const rows = (data || []) as unknown as RawSnapshot[];
         const ids = Array.from(new Set(rows.flatMap(row => [
           ...(row.would_play_user_ids || row.voter_ids || []),
+          ...(row.neutral_user_ids || []),
           ...(row.would_not_play_user_ids || []),
           ...(row.completed_user_ids || []),
         ])));
@@ -883,10 +877,11 @@ export class DataClient {
   async setVote(input: VoteInput): Promise<void> {
     if (input.historical) throw new DataError('salvar voto', 'O histórico é somente leitura.');
     const voteMonth = shiftMonth(input.month, 1);
+    const negative = input.choice === 'would_not_play';
+    const reason = negative ? input.reason || null : null;
+    const reasonText = negative ? input.reasonText?.trim() || null : null;
     if (input.isDemo) {
-      const vote: DemoVote | null = input.choice
-        ? { choice: input.choice, reason: input.reason || null, reasonText: input.reasonText?.trim() || null }
-        : null;
+      const vote: DemoVote | null = input.choice ? { choice: input.choice, reason, reasonText } : null;
       this.demo.setVote(input.userId, input.gameId, vote);
       return;
     }
@@ -910,8 +905,8 @@ export class DataClient {
         game_id: input.gameId,
         vote_month: voteMonth,
         choice: input.choice,
-        reason: input.reason || null,
-        reason_text: input.reasonText?.trim() || null,
+        reason,
+        reason_text: reasonText,
       });
       if (error) throw error;
     });
