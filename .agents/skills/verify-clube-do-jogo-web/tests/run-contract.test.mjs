@@ -1,19 +1,25 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, rmSync, utimesSync, existsSync, readFileSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, rmSync, utimesSync, existsSync, readFileSync, realpathSync, symlinkSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync, spawn } from 'node:child_process';
+import { processInfo } from '../scripts/processes.mjs';
+
+const skill = 'verify-clube-do-jogo-web';
 
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), 'clube-verification-'));
-  const helper = join(root, '.agents/skills/verify-clube-do-jogo/scripts/verify-clube-do-jogo.mjs');
-  mkdirSync(join(root, '.agents/skills/verify-clube-do-jogo/scripts'), { recursive: true });
-  copyFileSync(new URL('../scripts/verify-clube-do-jogo.mjs', import.meta.url), helper);
+  // realpath: macOS tmpdir is a /var -> /private/var symlink, and the helper resolves its own path.
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'clube-verification-')));
+  const scripts = join(root, `.agents/skills/${skill}/scripts`);
+  const helper = join(scripts, `${skill}.mjs`);
+  mkdirSync(scripts, { recursive: true });
+  copyFileSync(new URL(`../scripts/${skill}.mjs`, import.meta.url), helper);
+  copyFileSync(new URL('../scripts/processes.mjs', import.meta.url), join(scripts, 'processes.mjs'));
   const paths = id => ({
-    stateDir: join(root, 'state/verify-clube-do-jogo', id),
-    evidenceDir: join(root, 'evidence/verify-clube-do-jogo', id),
+    stateDir: join(root, `state/${skill}`, id),
+    evidenceDir: join(root, `evidence/${skill}`, id),
   });
   const writeManifest = (id, data, evidence = true) => {
     const target = paths(id);
@@ -50,10 +56,9 @@ function fixture() {
 }
 
 function processSnapshot(pid) {
-  const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
-  const fields = stat.slice(stat.lastIndexOf(')') + 2).trim().split(/\s+/);
-  const bootId = readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim();
-  return { pgid: Number(fields[2]), identity: `${bootId}:${fields[19]}` };
+  const { pgid, identity } = processInfo(pid);
+  assert.ok(pgid && identity, `cannot inspect process ${pid}`);
+  return { pgid, identity };
 }
 
 const validPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
@@ -91,12 +96,12 @@ const page = {
     return page;
   },
   async goto() {
-    ${runtimeErrors ? "for (const listener of listeners.get('console') || []) listener({ type: () => 'error', text: () => 'runtime console error' }); for (const listener of listeners.get('pageerror') || []) listener(new Error('uncaught runtime failure')); for (const listener of listeners.get('requestfailed') || []) listener({ url: () => 'http://127.0.0.1:3103/api/fail?token=secret', failure: () => ({ errorText: 'network failure' }) });" : ''}
+    ${runtimeErrors ? "for (const listener of listeners.get('console') || []) listener({ type: () => 'error', text: () => 'runtime console error' }); for (const listener of listeners.get('pageerror') || []) listener(new Error('uncaught runtime failure')); for (const listener of listeners.get('requestfailed') || []) listener({ url: () => 'http://127.0.0.1:3102/api/fail?token=secret', failure: () => ({ errorText: 'network failure' }) });" : ''}
   },
   getByRole: () => locator(),
   locator: () => locator(),
   waitForURL: async () => undefined,
-  url: () => 'http://127.0.0.1:3103/ranking',
+  url: () => 'http://127.0.0.1:3102/ranking',
   async screenshot({ path: target }) {
     screenshots += 1;
     fs.writeFileSync(target, png);
@@ -119,13 +124,13 @@ function writeValidEvidence(f, id, overrides = {}) {
     version: 1,
     gitSha: sha,
     worktree: f.root,
-    port: 3103,
-    baseUrl: 'http://127.0.0.1:3103',
+    port: 3102,
+    baseUrl: 'http://127.0.0.1:3102',
     pid: process.pid,
     pgid: process.pid,
     processIdentity: 'fixture-identity',
     processPids: [process.pid],
-    command: 'npm run dev -- --hostname 127.0.0.1 --port 3103',
+    command: 'npm run dev -- --hostname 127.0.0.1 --port 3102',
     mode: 'demo',
     launchEnv: { allowlist: ['PATH'], overrides: {} },
     startedAt: '2026-09-10T06:00:00.000Z',
@@ -182,13 +187,7 @@ async function waitForFile(path, timeoutMs = 3_000) {
 async function waitForDead(pid, timeoutMs = 3_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    try {
-      const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
-      const fields = stat.slice(stat.lastIndexOf(')') + 2).trim().split(/\s+/);
-      if (fields[0] === 'Z') return;
-    } catch {
-      return;
-    }
+    if (!processInfo(pid).alive) return;
     await new Promise(resolve => setTimeout(resolve, 25));
   }
   throw new Error(`process still alive: ${pid}`);
@@ -275,7 +274,7 @@ test('launch refuses a dirty checkout before creating a process or manifest', ()
     f.initGit();
     writeFileSync(join(f.root, 'fixture.txt'), 'changed\n');
     writeFileSync(join(f.root, 'new-source.txt'), 'untracked source\n');
-    const result = f.run('launch', '--run-id', 'dirty-launch', '--port', '3103');
+    const result = f.run('launch', '--run-id', 'dirty-launch', '--port', '3102');
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Checkout sujo durante launch antes/);
     assert.equal(existsSync(join(f.paths('dirty-launch').stateDir, 'manifest.json')), false);
@@ -293,7 +292,7 @@ printf '%s\\n' 'changed after spawn' > fixture.txt
 exec ${process.execPath} -e 'const http = require("node:http"); const args = process.argv.slice(1); const port = Number(args[args.indexOf("--port") + 1]); http.createServer((request, response) => { response.end("Clube do Jogo"); }).listen(port, "127.0.0.1"); setInterval(() => {}, 1000);' "$@"
 `);
     spawnSync('chmod', ['+x', join(bin, 'npm')]);
-    const result = f.runEnv({ ...process.env, PATH: `${bin}:${process.env.PATH || ''}` }, 'launch', '--run-id', 'dirty-launch-after', '--port', '3103');
+    const result = f.runEnv({ ...process.env, PATH: `${bin}:${process.env.PATH || ''}` }, 'launch', '--run-id', 'dirty-launch-after', '--port', '3102');
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Checkout sujo durante launch depois/);
     assert.equal(existsSync(join(f.paths('dirty-launch-after').stateDir, 'manifest.json')), false);
@@ -316,10 +315,10 @@ test('run directories reject a symlinked canonical parent', () => {
   const outside = mkdtempSync(join(tmpdir(), 'clube-evidence-outside-'));
   try {
     f.initGit();
-    mkdirSync(join(f.root, 'state/verify-clube-do-jogo/symlinked'), { recursive: true });
-    writeFileSync(join(f.root, 'state/verify-clube-do-jogo/symlinked/manifest.json'), JSON.stringify({ runId: 'symlinked' }));
+    mkdirSync(join(f.root, `state/${skill}/symlinked`), { recursive: true });
+    writeFileSync(join(f.root, `state/${skill}/symlinked/manifest.json`), JSON.stringify({ runId: 'symlinked' }));
     mkdirSync(join(f.root, 'evidence'));
-    symlinkSync(outside, join(f.root, 'evidence/verify-clube-do-jogo'));
+    symlinkSync(outside, join(f.root, `evidence/${skill}`));
     const result = f.run('status', '--run-id', 'symlinked');
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Diretório simbólico recusado/);
@@ -399,7 +398,7 @@ test('evidence rejects every nonempty runtime error collection', () => {
     const drive = JSON.parse(readFileSync(drivePath, 'utf8'));
     drive.consoleErrors = ['console error'];
     drive.pageErrors = ['page error'];
-    drive.failedRequests = [{ url: 'http://127.0.0.1:3103/api/fail', error: 'network error' }];
+    drive.failedRequests = [{ url: 'http://127.0.0.1:3102/api/fail', error: 'network error' }];
     writeFileSync(drivePath, `${JSON.stringify(drive, null, 2)}\n`);
     const result = f.run('evidence', '--run-id', 'runtime-evidence');
     assert.notEqual(result.status, 0);
@@ -414,7 +413,6 @@ test('launch passes only the demo environment allowlist to its child', async () 
     f.initGit();
     const bin = join(f.root, 'bin');
     mkdirSync(bin, { recursive: true });
-    writeFileSync(join(bin, 'lsof'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
     writeFileSync(join(bin, 'npm'), `#!/usr/bin/env node
 const fs = require('node:fs');
 const http = require('node:http');
@@ -428,7 +426,7 @@ setInterval(() => {}, 1000);
     spawnSync('chmod', ['+x', join(bin, 'npm')]);
     const env = { ...process.env, PATH: `${bin}:${process.env.PATH || ''}`, PRIVATE_TOKEN: 'private-secret', NEXT_PUBLIC_SUPABASE_URL: 'https://prod.example' };
     runId = 'allowlist';
-    const launch = f.runEnv(env, 'launch', '--run-id', runId, '--port', '3103');
+    const launch = f.runEnv(env, 'launch', '--run-id', runId, '--port', '3102');
     assert.equal(launch.status, 0, launch.stderr);
     const captured = JSON.parse(readFileSync(join(f.root, 'env-capture.json'), 'utf8'));
     assert.equal(captured.privateToken, undefined);
@@ -472,8 +470,8 @@ test('cleanup refuses a live process with the wrong recorded identity', async ()
       version: 1,
       gitSha: sha,
       worktree: f.root,
-      port: 3103,
-      baseUrl: 'http://127.0.0.1:3103',
+      port: 3102,
+      baseUrl: 'http://127.0.0.1:3102',
       pid: child.pid,
       pgid: snapshot.pgid,
       processIdentity: 'another-process',
@@ -522,8 +520,8 @@ setTimeout(() => process.exit(0), 500);
       version: 1,
       gitSha: sha,
       worktree: f.root,
-      port: 3103,
-      baseUrl: 'http://127.0.0.1:3103',
+      port: 3102,
+      baseUrl: 'http://127.0.0.1:3102',
       pid: leader.pid,
       pgid: snapshot.pgid,
       processIdentity: snapshot.identity,
@@ -558,8 +556,10 @@ test('launch refuses a listening port whose owner cannot be inspected', () => {
   try {
     const bin = join(f.root, 'bin');
     mkdirSync(bin);
-    writeFileSync(join(bin, 'ss'), '#!/bin/sh\nprintf "LISTEN 0 511 127.0.0.1:3103 0.0.0.0:*\\n"\n', { mode: 0o755 });
-    const result = f.runEnv({ ...process.env, PATH: `${bin}:${process.env.PATH}` }, 'launch', '--port', '3103');
+    // A listener row with no owning PID, as ss (Linux) and netstat (macOS) print for a foreign socket.
+    writeFileSync(join(bin, 'ss'), '#!/bin/sh\nprintf "LISTEN 0 511 127.0.0.1:3102 0.0.0.0:*\\n"\n', { mode: 0o755 });
+    writeFileSync(join(bin, 'netstat'), '#!/bin/sh\nprintf "tcp4 0 0 127.0.0.1.3102 *.* LISTEN 0 0 131072 131072\\n"\n', { mode: 0o755 });
+    const result = f.runEnv({ ...process.env, PATH: `${bin}:${process.env.PATH}` }, 'launch', '--port', '3102');
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Não foi possível inspecionar a porta/);
   } finally { f.cleanup(); }

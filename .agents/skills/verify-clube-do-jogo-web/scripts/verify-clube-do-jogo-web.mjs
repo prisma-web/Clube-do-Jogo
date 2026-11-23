@@ -6,12 +6,13 @@ import { homedir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
+import { portPids, processInfo, processTable } from './processes.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const skillDir = resolve(scriptDir, '..');
 const rootDir = resolve(scriptDir, '../../../..');
-const stateRoot = join(rootDir, 'state', 'verify-clube-do-jogo');
-const evidenceRoot = join(rootDir, 'evidence', 'verify-clube-do-jogo');
+const stateRoot = join(rootDir, 'state', 'verify-clube-do-jogo-web');
+const evidenceRoot = join(rootDir, 'evidence', 'verify-clube-do-jogo-web');
 const allowedPorts = new Set([3102, 3103]);
 const demoEnvironmentNames = [
   'PATH',
@@ -38,7 +39,7 @@ function fail(message) {
 }
 
 function usage() {
-  process.stdout.write(`Usage: verify-clube-do-jogo <launch|doctor|drive|evidence|cleanup|status|check> [feature] [--run-id id] [--port port]\n`);
+  process.stdout.write(`Usage: verify-clube-do-jogo-web <launch|doctor|drive|evidence|cleanup|status|check> [feature] [--run-id id] [--port port]\n`);
 }
 
 function parseArgs(values) {
@@ -315,52 +316,6 @@ function redactTextFile(path) {
   if (sanitized !== original) writeFileSync(path, sanitized, 'utf8');
 }
 
-function processAlive(pid) {
-  if (!Number.isInteger(pid) || pid < 2) return false;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return error?.code === 'EPERM';
-  }
-}
-
-function processInfo(pid) {
-  if (!processAlive(pid)) return { alive: false, state: null, cwd: null, command: null, pgid: null, identity: null };
-  try {
-    const cwd = realpathSync(`/proc/${pid}/cwd`);
-    const command = readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0').filter(Boolean).join(' ');
-    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
-    const fields = stat.slice(stat.lastIndexOf(')') + 2).trim().split(/\s+/);
-    const state = fields[0] || null;
-    const pgid = Number(fields[2]);
-    const startTicks = fields[19];
-    const bootId = readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim();
-    const validPgid = Number.isInteger(pgid) && pgid >= 2 ? pgid : null;
-    const identity = bootId && /^\d+$/.test(startTicks || '') ? `${bootId}:${startTicks}` : null;
-    return { alive: state !== 'Z', state, cwd, command, pgid: validPgid, identity };
-  } catch {
-    let state = null;
-    try {
-      const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
-      state = stat.slice(stat.lastIndexOf(')') + 2).trim().split(/\s+/)[0];
-    } catch { }
-    return { alive: state === 'Z' ? false : processAlive(pid), state, cwd: null, command: null, pgid: null, identity: null };
-  }
-}
-
-function processTable() {
-  const result = spawnSync('ps', ['-eo', 'pid=,ppid=,pgid=,stat='], { encoding: 'utf8' });
-  if (result.error || result.status !== 0) return null;
-  const table = new Map();
-  for (const line of result.stdout.split('\n').filter(Boolean)) {
-    const fields = line.trim().split(/\s+/);
-    const numbers = fields.slice(0, 3).map(Number);
-    if (numbers.length === 3 && numbers.every(Number.isInteger)) table.set(numbers[0], { ppid: numbers[1], pgid: numbers[2], state: fields[3] || null });
-  }
-  return table;
-}
-
 function processTree(pid) {
   const table = processTable();
   if (!table) return null;
@@ -416,15 +371,6 @@ async function terminateUnpublishedChild(child) {
     } catch { return; }
     await waitForExit(child.pid, 5_000);
   }
-}
-
-function portPids(port) {
-  const result = spawnSync('ss', ['-Hltnp', `sport = :${port}`], { encoding: 'utf8' });
-  if (result.error || result.status !== 0) return null;
-  const rows = result.stdout.split('\n').filter(line => line.trim());
-  const owners = rows.map(line => [...line.matchAll(/pid=(\d+)/g)].map(match => Number(match[1])));
-  if (owners.some(pids => pids.length === 0)) return null;
-  return [...new Set(owners.flat())];
 }
 
 async function getHttp(url) {
@@ -651,7 +597,9 @@ async function driveRanking(manifest) {
     const updateClose = page.getByRole('dialog').getByRole('button', { name: /Agora não|Fechar novidades/ }).first();
     await updateClose.click({ timeout: 2_000 }).catch(() => undefined);
     await page.getByRole('heading', { name: 'Hades', exact: true }).waitFor({ state: 'visible', timeout: 30_000 });
-    result.actions.push('opened /jogo-do-mes and dismissed optional product update');
+    // Demo users start with unvoted games, so the quick voting deck covers the page.
+    await page.getByRole('button', { name: 'Fechar votação rápida', exact: true }).click({ timeout: 10_000 }).catch(() => undefined);
+    result.actions.push('opened /jogo-do-mes and dismissed optional product update and quick voting deck');
     await page.getByRole('link', { name: 'Ranking', exact: true }).first().click();
     await page.waitForURL(url => new URL(url).pathname === '/ranking', { timeout: 10_000 });
     await page.getByRole('heading', { name: /Votação para/ }).waitFor({ state: 'visible', timeout: 30_000 });
@@ -947,13 +895,13 @@ function check() {
     quickValidation = (validation.stdout || validation.stderr || '').trim();
   } else {
     const content = readFileSync(join(skillDir, 'SKILL.md'), 'utf8');
-    if (!content.startsWith('---\n') || !content.includes('\nname: verify-clube-do-jogo\n') || !content.includes('\ndescription:')) fail('SKILL.md sem frontmatter mínimo');
+    if (!content.startsWith('---\n') || !content.includes('\nname: verify-clube-do-jogo-web\n') || !content.includes('\ndescription:')) fail('SKILL.md sem frontmatter mínimo');
   }
   const source = resolve(skillDir);
-  const claudeLink = resolve(rootDir, '.claude/skills/verify-clube-do-jogo');
+  const claudeLink = resolve(rootDir, '.claude/skills/verify-clube-do-jogo-web');
   if (!existsSync(claudeLink) || realpathSync(claudeLink) !== source) fail('Symlink Claude não aponta para a fonte .agents');
-  const wrapper = join(skillDir, 'scripts', 'verify-clube-do-jogo');
-  const nodeHelper = join(skillDir, 'scripts', 'verify-clube-do-jogo.mjs');
+  const wrapper = join(skillDir, 'scripts', 'verify-clube-do-jogo-web');
+  const nodeHelper = join(skillDir, 'scripts', 'verify-clube-do-jogo-web.mjs');
   for (const path of [wrapper, nodeHelper]) {
     if ((statSync(path).mode & 0o111) === 0) fail(`Helper não executável: ${path}`);
   }
