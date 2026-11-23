@@ -70,6 +70,7 @@ export function GotyPosterArt({
           src={imageUrl}
           alt={title}
           loading="lazy"
+          referrerPolicy="no-referrer"
           onError={() => setFailedUrl(imageUrl)}
           className="size-full object-cover transition duration-500 ease-out group-hover:scale-[1.04]"
         />

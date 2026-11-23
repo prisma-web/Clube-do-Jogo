@@ -550,9 +550,9 @@ export async function lookupIGDBCoverByTitle(title: string): Promise<{ igdb_id: 
     },
     body: `
       search "${escapeSearchQuery(title)}";
-      fields id, name, cover.image_id, version_parent;
+      fields id, name, cover.image_id, version_parent, first_release_date, game_type;
       where version_parent = null & cover != null;
-      limit 3;
+      limit 10;
     `,
   });
 
@@ -561,8 +561,11 @@ export async function lookupIGDBCoverByTitle(title: string): Promise<{ igdb_id: 
   if (!games?.length) return null;
 
   const normalizedTarget = title.trim().toLowerCase();
-  const exact = games.find(item => item.name.trim().toLowerCase() === normalizedTarget);
-  const chosen = exact || games[0];
+  const exactMatches = games.filter(item => item.name.trim().toLowerCase() === normalizedTarget);
+  const pool = exactMatches.length > 0 ? exactMatches : games;
+  // Quando houver homônimos (ex: remakes/reboots 2026 vs clássicos), prioriza a edição mais recente (2026+)
+  const sorted = [...pool].sort((a, b) => (b.first_release_date ?? 0) - (a.first_release_date ?? 0));
+  const chosen = sorted[0];
   if (!chosen?.cover?.image_id) return null;
 
   return {
