@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -31,7 +31,7 @@ export function VotingDeckGate() {
   const vote = useVote();
   const [closed, setClosed] = useState(false);
   const [dismissedGameIds, setDismissedGameIds] = useState<ReadonlySet<string>>(() => new Set());
-  const translateX = useRef(new Animated.Value(0)).current;
+  const [translateX] = useState(() => new Animated.Value(0));
 
   const cards = useMemo(
     () => recentVotingItems(ranking.data ?? [], dismissedGameIds),
