@@ -24,6 +24,18 @@ function webcredentialsHost(raw: string | undefined): string | null {
 
 const siteHost = webcredentialsHost(process.env.EXPO_PUBLIC_SITE_URL) ?? 'clube-do-jogo-coral.vercel.app';
 
+const DEFAULT_VERSION = '0.1.0';
+
+// A versão é o X.Y.Z da tag vX.Y.Z do release. O versionCode precisa crescer a cada
+// release para o Android aceitar a atualização por cima, então minor e patch ficam
+// abaixo de 100.
+function parseVersion(raw: string): { version: string; versionCode: number } | null {
+  const match = /^(0|[1-9]\d*)\.(0|[1-9]\d?)\.(0|[1-9]\d?)$/.exec(raw);
+  if (!match) return null;
+  const [major, minor, patch] = match.slice(1).map(Number);
+  return { version: raw, versionCode: major * 10000 + minor * 100 + patch };
+}
+
 if (!['development', 'preview', 'production'].includes(variant)) {
   throw new Error('APP_VARIANT deve ser development, preview ou production.');
 }
@@ -34,10 +46,18 @@ if (isDistributed && localHttp) {
   throw new Error('EXPO_LOCAL_HTTP só pode ser usado na variante development.');
 }
 
+const requestedVersion = parseVersion(process.env.APP_VERSION || DEFAULT_VERSION);
+if (isDistributed && !requestedVersion) {
+  throw new Error(`APP_VERSION deve ser X.Y.Z com minor e patch abaixo de 100; recebido "${process.env.APP_VERSION}".`);
+}
+const { version, versionCode } = requestedVersion ?? parseVersion(DEFAULT_VERSION)!;
+// O app de produção instalado por APK procura versões novas nos releases deste repositório.
+const apkUpdates = variant === 'production' ? { repo: 'prisma-web/Clube-do-Jogo' } : null;
+
 const config: ExpoConfig = {
   name: 'Clube do Jogo',
   slug: 'clube-do-jogo',
-  version: '0.1.0',
+  version,
   scheme: 'clubedojogo',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
@@ -54,7 +74,8 @@ const config: ExpoConfig = {
   },
   android: {
     package: applicationId,
-    versionCode: 1,
+    versionCode,
+    ...(apkUpdates && { permissions: ['android.permission.REQUEST_INSTALL_PACKAGES'] }),
   },
   plugins: [
     'expo-router',
@@ -64,6 +85,8 @@ const config: ExpoConfig = {
     ['expo-dev-client', { addGeneratedScheme: !isDistributed }],
     // Ciclo de vida de UIScene: sem isso o app não lança quando compilado com o SDK do iOS 27.
     './plugins/withUISceneLifecycle',
+    // Assina o release com a keystore de ANDROID_KEYSTORE_PATH quando ela é informada no build.
+    './plugins/withReleaseSigning',
     ['expo-build-properties', { android: { usesCleartextTraffic: localHttp } }],
     ['expo-audio', { microphonePermission: false, recordAudioAndroid: false, enableBackgroundPlayback: false, enableBackgroundRecording: false }],
     ['expo-notifications', { defaultChannel: 'default', color: '#8b5cf6', enableBackgroundRemoteNotifications: false }],
@@ -71,6 +94,7 @@ const config: ExpoConfig = {
     ['expo-splash-screen', { backgroundColor: '#0c0a13', image: './assets/icon.png' }],
   ],
   experiments: { typedRoutes: true },
+  ...(apkUpdates && { extra: { apkUpdates } }),
 };
 
 export default config;

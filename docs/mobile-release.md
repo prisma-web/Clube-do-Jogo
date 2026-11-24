@@ -22,7 +22,7 @@ APP_VARIANT=development EXPO_NO_DOTENV=1 EXPO_LOCAL_HTTP=1 npx expo run:android 
 
 `EXPO_LOCAL_HTTP=1` permite HTTP somente no Android de desenvolvimento. Preview e produção rejeitam essa opção. Se os serviços de teste usam `127.0.0.1` no bundle, configure `adb -s "$ANDROID_SERIAL" reverse tcp:55421 tcp:55421` e `adb -s "$ANDROID_SERIAL" reverse tcp:3101 tcp:3101` para a API Next deste ambiente. Não encaminhe Metro durante a medição de release.
 
-O APK local usa a assinatura de desenvolvimento gerada pelo projeto. Ele serve para o AVD e não é apresentado como artefato de distribuição.
+O APK local usa a assinatura de desenvolvimento gerada pelo projeto. Ele serve para o AVD e não é apresentado como artefato de distribuição. O APK distribuído aos membros sai do workflow descrito em [Release do APK Android](#release-do-apk-android).
 
 ## iOS no Mac remoto
 
@@ -72,10 +72,33 @@ Arquive cada APK ou `.app` com commit, hash do arquivo, fingerprint, sistema, di
 
 O bundle muda pela instalação do binário. Não há canal de OTA, publicação EAS ou rollback remoto neste fluxo. Uma reversão de binário não desfaz dados ou migrações. Preserve a compatibilidade com o schema existente e com notas já armazenadas.
 
+## Release do APK Android
+
+Membros instalam o APK de produção a partir do GitHub Release mais recente de `prisma-web/Clube-do-Jogo`. A cada abertura, o app Android de produção consulta esse release. Se a versão for mais nova que a instalada, ele mostra um modal com "Atualizar" e "Depois". "Atualizar" baixa o APK e abre o instalador do Android. "Depois" esconde o modal até a próxima abertura. Development, preview e iOS não fazem essa consulta.
+
+### Configuração única da keystore
+
+Rode `scripts/android-release-keystore.sh` uma vez, a partir do checkout. O wizard gera a keystore de release fora do repositório e grava no repositório os secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` e `ANDROID_KEY_PASSWORD`. Ao rodar de novo, ele reaproveita a keystore que já existe. Guarde o arquivo, o alias e a senha num cofre. Sem eles, nenhum APK novo instala por cima do atual, e cada membro precisa desinstalar e instalar de novo. APKs antigos assinados com a keystore de debug também exigem essa reinstalação uma única vez.
+
+O workflow também lê as variables do repositório `EXPO_APPLICATION_ID`, `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `EXPO_PUBLIC_API_BASE_URL` e `EXPO_PUBLIC_SITE_URL`. As quatro `EXPO_PUBLIC_*` também podem ficar em secrets. Sem qualquer uma delas, o workflow falha no primeiro passo e lista as que faltam.
+
+### Cortar uma versão
+
+A versão é o `X.Y.Z` da tag, com minor e patch abaixo de 100. O `versionCode` do Android vale `X*10000 + Y*100 + Z`. Escreva a mensagem da tag em português, porque ela vira o texto de novidades mostrado no modal.
+
+```sh
+git tag -a v1.2.0 -m "Votação mais rápida e correções no ranking."
+git push origin v1.2.0
+```
+
+O push da tag dispara `.github/workflows/android-release.yml`. Ele gera o projeto Android com `APP_VARIANT=production` e `APP_VERSION` tirada da tag, compila `assembleRelease` assinado com a keystore e confere que o APK não saiu com a assinatura de debug e que tem o `versionName` da tag. Depois publica `clube-do-jogo-vX.Y.Z.apk` no release da tag. Rodar o job de novo substitui o APK do release existente. Assim que o release sai, a próxima abertura do app instalado mostra o modal.
+
+Localmente, `plugins/withReleaseSigning.js` assina o release com a keystore de `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` e `ANDROID_KEY_PASSWORD`, lidos do ambiente ou de propriedades Gradle na hora do build. Sem `ANDROID_KEYSTORE_PATH`, o release continua com a keystore de debug.
+
 ## Evidência e limites
 
 Registre unit, live e perf separadamente. Faça cinco aquecimentos e dez amostras em release para o tempo de abertura. Guarde todos os valores, o p95, o limite aplicado e a identidade da fixture. Compilar e exportar Hermes não comprovam instalação ou desempenho.
 
 Notificações remotas permanecem indisponíveis sem configuração de transporte. Os testes locais cobrem fila e receipts sintéticos, recebimento de payload injetado, sessão e abertura do destino. Não descreva esses resultados como entrega por Expo Push Service, APNs ou FCM.
 
-O escopo atual não inclui aparelhos físicos, lojas, credenciais de distribuição ou OTA remota. Os critérios restantes de acessibilidade, navegação, privacidade e desempenho continuam sendo executados nos AVDs e simuladores dedicados.
+O escopo atual não inclui lojas ou OTA remota. A única credencial de distribuição é a keystore do APK Android. Os critérios restantes de acessibilidade, navegação, privacidade e desempenho continuam sendo executados nos AVDs e simuladores dedicados.
