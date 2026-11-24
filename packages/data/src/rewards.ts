@@ -8,6 +8,7 @@ import {
   demoMonths,
   demoProgress,
 } from '@clube-do-jogo/domain/demo';
+import { shiftMonth } from '@clube-do-jogo/domain/dates';
 import type { ClubReward, RewardGrant } from '@clube-do-jogo/domain';
 import { isRewardEligibility } from '@clube-do-jogo/domain/rewards';
 import type { DataScope } from './client';
@@ -46,7 +47,9 @@ type Row = Record<string, unknown>;
 type Cycle = NonNullable<RewardGrant['reward']['cycle']>;
 
 const REWARD_SELECT = 'id, reward_id, granted_at, seen_at, reward:club_rewards(id, club_month, code, kind, name, description, theme_id, image_url, eligibility, cycle:club_months(month, game:games(title, image_url)))';
-const DEMO_REWARD_MONTH = '2026-07';
+// The demo months move with today's date, so the reward belongs to the last finished demo cycle.
+const DEMO_REWARD_MONTH = demoMonths[1];
+const DEMO_CURRENT_MONTH_START = `${shiftMonth(DEMO_REWARD_MONTH, 1)}-01T00:00:00.000Z`;
 const DEMO_REWARD_ID = 'demo-ori-reward';
 const DEMO_THEME_REWARD_ID = 'demo-ori-theme';
 
@@ -162,8 +165,7 @@ async function readRemote(supabase: SupabaseClient, input: RewardsQuery): Promis
 }
 
 function demoEligible(userId: string) {
-  const cycleIndex = demoMonths.indexOf(DEMO_REWARD_MONTH);
-  return cycleIndex > 0 && demoProgress.some(progress =>
+  return demoProgress.some(progress =>
     progress.user_id === userId
       && progress.game_id === demoGames[0]?.id
       && progress.status === 'finished',
@@ -175,8 +177,8 @@ function demoGrant(seen: boolean): RewardGrant {
   return {
     id: DEMO_REWARD_ID,
     reward_id: DEMO_THEME_REWARD_ID,
-    granted_at: '2026-07-31T23:59:59.000Z',
-    seen_at: seen ? '2026-09-10T00:00:00.000Z' : null,
+    granted_at: new Date(Date.parse(DEMO_CURRENT_MONTH_START) - 1000).toISOString(),
+    seen_at: seen ? DEMO_CURRENT_MONTH_START : null,
     reward: {
       id: DEMO_THEME_REWARD_ID,
       club_month: DEMO_REWARD_MONTH,

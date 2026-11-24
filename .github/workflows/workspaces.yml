@@ -77,6 +77,10 @@ jobs:
         id: doctor
         shell: bash
         working-directory: apps/mobile
+        # Offline, Doctor checks versions against the SDK installed from the lockfile. Online, it
+        # compares against Expo's newest patches, so CI broke whenever Expo published one.
+        env:
+          EXPO_OFFLINE: '1'
         run: |
           set +e
           npx expo-doctor 2>&1 | tee "$RUNNER_TEMP/expo-doctor.log"
