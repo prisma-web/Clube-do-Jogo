@@ -15,6 +15,8 @@ export interface ThemeAudioState {
   error: string | null;
   retry(): void;
   playSignal(signal: ThemeSignal): void;
+  /** Plays once the session that is starting right now is ready (see controller.queueSignal). */
+  queueSignal(signal: ThemeSignal): void;
 }
 
 const playbackMode = {
@@ -62,7 +64,8 @@ export function useThemeAudioEngine({
   useLayoutEffect(() => {
     controller.setAmbienceEnabled(ambienceEnabled);
     controller.setAmbienceVolume(ambienceVolume);
-  }, [controller, ambienceEnabled, ambienceVolume]);
+    controller.setSignalsEnabled(signalsEnabled);
+  }, [controller, ambienceEnabled, ambienceVolume, signalsEnabled]);
 
   useLayoutEffect(() => {
     if (active) {
@@ -87,5 +90,6 @@ export function useThemeAudioEngine({
     playSignal: (signal: ThemeSignal) => {
       if (signalsEnabled) controller.playSignal(signal);
     },
+    queueSignal: controller.queueSignal,
   };
 }

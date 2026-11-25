@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getSelectableThemes, themes, type ThemeId } from '@clube-do-jogo/domain';
+import { useUiSignal } from '@/features/themes/scene-context';
 import { radii, spacing, themedStyles, typography, useThemeColors } from '@/theme';
 
 export function ThemePicker({ value, unlockedThemeIds, saving, onSelect }: {
@@ -11,6 +12,7 @@ export function ThemePicker({ value, unlockedThemeIds, saving, onSelect }: {
 }) {
   const colors = useThemeColors();
   const styles = useStyles();
+  const playSignal = useUiSignal();
   const selectable = new Set(getSelectableThemes(unlockedThemeIds).map(theme => theme.id));
 
   return (
@@ -21,7 +23,10 @@ export function ThemePicker({ value, unlockedThemeIds, saving, onSelect }: {
         return (
           <Pressable
             key={theme.id}
-            onPress={() => onSelect(theme.id as ThemeId)}
+            onPress={() => {
+              playSignal('select');
+              onSelect(theme.id as ThemeId);
+            }}
             disabled={!unlocked || saving}
             accessibilityRole="radio"
             accessibilityState={{ selected, checked: selected, disabled: !unlocked || saving }}

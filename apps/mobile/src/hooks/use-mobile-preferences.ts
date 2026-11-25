@@ -1,8 +1,9 @@
 import * as React from 'react';
 import type { RatingScale, ThemeId } from '@clube-do-jogo/domain';
-import { DEFAULT_THEME, getSelectableThemes, isThemeId, unlockedThemeIds } from '@clube-do-jogo/domain';
+import { DEFAULT_THEME, getSelectableThemes, isThemeId } from '@clube-do-jogo/domain';
 import { useRewardGrants } from '../state/reward-queries';
 import { useAppInternal } from '../state/app-provider';
+import { resolveUnlockedThemeIds } from '../state/demo-themes';
 import {
   usePersistentState,
   type PersistentStateStatus,
@@ -46,7 +47,10 @@ export function useMobilePreferences(): MobilePreferencesState {
   const key = mobilePreferencesStorageKey(context.userId, context.isDemo, context.sessionEpoch);
   const persistenceOptions = React.useMemo(() => ({ parse: parseMobilePreferences, scope: false }), []);
   const [stored, setStored, status] = usePersistentState<MobilePreferences>(key, DEFAULT_MOBILE_PREFERENCES, persistenceOptions);
-  const unlockedIds = React.useMemo(() => unlockedThemeIds(rewards.data || []), [rewards.data]);
+  const unlockedIds = React.useMemo(
+    () => resolveUnlockedThemeIds(rewards.data || [], context.isDemo),
+    [context.isDemo, rewards.data],
+  );
   const visibleThemeId = selectableTheme(unlockedIds, stored.themeId) ? stored.themeId : DEFAULT_THEME;
   const epoch = context.sessionEpoch;
   const canWrite = context.ready && Boolean(context.userId) && context.isSessionCurrent(epoch);

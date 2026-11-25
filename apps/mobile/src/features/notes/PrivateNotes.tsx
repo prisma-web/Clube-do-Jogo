@@ -8,7 +8,9 @@ import { Sheet } from '@/components/Sheet';
 import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
 import { ImageGalleryModal } from '@/features/media/ImageGalleryModal';
 import { useAppInternal } from '@/state/app-provider';
-import { createNativeNoteId, mergePendingIntoList, useDeleteNote, useNoteDraft, useNotes, useNotesPendingQueue } from '@/state/discussion-queries';
+import { summarizeNotesSync, type NotesSyncSummary } from '@/state/notes-offline-cache';
+import { useNotesOfflineCache } from '@/state/use-notes-offline-cache';
+import { createNativeNoteId, mergePendingIntoList, useDeleteNote, useNoteDraft, useNotes, useNotesPendingQueue, type NoteConflict } from '@/state/discussion-queries';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
 import { formatDate, formatShortDate, formatTime, type LocalNote } from '@clube-do-jogo/domain';
 import { shouldShowDateSeparator } from './date-grouping';
@@ -28,10 +30,12 @@ export function PrivateNotes(props: PrivateNotesProps) {
 function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
   const colors = useThemeColors();
   const styles = useStyles();
-  const { isDemo, isHistorical, userId } = useAppInternal();
+  const { isDemo, isHistorical, selectedMonth, userId } = useAppInternal();
   const readOnly = Boolean(snapshotMonth) || isHistorical;
 
   const notesQuery = useNotes(gameId, { snapshotMonth });
+  // Same snapshot useNotes resolves (snapshotFor in discussion-queries.ts).
+  const offline = useNotesOfflineCache(gameId, snapshotMonth || (isHistorical ? selectedMonth : null), notesQuery);
   const deleteNote = useDeleteNote();
   const draftState = useNoteDraft(gameId);
   const pendingQueue = useNotesPendingQueue(gameId);
@@ -43,8 +47,25 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const listRef = useRef<ScrollView>(null);
 
-  const notes = mergePendingIntoList(notesQuery.data ?? [], pendingQueue.queue);
+  // The server list when it answered; otherwise the last synced copy saved on this device.
+  const fromCache = !notesQuery.data && Boolean(offline.cache);
+  const confirmedNotes = notesQuery.data ?? offline.cache?.notes ?? [];
+  const notes = mergePendingIntoList(confirmedNotes, pendingQueue.queue);
   const pendingIds = pendingQueue.queue;
+  const syncSummary = summarizeNotesSync({
+    confirmed: confirmedNotes,
+    queue: pendingQueue.queue,
+    conflicts: pendingQueue.conflicts,
+    // A paused query (React Query offline) without data is a server that did not answer yet.
+    serverError: notesQuery.isError || (!notesQuery.data && notesQuery.fetchStatus === 'paused'),
+    fromCache,
+    fetching: notesQuery.isFetching,
+  });
+
+  function syncAgain() {
+    void notesQuery.refetch();
+    pendingQueue.retryAll();
+  }
 
   useEffect(() => {
     if (!notes.length) return;
@@ -128,9 +149,11 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
 
   const noteImages = notes.flatMap(note => note.imageDataUrl ? [note.imageDataUrl] : []);
 
-  if (notesQuery.isLoading) return <LoadingState label="Carregando anotações…" />;
-  if (notesQuery.isError) {
-    return <ErrorState message={notesQuery.error.message} onRetry={() => notesQuery.refetch()} />;
+  if (!notesQuery.data && !offline.cache && (notesQuery.isLoading || offline.loading)) {
+    return <LoadingState label="Carregando anotações…" />;
+  }
+  if (notesQuery.isError && !offline.cache) {
+    return <ErrorState message={notesQuery.error.message} onRetry={syncAgain} />;
   }
 
   return (
@@ -141,6 +164,35 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
           <Text style={styles.syncNoticeText}>
             Anotações escritas sem conexão ficam guardadas neste aparelho e são enviadas automaticamente assim que a conexão voltar ou o app for reaberto.
           </Text>
+        </View>
+      ) : null}
+
+      {!readOnly && !isDemo ? (
+        <SyncStatusBar
+          summary={syncSummary}
+          cachedAt={fromCache ? offline.cache?.savedAt : undefined}
+          syncing={notesQuery.isFetching}
+          onRetry={syncAgain}
+        />
+      ) : null}
+
+      {!readOnly && conflictEntries.length > 0 ? (
+        <View style={styles.conflictPanel} testID="notes-conflicts">
+          <Text style={styles.conflictHeading}>
+            {conflictEntries.length} {conflictEntries.length === 1 ? 'anotação precisa' : 'anotações precisam'} de revisão
+          </Text>
+          {conflictEntries.map(([noteId, conflict]) => (
+            <ConflictCard
+              key={noteId}
+              conflict={conflict}
+              disabled={busy}
+              onUseLocal={() => pendingQueue.resolveUseLocal(noteId)}
+              onUseRemote={() => pendingQueue.resolveUseRemote(noteId)}
+              onEditRemote={conflict.kind === 'changed' ? () => { pendingQueue.resolveUseRemote(noteId); beginEdit(conflict.remote); } : undefined}
+              onAcceptDeletion={() => pendingQueue.resolveAcceptDeletion(noteId)}
+              onKeepAsNew={() => pendingQueue.resolveKeepAsNew(noteId)}
+            />
+          ))}
         </View>
       ) : null}
 
@@ -167,6 +219,19 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
               ) : null}
               <View style={styles.bubbleRow}>
                 <View style={[styles.bubble, pendingIds.has(note.id) && styles.bubblePending]}>
+                  {!readOnly && !pendingIds.has(note.id) ? (
+                    // Discoverable alternative to the long press (parity with the web's chevron menu).
+                    <Pressable
+                      onPress={() => setActionsTarget(note)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Opções da anotação de ${formatShortDate(note.createdAt)}`}
+                      hitSlop={8}
+                      style={styles.bubbleMenu}
+                      testID={`note-menu-${note.id}`}
+                    >
+                      <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.7)" />
+                    </Pressable>
+                  ) : null}
                   {note.imageDataUrl ? (
                     <Pressable
                       onPress={() => setGalleryIndex(noteImages.indexOf(note.imageDataUrl!))}
@@ -182,7 +247,7 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
                     accessibilityLabel={readOnly ? undefined : `${note.body || "Anotação com imagem"}. Opções da anotação de ${formatShortDate(note.createdAt)}`}
                     testID={`note-row-${note.id}`}
                   >
-                    {note.body ? <Text style={styles.bubbleText}>{note.body}</Text> : null}
+                    {note.body ? <Text style={[styles.bubbleText, !readOnly && styles.bubbleTextWithMenu]}>{note.body}</Text> : null}
                     <View style={styles.bubbleFooter}>
                       {pendingIds.has(note.id) ? <Text style={styles.bubbleMeta}>enviando… · </Text>
                         : note.updatedAt !== note.createdAt ? <Text style={styles.bubbleMeta}>editada · </Text> : null}
@@ -248,20 +313,6 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
               <Ionicons name="send" size={16} color={colors.white} />
             </Pressable>
           </View>
-          {conflictEntries.map(([noteId, conflict]) => (
-            <View key={noteId} style={styles.actionsBody}>
-              <Text style={styles.formError}>
-                {conflict.kind === 'changed' ? 'Esta anotação mudou no servidor.' : 'Esta anotação foi removida no servidor.'}
-              </Text>
-              {conflict.kind === 'changed' ? (
-                <>
-                  <Text style={styles.bubbleText}>Versão do servidor: {conflict.remote.body}</Text>
-                  <Button label="Editar versão do servidor" variant="secondary" onPress={() => { pendingQueue.resolveUseRemote(noteId); beginEdit(conflict.remote); }} />
-                </>
-              ) : null}
-              <Button label="Manter como nova anotação" variant="secondary" onPress={() => pendingQueue.resolveKeepAsNew(noteId)} />
-            </View>
-          ))}
         </View>
       ) : null}
 
@@ -291,7 +342,6 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
       </Sheet>
 
       {galleryIndex !== null ? <ImageGalleryModal
-        key={`note-gallery-${galleryIndex}`}
         visible={galleryIndex !== null}
         title="anotações"
         images={noteImages}
@@ -299,6 +349,129 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
         onActiveIndexChange={setGalleryIndex}
         onClose={() => setGalleryIndex(null)}
       /> : null}
+    </View>
+  );
+}
+
+function plural(count: number, singular: string, pluralForm: string) {
+  return `${count} ${count === 1 ? singular : pluralForm}`;
+}
+
+// Parity with the sync summary in src/components/notes-chat.tsx: synced / pending / conflicts /
+// error, plus a manual "Sincronizar novamente".
+function SyncStatusBar({ summary, cachedAt, syncing, onRetry }: {
+  summary: NotesSyncSummary;
+  cachedAt?: string;
+  syncing: boolean;
+  onRetry(): void;
+}) {
+  const colors = useThemeColors();
+  const styles = useStyles();
+  const tone = summary.state === 'conflict' || summary.state === 'pending' || summary.state === 'offline'
+    ? colors.amber300
+    : summary.state === 'error' ? colors.red300 : colors.emerald400;
+  const icon = summary.state === 'synced' ? 'cloud-done-outline'
+    : summary.state === 'syncing' ? 'sync-outline'
+      : summary.state === 'offline' ? 'cloud-offline-outline'
+        : summary.state === 'conflict' ? 'git-compare-outline'
+          : summary.state === 'error' ? 'alert-circle-outline' : 'cloud-upload-outline';
+  const headline = summary.state === 'synced' ? 'Tudo sincronizado'
+    : summary.state === 'syncing' ? 'Sincronizando…'
+      : summary.state === 'offline' ? 'Sem conexão com o servidor'
+        : summary.state === 'conflict' ? plural(summary.conflicts, 'conflito', 'conflitos')
+          : summary.state === 'error' ? 'Falha ao sincronizar' : 'Envio pendente';
+  return (
+    <View style={styles.statusBar} accessibilityRole="summary" testID="notes-sync-status" accessibilityLabel={`Sincronização: ${headline}`}>
+      <View style={styles.statusHeadline}>
+        <Ionicons name={icon} size={14} color={tone} />
+        <Text style={[styles.statusHeadlineText, { color: tone }]}>{headline}</Text>
+      </View>
+      <View style={styles.statusDetails}>
+        <Text style={styles.statusMeta}>{plural(summary.synced, 'sincronizada', 'sincronizadas')}</Text>
+        {summary.pending > 0 ? <Text style={[styles.statusMeta, styles.statusWarn]}>{plural(summary.pending, 'pendente', 'pendentes')}</Text> : null}
+        {summary.conflicts > 0 ? <Text style={[styles.statusMeta, styles.statusWarn]}>{plural(summary.conflicts, 'conflito', 'conflitos')}</Text> : null}
+        {summary.failed > 0 ? <Text style={[styles.statusMeta, styles.statusError]}>{plural(summary.failed, 'falha no envio', 'falhas no envio')}</Text> : null}
+        {cachedAt ? <Text style={styles.statusMeta}>cópia de {formatShortDate(cachedAt)} · {formatTime(cachedAt)}</Text> : null}
+        {summary.canRetry ? (
+          <Pressable
+            onPress={onRetry}
+            disabled={syncing}
+            accessibilityRole="button"
+            accessibilityLabel="Sincronizar novamente"
+            accessibilityState={{ disabled: syncing }}
+            style={[styles.statusRetry, syncing && styles.statusRetryDisabled]}
+            testID="notes-sync-retry"
+          >
+            <Text style={styles.statusRetryLabel}>{syncing ? 'Sincronizando…' : 'Sincronizar novamente'}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function ConflictVersion({ label, note, emptyLabel }: { label: string; note: LocalNote | null; emptyLabel: string }) {
+  const styles = useStyles();
+  return (
+    <View style={styles.conflictVersion}>
+      <Text style={styles.conflictVersionLabel}>{label}</Text>
+      {note ? (
+        <>
+          {note.imageDataUrl ? (
+            <Image
+              source={{ uri: note.imageDataUrl }}
+              style={styles.conflictImage}
+              contentFit="cover"
+              accessibilityLabel={`Imagem da ${label.toLowerCase()}`}
+            />
+          ) : null}
+          <Text style={styles.conflictBody} numberOfLines={8}>{note.body || '(sem texto)'}</Text>
+          <Text style={styles.conflictTime}>{formatDate(note.updatedAt)} · {formatTime(note.updatedAt)}</Text>
+        </>
+      ) : (
+        <Text style={styles.conflictBodyMuted}>{emptyLabel}</Text>
+      )}
+    </View>
+  );
+}
+
+// Parity with src/components/notes-chat.tsx: both versions side by side (text, image, time),
+// with use-local/use-remote for changed notes and restore/accept-deletion for deleted ones.
+function ConflictCard({ conflict, disabled, onUseLocal, onUseRemote, onEditRemote, onAcceptDeletion, onKeepAsNew }: {
+  conflict: NoteConflict;
+  disabled: boolean;
+  onUseLocal(): void;
+  onUseRemote(): void;
+  onEditRemote?: () => void;
+  onAcceptDeletion(): void;
+  onKeepAsNew(): void;
+}) {
+  const styles = useStyles();
+  const changed = conflict.kind === 'changed';
+  return (
+    <View style={styles.conflictCard} testID={`note-conflict-${conflict.local.id}`}>
+      <Text style={styles.conflictTitle}>
+        {changed ? 'Esta anotação mudou em outro aparelho.' : 'Esta anotação foi removida em outro aparelho.'}
+      </Text>
+      <View style={styles.conflictColumns}>
+        <ConflictVersion label="Sua versão" note={conflict.local} emptyLabel="(sem texto)" />
+        <ConflictVersion label="Versão do servidor" note={changed ? conflict.remote : null} emptyLabel="Removida no servidor." />
+      </View>
+      <View style={styles.conflictActions}>
+        {changed ? (
+          <>
+            <Button label="Usar minha versão" onPress={onUseLocal} disabled={disabled} accessibilityLabel="Usar minha versão e sobrescrever a do servidor" />
+            <Button label="Usar versão do servidor" variant="secondary" onPress={onUseRemote} disabled={disabled} accessibilityLabel="Usar versão do servidor e descartar a minha" />
+            {onEditRemote ? <Button label="Editar versão do servidor" variant="secondary" onPress={onEditRemote} disabled={disabled} /> : null}
+          </>
+        ) : (
+          <>
+            <Button label="Restaurar minha versão" onPress={onUseLocal} disabled={disabled} />
+            <Button label="Aceitar exclusão" variant="danger" onPress={onAcceptDeletion} disabled={disabled} accessibilityLabel="Aceitar exclusão e descartar minha versão" />
+          </>
+        )}
+        <Button label="Manter como nova anotação" variant="ghost" onPress={onKeepAsNew} disabled={disabled} />
+      </View>
     </View>
   );
 }
@@ -344,6 +517,55 @@ const useStyles = themedStyles(colors => ({
   bubblePending: { opacity: 0.6 },
   bubbleImage: { width: '100%', aspectRatio: 16 / 9 },
   bubbleText: { ...typography.body, color: colors.foreground, paddingHorizontal: spacing.md, paddingTop: spacing.sm },
+  bubbleTextWithMenu: { paddingRight: spacing.xl + spacing.sm },
+  bubbleMenu: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    zIndex: 2,
+    width: 26,
+    height: 26,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(9,9,11,0.35)',
+  },
+  statusBar: {
+    gap: spacing.xs,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    backgroundColor: colors.surfaceSofter,
+    padding: spacing.sm,
+  },
+  statusHeadline: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  statusHeadlineText: { fontSize: 12, fontWeight: '800' },
+  statusDetails: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm },
+  statusMeta: { fontSize: 10, fontWeight: '700', color: colors.zinc500 },
+  statusWarn: { color: colors.amber300 },
+  statusError: { color: colors.red300 },
+  statusRetry: { borderRadius: radii.full, backgroundColor: colors.surfaceSoft, paddingHorizontal: spacing.sm, paddingVertical: 5, minHeight: 28, justifyContent: 'center' },
+  statusRetryDisabled: { opacity: 0.5 },
+  statusRetryLabel: { fontSize: 11, fontWeight: '800', color: colors.zinc300 },
+  conflictPanel: {
+    gap: spacing.sm,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.25)',
+    backgroundColor: 'rgba(245,158,11,0.06)',
+    padding: spacing.md,
+  },
+  conflictHeading: { fontSize: 12, fontWeight: '800', color: colors.amber300 },
+  conflictCard: { gap: spacing.sm, borderRadius: radii.lg, borderWidth: 1, borderColor: 'rgba(251,191,36,0.2)', backgroundColor: colors.surfaceDeep, padding: spacing.sm },
+  conflictTitle: { ...typography.small, color: colors.zinc300, fontWeight: '700' },
+  conflictColumns: { flexDirection: 'row', gap: spacing.sm },
+  conflictVersion: { flex: 1, gap: 4, borderRadius: radii.md, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surfaceSofter, padding: spacing.sm },
+  conflictVersionLabel: { fontSize: 10, fontWeight: '800', color: colors.zinc500, textTransform: 'uppercase' },
+  conflictImage: { width: '100%', height: 80, borderRadius: radii.md, backgroundColor: colors.zinc900 },
+  conflictBody: { fontSize: 12, lineHeight: 16, color: colors.zinc300 },
+  conflictBodyMuted: { fontSize: 12, color: colors.zinc500 },
+  conflictTime: { fontSize: 10, color: colors.zinc600 },
+  conflictActions: { gap: spacing.xs },
   bubbleFooter: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   bubbleMeta: { fontSize: 9, color: 'rgba(196,181,253,0.6)', fontWeight: '700' },
   composerCard: {

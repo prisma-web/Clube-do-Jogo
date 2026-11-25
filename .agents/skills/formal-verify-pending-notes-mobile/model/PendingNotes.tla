@@ -17,7 +17,7 @@ CONSTANTS
     MaxIds, MaxRevs, MaxChain, MaxCrashes, MaxForeign,
     Variant            \* "none", or a broken variant that shows the check can fail
 
-ASSUME Variant \in {"none", "drop-on-conflict", "no-load-wait", "unserialized-writes"}
+ASSUME Variant \in {"none", "drop-on-conflict", "no-load-wait", "unserialized-writes", "use-local-drops"}
 
 NoteIds == 1..MaxIds
 Revs    == 1..MaxRevs   \* one per "Salvar anotação" tap: the text the user sent
@@ -219,7 +219,42 @@ ResolveKeepAsNew(l, n) ==
     /\ UNCHANGED <<stored, server, serverHad, status, stack, loaded, loadWait,
                    nextRev, durable, discarded, crashes, foreigns>>
 
-\* flushAll from the effect after load and from onlineManager/focusManager.
+\* "Usar minha versão" (changed) / "Restaurar minha versão" (deleted) ->
+\* resolveUseLocal: same id, same text (rev), conflict cleared, then flushOne.
+\* A changed conflict becomes update(expectedUpdatedAt = conflict.remote.updatedAt).
+\* The model does not record which remote the conflict showed, so exp ranges
+\* over every server value: a superset of what the code can send. A deleted
+\* conflict becomes create. Variant "use-local-drops" removes the entry from
+\* the queue and only keeps the request in flight, to show the check catches it.
+ResolveUseLocal(l, n) ==
+    /\ Touchable(l)
+    /\ conflict[l][n] /= "none"
+    /\ mem[l][n] /= NoEntry
+    /\ \E x \in Revs \cup {Foreign} :
+         LET e == IF conflict[l][n] = "changed"
+                  THEN [rev |-> mem[l][n].rev, upd |-> TRUE, exp |-> x]
+                  ELSE [rev |-> mem[l][n].rev, upd |-> FALSE, exp |-> None]
+             q == [mem[l] EXCEPT ![n] = e]
+             c == [conflict[l] EXCEPT ![n] = "none"]
+         IN /\ Apply(l, IF Variant = "use-local-drops" THEN [mem[l] EXCEPT ![n] = NoEntry] ELSE q)
+            /\ conflict' = [conflict EXCEPT ![l] = c]
+            /\ req' = [req EXCEPT ![l] = Send(l, n, q, c)]
+    /\ UNCHANGED <<stored, server, serverHad, status, stack, loaded, loadWait,
+                   usedIds, nextRev, durable, discarded, crashes, foreigns>>
+
+\* "Aceitar exclusão" (deleted conflicts only) -> resolveAcceptDeletion: the
+\* user discards the local copy, like ResolveUseRemote does for changed ones.
+ResolveAcceptDeletion(l, n) ==
+    /\ Touchable(l)
+    /\ conflict[l][n] = "deleted"
+    /\ Apply(l, [mem[l] EXCEPT ![n] = NoEntry])
+    /\ conflict' = [conflict EXCEPT ![l][n] = "none"]
+    /\ discarded' = IF mem[l][n] = NoEntry THEN discarded ELSE discarded \cup {mem[l][n].rev}
+    /\ UNCHANGED <<stored, server, serverHad, status, stack, loaded, loadWait, req,
+                   usedIds, nextRev, durable, crashes, foreigns>>
+
+\* flushAll from the effect after load, from onlineManager/focusManager, and
+\* from retryAll ("Sincronizar novamente", top screen only, a subset of this).
 \* Every mounted screen has these listeners, not only the one on top.
 FlushAll(l) ==
     /\ status[l] = "mounted" /\ loaded[l]
@@ -303,6 +338,7 @@ Next ==
          Mount(l) \/ LoadRead(l) \/ Unmount(l) \/ SubmitCreate(l) \/ FlushAll(l)
     \/ \E l \in Lifetimes, n \in NoteIds :
          \/ SubmitUpdate(l, n) \/ ResolveUseRemote(l, n) \/ ResolveKeepAsNew(l, n)
+         \/ ResolveUseLocal(l, n) \/ ResolveAcceptDeletion(l, n)
          \/ Reach(l, n) \/ RespondOk(l, n) \/ RespondConflict(l, n) \/ RespondFail(l, n)
     \/ \E n \in NoteIds : ForeignEdit(n) \/ ForeignDelete(n)
     \/ Land

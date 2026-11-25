@@ -36,8 +36,16 @@ export interface ThemeAudioController {
   dispose(): void;
   retry(): void;
   playSignal(signal: ThemeAudioSignal): void;
+  /**
+   * Plays `signal` as soon as the session is ready and signals are enabled, if that happens within
+   * a short window. Used by "ligar sons do comunicador": the toggle starts the session, so the
+   * players are not loaded yet at the moment of the tap.
+   */
+  queueSignal(signal: ThemeAudioSignal): void;
   setAmbienceEnabled(enabled: boolean): void;
   setAmbienceVolume(volume: number): void;
+  /** Gates every UI signal, including the automatic `navigate` cue played on a scene mode change. */
+  setSignalsEnabled(enabled: boolean): void;
   isModeActive(mode: CosmicSceneMode): boolean;
   subscribe(listener: () => void): () => void;
   getSnapshot(): ThemeAudioControllerSnapshot;
@@ -47,6 +55,7 @@ interface ControllerOptions {
   platform: ThemeAudioPlatform;
   ambienceSources: Record<CosmicSceneMode, number>;
   signalSources: Record<ThemeAudioSignal, number>;
+  now?: () => number;
 }
 
 interface PlayerResources {
@@ -63,6 +72,7 @@ interface PlayerResources {
 const SIGNALS: ThemeAudioSignal[] = ['enable', 'press', 'select', 'open', 'close', 'navigate'];
 const DEFAULT_AMBIENCE_VOLUME = 0.8;
 const SIGNAL_VOLUME = 0.7;
+export const QUEUED_SIGNAL_TTL_MS = 4000;
 
 function describe(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
@@ -92,6 +102,7 @@ export function createThemeAudioController({
   platform,
   ambienceSources,
   signalSources,
+  now = Date.now,
 }: ControllerOptions): ThemeAudioController {
   let snapshot: ThemeAudioControllerSnapshot = { ready: false, error: null };
   let desiredMode: CosmicSceneMode | null = null;
@@ -100,6 +111,8 @@ export function createThemeAudioController({
   let pendingModeSignal = false;
   let ambienceEnabled = true;
   let ambienceVolume = DEFAULT_AMBIENCE_VOLUME;
+  let signalsEnabled = true;
+  let queuedSignal: { signal: ThemeAudioSignal; expiresAt: number } | null = null;
   const listeners = new Set<() => void>();
   const signalTokens: Record<ThemeAudioSignal, number> = {
     enable: 0,
@@ -141,6 +154,13 @@ export function createThemeAudioController({
 
   function maybePlayModeSignal(targetResources: PlayerResources): void {
     const player = targetResources.signals.navigate;
+    if (!signalsEnabled) {
+      // "Sons do comunicador" off: the ambience loop may still be running, but the mode-change
+      // cue is a UI signal and must stay silent. Drop the pending cue so it does not fire later
+      // when signals are turned back on.
+      pendingModeSignal = false;
+      return;
+    }
     if (
       !pendingModeSignal ||
       !player ||
@@ -186,6 +206,32 @@ export function createThemeAudioController({
       });
     }
     maybePlayModeSignal(targetResources);
+    flushQueuedSignal();
+  }
+
+  function canPlay(signal: ThemeAudioSignal): boolean {
+    const current = resources;
+    const player = current?.signals[signal];
+    return Boolean(
+      signalsEnabled &&
+      current &&
+      player &&
+      current.loadedPlayers.has(player) &&
+      snapshot.ready &&
+      isCurrent(current.epoch, current),
+    );
+  }
+
+  function flushQueuedSignal(): void {
+    if (!queuedSignal) return;
+    if (now() > queuedSignal.expiresAt) {
+      queuedSignal = null;
+      return;
+    }
+    if (!canPlay(queuedSignal.signal)) return;
+    const { signal } = queuedSignal;
+    queuedSignal = null;
+    playSignal(signal);
   }
 
   async function prepare(targetEpoch: number, mode: CosmicSceneMode): Promise<void> {
@@ -294,6 +340,7 @@ export function createThemeAudioController({
   }
 
   function playSignal(signal: ThemeAudioSignal): void {
+    if (!signalsEnabled) return;
     const current = resources;
     const player = current?.signals[signal];
     if (
@@ -308,6 +355,11 @@ export function createThemeAudioController({
     const token = signalTokens[signal] + 1;
     signalTokens[signal] = token;
     void restartSignal(signal, player, current, token);
+  }
+
+  function queueSignal(signal: ThemeAudioSignal): void {
+    queuedSignal = { signal, expiresAt: now() + QUEUED_SIGNAL_TTL_MS };
+    flushQueuedSignal();
   }
 
   function retry(): void {
@@ -337,6 +389,12 @@ export function createThemeAudioController({
     }
   }
 
+  function setSignalsEnabled(enabled: boolean): void {
+    signalsEnabled = enabled;
+    if (!enabled) pendingModeSignal = false;
+    else flushQueuedSignal();
+  }
+
   function setAmbienceVolume(volume: number): void {
     ambienceVolume = volume;
     if (resources?.ambience) resources.ambience.volume = volume;
@@ -348,8 +406,10 @@ export function createThemeAudioController({
     dispose: deactivate,
     retry,
     playSignal,
+    queueSignal,
     setAmbienceEnabled,
     setAmbienceVolume,
+    setSignalsEnabled,
     isModeActive: mode => desiredMode === mode,
     subscribe(listener) {
       listeners.add(listener);

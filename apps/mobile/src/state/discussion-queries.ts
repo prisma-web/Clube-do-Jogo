@@ -657,6 +657,16 @@ export interface NotesPendingQueueState {
   submitUpdate(note: LocalNote, expectedUpdatedAt: string): void;
   resolveUseRemote(noteId: string): void;
   resolveKeepAsNew(noteId: string): void;
+  /**
+   * "Usar minha versão" / "Restaurar minha versão": keeps the local text under the same id. A
+   * `changed` conflict becomes a conditional update over the server version shown to the user; a
+   * `deleted` conflict becomes a create, re-inserting the note the server lost.
+   */
+  resolveUseLocal(noteId: string): void;
+  /** "Aceitar exclusão": only for `deleted` conflicts; drops the local copy (a user discard). */
+  resolveAcceptDeletion(noteId: string): void;
+  /** "Sincronizar novamente": the same flushAll the online/focus listeners run. */
+  retryAll(): void;
 }
 
 // One slot per note id (`notes-queue.ts`), not the single (userId, gameId)
@@ -793,6 +803,32 @@ export function useNotesPendingQueue(gameId: string): NotesPendingQueueState {
     void flushOne(fresh.note.id);
   }, [applyConflicts, applyQueue, flushOne]);
 
+  const resolveUseLocal = React.useCallback((noteId: string) => {
+    const entry = queueRef.current.get(noteId);
+    const conflict = conflictsRef.current.get(noteId);
+    if (!entry || !conflict) return;
+    const next: PendingLocalNote = conflict.kind === 'changed'
+      // Overwrite exactly the server version the user compared against: if it changed again in
+      // the meantime, update() raises a fresh 'changed' conflict instead of clobbering it.
+      ? { note: { ...entry.note, updatedAt: new Date().toISOString() }, origin: 'update', expectedUpdatedAt: conflict.remote.updatedAt, generation: 0 }
+      : { note: entry.note, origin: 'create', generation: 0 };
+    applyQueue(enqueueNote(queueRef.current, next));
+    applyConflicts(clearConflict(conflictsRef.current, noteId));
+    void flushOne(noteId);
+  }, [applyConflicts, applyQueue, flushOne]);
+
+  const resolveAcceptDeletion = React.useCallback((noteId: string) => {
+    if (conflictsRef.current.get(noteId)?.kind !== 'deleted') return;
+    applyQueue(dequeueNote(queueRef.current, noteId));
+    applyConflicts(clearConflict(conflictsRef.current, noteId));
+    void context.queryClient.invalidateQueries({ queryKey: notesKey(context, gameId, null) });
+  }, [applyConflicts, applyQueue, context, gameId]);
+
+  const retryAll = React.useCallback(() => {
+    if (!key || loadedKey !== key) return;
+    flushAll();
+  }, [flushAll, key, loadedKey]);
+
   return {
     queue,
     conflicts,
@@ -802,5 +838,8 @@ export function useNotesPendingQueue(gameId: string): NotesPendingQueueState {
     submitUpdate,
     resolveUseRemote,
     resolveKeepAsNew,
+    resolveUseLocal,
+    resolveAcceptDeletion,
+    retryAll,
   };
 }
