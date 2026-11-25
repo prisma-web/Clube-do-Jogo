@@ -10,33 +10,50 @@ import { Button } from '@/components/Button';
 import { Sheet } from '@/components/Sheet';
 import { EmptyState } from '@/components/StateViews';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
-import { useGame } from '@/state/queries';
+import { useApp } from '@/state/app-provider';
+import { useGame, useGameOfMonth } from '@/state/queries';
 import { useAdminGameOptions, usePreviewClubGameChange, useSetClubGame, type SetClubGameVariables } from '@/state/admin-queries';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
 import { initialPhaseFor, type ClubGameChangePhase as Phase } from './club-game-change-phase';
+import { ClubGameDecisionFlow } from './ClubGameDecisionFlow';
+import type { RecentDecision } from './use-persisted-club-decision';
 
-export function ClubGameChangeSheet({ visible, initialGame, onClose, onApplied }: {
+/**
+ * Escolha → modo → confirmação → decisão aplicada. Depois de aplicar, o sheet fica aberto e
+ * segue no mesmo fluxo (desfazer, refazer, continuar voltando). Toda decisão resultante é
+ * entregue a `onDecision` para ser persistida.
+ */
+export function ClubGameChangeSheet({ visible, initialGame, onClose, onDecision }: {
   visible: boolean;
   initialGame?: Game;
   onClose: () => void;
-  onApplied: (result: ClubGameChangeResult) => void;
+  onDecision: (decision: RecentDecision) => void;
 }) {
   const [phase, setPhase] = useState<Phase>(() => initialPhaseFor(initialGame));
+  const [decision, setDecision] = useState<RecentDecision | null>(null);
+  const [flowBusy, setFlowBusy] = useState(false);
   const setClubGame = useSetClubGame();
   const committing = phase.step === 'confirm' && setClubGame.isPending;
 
-  const title = phase.step === 'pick-game' ? 'Escolher jogo do clube'
-    : phase.step === 'choose-mode' ? phase.game.title
-      : 'Confirmar decisão';
+  const title = decision ? 'Decisão de ciclo'
+    : phase.step === 'pick-game' ? 'Escolher jogo do clube'
+      : phase.step === 'choose-mode' ? phase.game.title
+        : 'Confirmar decisão';
 
   const guardedClose = () => {
-    if (committing) return;
+    if (committing || flowBusy) return;
     onClose();
+  };
+  const record = (next: RecentDecision) => {
+    setDecision(next);
+    onDecision(next);
   };
 
   return (
-    <Sheet visible={visible} title={title} onClose={guardedClose} avoidKeyboard={phase.step === 'pick-game'}>
-      {phase.step === 'pick-game' ? (
+    <Sheet visible={visible} title={title} onClose={guardedClose} avoidKeyboard={!decision && phase.step === 'pick-game'}>
+      {decision ? (
+        <ClubGameDecisionFlow decision={decision} onDecision={record} onClose={guardedClose} onBusyChange={setFlowBusy} />
+      ) : phase.step === 'pick-game' ? (
         <GamePicker onSelect={game => setPhase({ step: 'choose-mode', game })} />
       ) : phase.step === 'choose-mode' ? (
         <ModeChoice
@@ -50,10 +67,7 @@ export function ClubGameChangeSheet({ visible, initialGame, onClose, onApplied }
           preview={phase.preview}
           setClubGame={setClubGame}
           onBack={() => setPhase({ step: 'choose-mode', game: phase.game })}
-          onApplied={result => {
-            onApplied(result);
-            onClose();
-          }}
+          onApplied={result => record({ kind: 'applied', result })}
         />
       )}
     </Sheet>
@@ -116,6 +130,9 @@ function ModeChoice({ game, onBack, onPreviewed }: {
   const colors = useThemeColors();
   const styles = useStyles();
   const previewChange = usePreviewClubGameChange();
+  const { activeMonth } = useApp();
+  const activeGame = useGameOfMonth(activeMonth);
+  const isCurrentGame = activeGame.data?.id === game.id;
 
   return (
     <View style={styles.modeBody}>
@@ -127,9 +144,11 @@ function ModeChoice({ game, onBack, onPreviewed }: {
       <ChoiceButton
         icon="refresh-outline"
         title="Definir para o ciclo atual"
-        description="Substitui o jogo do ciclo em andamento por este, se houver um ciclo ativo."
+        description={isCurrentGame
+          ? 'Este já é o jogo do ciclo ativo.'
+          : 'Substitui o jogo do ciclo em andamento por este, se houver um ciclo ativo.'}
         loading={previewChange.isPending && previewChange.variables?.mode === 'current'}
-        disabled={previewChange.isPending}
+        disabled={previewChange.isPending || isCurrentGame}
         onPress={() => previewChange.mutate({ gameId: game.id, mode: 'current' }, { onSuccess: onPreviewed })}
         testID="admin-club-mode-current"
       />

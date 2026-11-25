@@ -93,6 +93,13 @@ function UserRow({ user, isSelf, lastAdmin, onPress }: {
           <Text style={styles.userName} numberOfLines={1}>{user.name || 'Membro'}</Text>
           {isSelf ? <Text style={styles.selfBadge}>Você</Text> : null}
         </View>
+        <Text
+          style={[styles.roleBadge, user.role === 'admin' ? styles.roleBadgeAdmin : styles.roleBadgeMember]}
+          accessibilityLabel={`Cargo: ${user.role === 'admin' ? 'Admin' : 'Usuário comum'}`}
+          testID={`admin-user-badge-${user.id}`}
+        >
+          {user.role === 'admin' ? 'Admin' : 'Usuário comum'}
+        </Text>
         <Text style={styles.userEmail} numberOfLines={1}>{user.email || 'Sem email público'}</Text>
       </View>
       <Pressable
@@ -198,6 +205,18 @@ const useStyles = themedStyles(colors => ({
   userName: { ...typography.small, color: colors.foreground, fontWeight: '800', flexShrink: 1 },
   userEmail: { ...typography.tiny, color: colors.zinc500, textTransform: 'none' },
   selfBadge: { ...typography.tiny, color: colors.violet300 },
+  roleBadge: {
+    alignSelf: 'flex-start',
+    overflow: 'hidden',
+    borderRadius: radii.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    fontSize: 9,
+    fontWeight: '900',
+    textTransform: 'none',
+  },
+  roleBadgeAdmin: { backgroundColor: 'rgba(139,92,246,0.12)', color: colors.violet300 },
+  roleBadgeMember: { backgroundColor: 'rgba(255,255,255,0.05)', color: colors.zinc500 },
   roleButton: { height: 34, paddingHorizontal: spacing.sm, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center' },
   roleButtonPromote: { backgroundColor: 'rgba(139,92,246,0.15)' },
   roleButtonDemote: { backgroundColor: 'rgba(239,68,68,0.1)' },
