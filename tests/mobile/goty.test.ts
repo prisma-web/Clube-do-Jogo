@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { test } from 'node:test';
 import {
   computeBolaoProgress,
@@ -16,6 +18,7 @@ import {
   filterBallotCategories,
   formatDeadlineInput,
   hasUnresolvedGameCovers,
+  isGotyBadgeVisible,
   isTabBarRoute,
   gotyBadgeBottomOffset,
   gotyBadgeClearance,
@@ -26,6 +29,7 @@ import {
   searchGotyDemoCatalog,
   shouldShowGotyBadge,
 } from '../../apps/mobile/src/features/goty/goty-logic';
+import { keyboardEventNames } from '../../apps/mobile/src/hooks/keyboard-visibility-core';
 import {
   clearNavIntent,
   captureNavIntent,
@@ -211,4 +215,23 @@ test('o fim das listas sai de baixo do badge GOTY nas abas e nas telas empilhada
   assert.equal(gotyBadgeClearance('/jogos/abc', 24), 36 + 48 + 12);
   assert.equal(gotyBadgeClearance('/jogos/abc', 0), 16 + 48 + 12);
   assert.equal(gotyBadgeClearance('/goty-2026', 24), 0);
+});
+
+test('o badge GOTY some enquanto o teclado está aberto e volta quando fecha', () => {
+  assert.equal(isGotyBadgeVisible('/jogo-do-mes', false), true);
+  assert.equal(isGotyBadgeVisible('/jogo-do-mes', true), false);
+  assert.equal(isGotyBadgeVisible('/jogos/abc', true), false);
+  assert.equal(isGotyBadgeVisible('/goty-2026', false), false);
+  assert.equal(gotyBadgeClearance('/jogo-do-mes', 24), 12 + 48 + 12);
+});
+
+test('o teclado é observado por Will no iOS e por Did no Android', () => {
+  assert.deepEqual(keyboardEventNames('ios'), { show: 'keyboardWillShow', hide: 'keyboardWillHide' });
+  assert.deepEqual(keyboardEventNames('android'), { show: 'keyboardDidShow', hide: 'keyboardDidHide' });
+});
+
+test('o GotyFloatingBadge esconde o badge pelo estado do teclado', () => {
+  const source = readFileSync(path.join(process.cwd(), 'apps/mobile/src/features/goty/GotyFloatingBadge.tsx'), 'utf8');
+  assert.match(source, /const keyboardVisible = useKeyboardVisible\(\)/);
+  assert.match(source, /if \(!isGotyBadgeVisible\(pathname, keyboardVisible\)\) return null/);
 });
