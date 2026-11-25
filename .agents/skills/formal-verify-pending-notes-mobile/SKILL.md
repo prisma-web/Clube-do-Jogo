@@ -33,7 +33,7 @@ Rode da raiz do repo:
 .agents/skills/formal-verify-pending-notes-mobile/scripts/check.sh
 ```
 
-O script precisa de Java 11 ou mais novo, e de rede na primeira vez. Ele baixa o TLC, o `tla2tools.jar` v1.7.4, confere o sha256 e o guarda em `.cache/` dentro desta skill, que o git ignora. A execução leva uns 40 s e faz oito checagens. Cada uma tem um resultado registrado:
+O script precisa de Java 11 ou mais novo (e de `python3` no `--deep`), e de rede na primeira vez. Ele baixa o TLC, o `tla2tools.jar` v1.7.4, confere o sha256 e o guarda em `.cache/` dentro desta skill, que o git ignora. A execução leva uns 40 s e faz oito checagens. Cada uma tem um resultado registrado:
 
 | Checagem | Config | Registrado |
 |---|---|---|
@@ -61,9 +61,24 @@ Java ausente ou sync commit inexistente também saem com `1`. Antes de tratar um
 
 Na saída `2`, leia `git diff <sync> -- <arquivos>`. Se o diff tocar algo que o mapa abaixo descreve, ajuste o modelo primeiro. Depois rode de novo com `--reviewed`.
 
-`--deep` roda o `base` com `MaxRevs = 3`. Antes de `createFlushGate` eram uns 10 milhões de estados, de 68 s a 104 s num M1 Pro. Rode antes de mover o sync commit.
+## `--deep`
 
-Com `rerun` no estado, o `--deep` não cabe mais nesse orçamento. Em `11b67b4`, o TLC passou de 273 milhões de estados distintos em 30 min, sem violação, e foi interrompido por tempo antes de terminar; a fila ainda crescia. O `base` rápido tem uns 3,9 milhões de estados (25 s num Ryzen de 32 threads). Reduzir o `--deep` é um follow-up aberto; uma tentativa com o reenvio como escolha livre, sem `rerun` no estado, também passou de 236 milhões sem terminar.
+`--deep` roda as oito checagens com `MaxRevs = 3` e `VIEW ReducedView`, e acrescenta a checagem `view-sound`. Rode antes de mover o sync commit. Num Ryzen de 32 threads, em `11b67b4`, leva uns 6 min: o `base` profundo tem 26 milhões de estados distintos e leva 266 s. Sem o `VIEW`, o mesmo `base` passou de 273 milhões em 30 min e não terminou. Os oito resultados registrados valem também no `--deep`.
+
+O `VIEW` (`ReducedView`, no fim de `model/PendingNotes.tla`) faz o TLC contar como um estado só dois estados que diferem apenas em dados que nenhuma ação lê de novo e que nenhum invariante olha. O `Next` não muda. A tabela diz o que o `VIEW` esquece e por que isso não muda nenhum futuro.
+
+| Esquece | Por quê |
+|---|---|
+| `mem`, `conflict`, `rerun` e `trigd` de um hook `Inert`: morto, ou desmontado sem envio em voo | Só `Apply` lê `mem`, e quem chama `Apply` são as respostas e as ações da tela montada. Um hook inerte não tem nenhuma das duas. |
+| `loaded` fora de `mounted`, e `loadWait` depois de `LoadRead` | `Touchable`, `LoadRead` e `FlushAll` só leem com o hook montado. `loadWait` só conta até `LoadRead`. |
+| `conflict[l][n]` de hook desmontado sem envio de `n` em voo | Só a resposta e o `Settle` de `n` leem esse valor, e nenhum envio novo começa num hook desmontado. |
+| a `entry` de um envio que o servidor já respondeu (`ok`, `changed`, `deleted`), e esse envio inteiro num hook morto | `Respond*` só leem a fase, e um hook morto não responde. O envio `sent` de um hook morto fica, porque `Reach` ainda grava no servidor. |
+| o `exp` de uma entrada `update` que nunca mais pode ser igual a `server[n]`, trocado por `Stale` | Só `Reach` lê `exp`, e só o compara com `server[n]`. `Futures(n)` cobre todo valor que `server[n]` ainda pode assumir: o atual, `Foreign` enquanto houver edição externa, as revs ainda não criadas e a rev de toda entrada viva de `n`. Fora disso, `Reach` rejeita com o valor original e com `Stale`. É aqui que mora a maior parte do ganho, porque `ResolveUseLocal` escolhe `exp` livre. |
+| `serverHad` e `discarded`, a não ser em `durable \ Safe` e nas revs ainda vivas | `NoLostNote` só depende de `durable \ Safe` e de `stored`. Uma rev fora de `stored`, de `chain` e da `mem` de um hook ativo nunca mais entra em `durable`. |
+
+`view-sound` testa essa tabela. Ele explora o `base` rápido duas vezes, uma só com `SYMMETRY` e outra com `SYMMETRY` e `VIEW`. Nas duas, `model/ViewSound.tla` imprime a visão de cada estado alcançado, e `scripts/orbits.py` a reduz à órbita pela troca de tempos de vida. Os dois conjuntos têm de ser iguais. Se o `VIEW` juntasse dois estados com futuros diferentes, a exploração com `VIEW` deixaria de alcançar alguma visão. Em `11b67b4` são 634.917 órbitas nas duas.
+
+Uma variável nova no modelo precisa entrar em `ReducedView`, senão o `VIEW` a ignora. Uma ação nova que leia algo da tabela invalida a linha correspondente. `view-sound` pega a maior parte desses erros, mas só no `base` rápido.
 
 ## Ler um resultado
 
@@ -134,7 +149,7 @@ Siga estes passos quando um diff mudar de propósito algo do mapa.
 1. Mude a ação correspondente para dizer o que o código novo faz, com um comentário que aponte o código. Um passo novo entre dois `await` vira uma ação nova.
 2. Rode `check.sh --reviewed`. Os cinco mutantes precisam continuar violando. Se a mudança tornar um mutante impossível, troque-o por outro que quebre o código novo, e veja o novo mutante falhar.
 3. Se o `base` passar a violar, trate a violação como bug real ou erro de modelagem, como em "Ler um resultado".
-4. Rode `check.sh --deep --reviewed`.
+4. Rode `check.sh --deep --reviewed`. Se a mudança criou uma variável ou uma leitura nova, revise antes `ReducedView` e a tabela de `--deep`.
 5. Confirme que o modelo descreve o código no commit novo. Só então troque o `sync` do registro de cobertura por esse commit e acrescente os arquivos novos.
 
 ## Escopo e limites
