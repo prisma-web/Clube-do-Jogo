@@ -34,7 +34,7 @@ import { voteChoiceOptions } from '@/components/vote-choice-options';
 import { getCanonicalGameUrl } from '@/features/media/canonical-url';
 import { getRankingFormula } from '@/platform/config';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
-import { emptyChoiceProfiles, gameCoverUrl, normalizeAvatarCrop, type AvatarCrop, type GameMugshot, type ProgressStatus, type RatingDetails, type RatingMode, type VoteChoice, type VoteReason } from '@clube-do-jogo/domain';
+import { emptyChoiceProfiles, gameCoverUrl, gameDescriptionPreview, normalizeAvatarCrop, type AvatarCrop, type GameMugshot, type ProgressStatus, type RatingDetails, type RatingMode, type VoteChoice, type VoteReason } from '@clube-do-jogo/domain';
 
 const rankingFormula = getRankingFormula();
 const DESCRIPTION_EXPAND_THRESHOLD = 180;
@@ -91,6 +91,7 @@ export default function GameDetailScreen() {
   const [participantsChoice, setParticipantsChoice] = useState<VoteChoice | null>(null);
 
   const game = mediaQuery.data ?? gameQuery.data ?? null;
+  const description = gameDescriptionPreview(game?.description, DESCRIPTION_EXPAND_THRESHOLD);
   const libraryEntry = useMemo(
     () => (libraryQuery.data?.library ?? []).find(item => item.game.id === gameId) ?? null,
     [libraryQuery.data, gameId],
@@ -404,8 +405,8 @@ export default function GameDetailScreen() {
         ) : null}
       </View>
 
-      <Text style={styles.description} numberOfLines={descriptionExpanded ? undefined : 3}>{game.description || 'Sem descrição disponível.'}</Text>
-      {game.description && game.description.length > DESCRIPTION_EXPAND_THRESHOLD ? (
+      <Text style={styles.description} numberOfLines={descriptionExpanded ? undefined : 3}>{description.text}</Text>
+      {description.hasMore ? (
         <Pressable onPress={() => setDescriptionExpanded(value => !value)} accessibilityRole="button" style={styles.descriptionToggle}>
           <Text style={styles.descriptionToggleLabel}>{descriptionExpanded ? 'Ver menos' : 'Ver mais'}</Text>
         </Pressable>

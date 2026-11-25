@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import Link from 'next/link';
 import * as Tabs from '@radix-ui/react-tabs';
 import { CalendarClock, Crown, ListChecks, MessageCircle, NotebookPen } from 'lucide-react';
-import { gameCoverUrl } from '@clube-do-jogo/domain';
+import { gameCoverUrl, gameDescriptionPreview } from '@clube-do-jogo/domain';
 import { createClient } from '@/lib/supabase/client';
 import { fetchGameOfMonth } from '@/lib/data';
 import { formatMonth } from '@/lib/utils';
@@ -28,7 +28,7 @@ export default function GameOfMonthPage() {
     <div className="mx-auto grid min-h-[65dvh] max-w-xl place-items-center text-center"><div><CalendarClock className="mx-auto size-10 text-zinc-700" /><h1 className="mt-4 text-xl font-black">Jogo ainda não definido</h1><p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-zinc-500">Um administrador ainda não definiu o jogo de {formatMonth(selectedMonth)}.</p></div></div>
   );
 
-  const hasMoreDescription = game.description.length > 150;
+  const description = gameDescriptionPreview(game.description, 150);
 
   return (
     <div className="mx-auto max-w-3xl animate-fade-in">
@@ -39,7 +39,7 @@ export default function GameOfMonthPage() {
         <div className="game-month-content relative flex w-full flex-col items-center justify-start">
           <div className="game-month-chip relative isolate mb-4 inline-flex items-center gap-2 overflow-hidden rounded-full border border-amber-300/35 bg-[linear-gradient(145deg,rgba(255,221,108,.28),rgba(120,53,15,.28))] px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.17em] text-amber-200 shadow-[0_5px_14px_rgba(0,0,0,.3),inset_1px_1px_1px_rgba(255,255,255,.3),inset_-1px_-2px_2px_rgba(0,0,0,.3)] before:absolute before:inset-x-2 before:top-0 before:h-px before:bg-white/45 sm:text-[11px]"><Crown className="relative size-4 fill-amber-300/35 stroke-amber-100" />Jogo de {formatMonth(selectedMonth, { includeYear: false })}</div>
           <Link href={`/jogos/${game.id}`} className="group mx-auto block w-fit"><div className="game-month-cover mx-auto aspect-[3/4] overflow-hidden rounded-2xl border border-white/15 bg-zinc-900 shadow-2xl shadow-black/70 transition duration-300 group-hover:-translate-y-1"><img src={gameCoverUrl(game.image_url)} alt={`Capa de ${game.title}`} className="size-full object-cover" /></div><h1 className="game-month-title mx-auto mt-4 max-w-xl text-3xl font-black tracking-[-0.03em] text-white [text-shadow:0_2px_18px_rgba(0,0,0,.9)] sm:text-5xl">{game.title}</h1></Link>
-          <div className="mt-2 h-[3.75rem] max-w-lg overflow-hidden sm:h-16"><p className="game-month-description mx-auto line-clamp-2 text-[11px] leading-relaxed text-white/75 [text-shadow:0_1px_10px_rgba(0,0,0,.9)] sm:text-sm">{game.description}</p>{hasMoreDescription && <Link href={`/jogos/${game.id}`} className="mt-1 inline-block text-[10px] font-extrabold text-violet-300 transition hover:text-violet-200">Ver mais</Link>}</div>
+          <div className="mt-2 h-[3.75rem] max-w-lg overflow-hidden sm:h-16"><p className="game-month-description mx-auto line-clamp-2 text-[11px] leading-relaxed text-white/75 [text-shadow:0_1px_10px_rgba(0,0,0,.9)] sm:text-sm">{description.text}</p>{description.hasMore && <Link href={`/jogos/${game.id}`} className="mt-1 inline-block text-[10px] font-extrabold text-violet-300 transition hover:text-violet-200">Ver mais</Link>}</div>
         </div>
       </section>
 
