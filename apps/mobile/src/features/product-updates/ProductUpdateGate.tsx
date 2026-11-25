@@ -5,7 +5,10 @@ import { useApp } from '@/state/app-provider';
 import { isProductUpdateAutoOpenEnabled } from '@/platform/config';
 import { getProductUpdateReopenSignal, subscribeProductUpdateReopen } from './product-update-bus';
 import { shouldShowProductUpdate } from './product-update-visibility';
+import { mobileProductUpdate } from './product-update-mobile';
 import { ProductUpdateSheet } from './ProductUpdateSheet';
+
+const mobileUpdate = mobileProductUpdate(currentProductUpdate);
 
 export function ProductUpdateGate() {
   const { userId } = useApp();
@@ -31,7 +34,7 @@ export function ProductUpdateGate() {
 
   return (
     <ProductUpdateSheet
-      update={currentProductUpdate}
+      update={mobileUpdate}
       visible={visible}
       onClose={dismiss}
       onFinish={dismiss}

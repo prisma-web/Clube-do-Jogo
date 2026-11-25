@@ -1,14 +1,16 @@
 import { Share, Text, View, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import type { Game } from '@clube-do-jogo/domain';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { Avatar } from '@/components/Avatar';
-import { GameListRow } from '@/components/GameListRow';
-import { EmptyState, ErrorState, LoadingState, Section } from '@/components/StateViews';
+import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
+import { ProfileTabs } from '@/features/profile/ProfileTabs';
 import { useApp } from '@/state/app-provider';
 import { useProfile } from '@/state/profile-queries';
 import { getCanonicalProfileUrl } from '@/features/media/canonical-url';
+import { formatShortDate } from '@/lib/format';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
 
 export default function MemberProfileScreen() {
@@ -48,6 +50,10 @@ export default function MemberProfileScreen() {
 
   const { profile, favorites, backlog, completed, platforms } = data;
 
+  function openGame(game: Game) {
+    router.push({ pathname: '/(app)/jogos/[id]', params: { id: game.id } });
+  }
+
   async function shareProfile() {
     const url = getCanonicalProfileUrl(profileId);
     if (!url) return;
@@ -78,6 +84,7 @@ export default function MemberProfileScreen() {
         <Avatar uri={profile.avatar_url} crop={profile.avatar_crop} name={profile.name ?? 'Membro'} size={80} />
         <Text style={styles.name}>{profile.name ?? 'Membro'}</Text>
         {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
+        {profile.created_at ? <Text style={styles.since}>Desde {formatShortDate(profile.created_at)}</Text> : null}
         {isSelf ? (
           <Pressable
             onPress={() => router.push('/(app)/(tabs)/perfil')}
@@ -90,85 +97,14 @@ export default function MemberProfileScreen() {
         ) : null}
       </View>
 
-      <View style={styles.statsGrid}>
-        <StatCard label="Favoritos" value={favorites.length} icon="heart-outline" />
-        <StatCard label="Na biblioteca" value={backlog.length} icon="library-outline" />
-        <StatCard label="Finalizados" value={completed.length} icon="flag-outline" />
-      </View>
-
-      {platforms.length ? (
-        <Section title="Plataformas">
-          <View style={styles.platformRow}>
-            {platforms.map(platform => (
-              <View key={platform.igdb_platform_id} style={styles.platformChip}>
-                <Ionicons name="game-controller-outline" size={13} color={colors.violet300} />
-                <Text style={styles.platformChipLabel} numberOfLines={1}>{platform.abbreviation || platform.name}</Text>
-              </View>
-            ))}
-          </View>
-        </Section>
-      ) : null}
-
-      <Section title="Favoritos">
-        {favorites.length ? (
-          <View style={styles.list}>
-            {favorites.map(game => (
-              <GameListRow
-                key={game.id}
-                game={game}
-                onPress={() => router.push({ pathname: '/(app)/jogos/[id]', params: { id: game.id } })}
-              />
-            ))}
-          </View>
-        ) : (
-          <EmptyState icon="heart-outline" title="Nenhum jogo favoritado ainda." />
-        )}
-      </Section>
-
-      <Section title="Biblioteca">
-        {backlog.length ? (
-          <View style={styles.list}>
-            {backlog.map(game => (
-              <GameListRow
-                key={game.id}
-                game={game}
-                onPress={() => router.push({ pathname: '/(app)/jogos/[id]', params: { id: game.id } })}
-              />
-            ))}
-          </View>
-        ) : (
-          <EmptyState icon="library-outline" title="Nenhum jogo na biblioteca ainda." />
-        )}
-      </Section>
-
-      <Section title="Finalizados">
-        {completed.length ? (
-          <View style={styles.list}>
-            {completed.map(game => (
-              <GameListRow
-                key={game.id}
-                game={game}
-                onPress={() => router.push({ pathname: '/(app)/jogos/[id]', params: { id: game.id } })}
-              />
-            ))}
-          </View>
-        ) : (
-          <EmptyState icon="flag-outline" title="Nenhum jogo finalizado ainda." />
-        )}
-      </Section>
+      <ProfileTabs
+        favorites={favorites}
+        backlog={backlog}
+        completed={completed}
+        platforms={platforms}
+        onOpenGame={openGame}
+      />
     </Screen>
-  );
-}
-
-function StatCard({ label, value, icon }: { label: string; value: number; icon: keyof typeof Ionicons.glyphMap }) {
-  const colors = useThemeColors();
-  const styles = useStyles();
-  return (
-    <View style={styles.statCard}>
-      <Ionicons name={icon} size={18} color={colors.violet300} />
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
   );
 }
 
@@ -185,23 +121,7 @@ const useStyles = themedStyles(colors => ({
   },
   name: { ...typography.h2, color: colors.foreground, marginTop: spacing.sm },
   bio: { ...typography.small, color: colors.zinc400, textAlign: 'center', maxWidth: 280 },
+  since: { ...typography.tiny, color: colors.zinc600, marginTop: spacing.xs },
   selfBadge: { marginTop: spacing.xs, borderRadius: radii.full, borderWidth: 1, borderColor: 'rgba(139,92,246,0.3)', backgroundColor: 'rgba(139,92,246,0.12)', paddingHorizontal: spacing.sm, paddingVertical: 4 },
   selfBadgeLabel: { fontSize: 10, fontWeight: '800', color: colors.violet300, textTransform: 'uppercase' },
-  statsGrid: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-    backgroundColor: colors.surfaceSofter,
-    paddingVertical: spacing.lg,
-  },
-  statValue: { fontSize: 20, fontWeight: '900', color: colors.foreground },
-  statLabel: { fontSize: 10, fontWeight: '700', color: colors.zinc500, textAlign: 'center' },
-  platformRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  platformChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radii.full, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surfaceSofter, paddingHorizontal: spacing.sm, paddingVertical: 6 },
-  platformChipLabel: { fontSize: 11, fontWeight: '800', color: colors.zinc300 },
-  list: { gap: spacing.sm },
 }));

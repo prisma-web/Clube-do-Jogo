@@ -19,7 +19,7 @@ export default function SettingsScreen() {
     <Screen edges={[]}>
       <View style={styles.card}>
         <View style={styles.profileRow}>
-          <Avatar uri={profile?.avatar_url ?? null} name={profile?.name ?? 'Membro'} size={56} />
+          <Avatar uri={profile?.avatar_url ?? null} crop={profile?.avatar_crop} name={profile?.name ?? 'Membro'} size={56} />
           <View style={styles.profileInfo}>
             <Text style={styles.name}>{profile?.name ?? 'Membro'}</Text>
             {profile?.email ? <Text style={styles.email}>{profile.email}</Text> : null}
