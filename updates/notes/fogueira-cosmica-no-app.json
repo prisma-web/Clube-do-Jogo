@@ -1,0 +1,9 @@
+{
+  "eyebrow": "TEMAS",
+  "title": "A fogueira acendeu no app",
+  "body": "O tema Fogueira Cósmica chegou ao app, com o sistema solar para explorar e o app lembrando se você estava no acampamento ou na travessia. Os sons do comunicador também acompanham seus toques, se você quiser.",
+  "highlights": [
+    "Ligue ou desligue o som dos temas em Configurações."
+  ],
+  "image": { "file": "fogueira-cosmica-no-app.webp", "alt": "Configurações do app com o tema Fogueira Cósmica selecionado.", "width": 860, "height": 500, "position": "top" }
+}

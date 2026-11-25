@@ -1,0 +1,10 @@
+{
+  "eyebrow": "PROGRESSO E ANOTAÇÕES",
+  "title": "Suas ideias não somem quando o sinal cai",
+  "body": "As anotações escritas sem internet ficam guardadas no aparelho e saem sozinhas assim que a conexão volta. Uma barra mostra o que já foi sincronizado, o que está pendente e o que precisa da sua atenção.",
+  "highlights": [
+    "Se a mesma anotação mudou em outro lugar, você escolhe qual versão fica.",
+    "“Sincronizar novamente” tenta de novo na hora."
+  ],
+  "image": { "file": "anotacoes-sem-conexao.webp", "alt": "Anotações de um jogo no app com a barra de sincronização.", "width": 860, "height": 500, "position": "top" }
+}

@@ -1,0 +1,10 @@
+{
+  "eyebrow": "RANKING",
+  "title": "Volte no tempo sem sair do ranking",
+  "body": "No app, o ranking ganhou o seletor de ciclo: escolha um mês anterior para ver como a votação terminou, com os votos de cada um preservados. A aba Explorar também mudou e agora mostra os jogos em cartazes, com nota, duração e ano.",
+  "highlights": [
+    "Ciclos encerrados aparecem com um relógio e ficam só para consulta.",
+    "No Explorar, o menu de cada cartaz coloca o jogo no ranking ou em Meus Jogos."
+  ],
+  "image": { "file": "ranking-ciclos-anteriores.webp", "alt": "Seletor de ciclo do ranking no app, com o mês atual e os meses encerrados.", "width": 860, "height": 500, "position": "top" }
+}

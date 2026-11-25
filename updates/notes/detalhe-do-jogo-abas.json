@@ -1,0 +1,10 @@
+{
+  "eyebrow": "DETALHE DO JOGO",
+  "title": "Cada jogo agora tem três capítulos",
+  "body": "No app, a página do jogo foi dividida em Visão geral, Progresso e Anotações, como no site. O trailer toca ali mesmo, no topo da página, e pode ir para a tela cheia.",
+  "highlights": [
+    "O progresso do clube mostra quem começou e quem terminou, com as datas.",
+    "Toque na capa ou numa imagem para ampliar e usar como avatar."
+  ],
+  "image": { "file": "detalhe-do-jogo-abas.webp", "alt": "Página de um jogo no app com as abas Visão geral, Progresso e Anotações.", "width": 860, "height": 500, "position": "top" }
+}
