@@ -12,10 +12,11 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { gameCoverUrl, type VoteChoice } from '@clube-do-jogo/domain';
+import { gameCoverUrl, voteChoiceLabels, type VoteChoice } from '@clube-do-jogo/domain';
 import { useApp } from '@/state/app-provider';
 import { useRanking, useVote } from '@/state/queries';
 import { radii, spacing, themedStyles, typography, useThemeColors } from '@/theme';
+import { apiRoutes, type ApiRequestBody } from '@clube-do-jogo/data';
 import { createMobileApiTransport, getMobileSupabaseClient } from '@/platform';
 import { shiftMonth } from '@/lib/format';
 import { recentVotingItems } from './voting-deck';
@@ -54,10 +55,10 @@ export function VotingDeckGate() {
     if (!card || isDemo) return;
     const transport = createMobileApiTransport(getMobileSupabaseClient());
     const report = (action: 'opened' | 'closed') => {
-      void transport.request('/api/push/voting-threshold', {
-        method: 'POST',
+      void transport.request(apiRoutes.pushVotingThreshold.path, {
+        method: apiRoutes.pushVotingThreshold.method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, voteMonth: shiftMonth(selectedMonth, 1) }),
+        body: JSON.stringify({ action, voteMonth: shiftMonth(selectedMonth, 1) } satisfies ApiRequestBody<'pushVotingThreshold'>),
       }).catch(() => {});
     };
     report('opened');
@@ -176,7 +177,7 @@ export function VotingDeckGate() {
             <DeckButton
               accessibilityLabel={`Votar não em ${card.game.title}`}
               icon="thumbs-down"
-              label="Não"
+              label={voteChoiceLabels.would_not_play}
               color={colors.red400}
               onPress={() => commit('would_not_play', -1)}
               disabled={vote.isPending}
@@ -185,7 +186,7 @@ export function VotingDeckGate() {
             <DeckButton
               accessibilityLabel={`Deixar neutro ${card.game.title}`}
               icon="remove"
-              label="Neutro"
+              label={voteChoiceLabels.neutral}
               color={colors.zinc300}
               onPress={() => commit('neutral')}
               disabled={vote.isPending}
@@ -194,7 +195,7 @@ export function VotingDeckGate() {
             <DeckButton
               accessibilityLabel={`Votar jogaria em ${card.game.title}`}
               icon="thumbs-up"
-              label="Jogaria"
+              label={voteChoiceLabels.would_play}
               color={colors.emerald400}
               onPress={() => commit('would_play', 1)}
               disabled={vote.isPending}

@@ -1,6 +1,7 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
+import { apiRoutes, type ApiErrorBody, type ApiResponse } from '@clube-do-jogo/data';
 
 import { useMemo, useState } from 'react';
 import { CalendarClock, Check, Filter, Flame, Search, Sparkles, Star } from 'lucide-react';
@@ -8,6 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import { demoGames, demoProfiles } from '@/lib/demo-data';
 import { fetchProfileWithGames } from '@/lib/data';
 import { shiftMonth } from '@/lib/utils';
+import { discoverSourceLabels } from '@clube-do-jogo/domain';
 import type { DiscoverItem, DiscoverSource } from '@/lib/types';
 import { useStaleQuery } from '@/hooks/use-stale-query';
 import { useApp } from '@/components/app-provider';
@@ -18,10 +20,10 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { usePersistentState } from '@/hooks/use-persistent-state';
 
 const sources: Array<{ value: DiscoverSource; label: string; Icon: typeof Flame }> = [
-  { value: 'popular', label: 'Populares', Icon: Flame },
-  { value: 'rated', label: 'Melhores notas', Icon: Star },
-  { value: 'recent', label: 'Lançamentos', Icon: Sparkles },
-  { value: 'anticipated', label: 'Em breve', Icon: CalendarClock },
+  { value: 'popular', label: discoverSourceLabels.popular, Icon: Flame },
+  { value: 'rated', label: discoverSourceLabels.rated, Icon: Star },
+  { value: 'recent', label: discoverSourceLabels.recent, Icon: Sparkles },
+  { value: 'anticipated', label: discoverSourceLabels.anticipated, Icon: CalendarClock },
 ];
 
 const genres = [['', 'Todos'], ['12', 'RPG'], ['31', 'Aventura'], ['32', 'Indie'], ['8', 'Plataforma'], ['9', 'Puzzle'], ['15', 'Estratégia'], ['5', 'Tiro']];
@@ -43,7 +45,7 @@ function demoDiscover(source: DiscoverSource, query: string, genre: string, plat
 
 export default function AllGamesPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, selectedMonth, runOptimistic, notify } = useApp();
+  const { user, isDemo, dataClient, selectedMonth, runOptimistic, notify } = useApp();
   const [source, setSource] = usePersistentState<DiscoverSource>('discover:source:v2', 'popular');
   const [draftSearch, setDraftSearch] = useState('');
   const search = useDebouncedValue(draftSearch.trim(), 350);
@@ -58,11 +60,10 @@ export default function AllGamesPage() {
   const queryKey = `${source}:${search}:${genre}:${platform}:${year}:${voteMonth}`;
   const catalog = useStaleQuery(`discover:${queryKey}`, async () => {
     if (isDemo) return { items: demoDiscover(source, search, genre, platform, year), hasMore: false };
-    const params = new URLSearchParams({ source, q: search, genre, platform, year, month: voteMonth, limit: '24' });
-    const response = await apiFetch(`/api/discover?${params}`);
+    const response = await apiFetch(apiRoutes.discover.path({ source, q: search, genre, platform, year, month: voteMonth, limit: '24' }));
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || 'Não foi possível carregar os jogos.');
-    return payload as { items: DiscoverItem[]; hasMore: boolean };
+    if (!response.ok) throw new Error((payload as ApiErrorBody).error || 'Não foi possível carregar os jogos.');
+    return payload as ApiResponse<'discover'>;
   });
   const library = useStaleQuery(`discover-library:${user?.id}:${voteMonth}`, () => fetchProfileWithGames(supabase, user!.id, isDemo, voteMonth), Boolean(user));
   const extra = pagination.key === queryKey ? pagination.items : [];
@@ -75,11 +76,11 @@ export default function AllGamesPage() {
     if (isDemo || loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
-      const params = new URLSearchParams({ source, q: search, genre, platform, year, month: voteMonth, limit: '24', offset: String(items.length) });
-      const response = await apiFetch(`/api/discover?${params}`);
+      const response = await apiFetch(apiRoutes.discover.path({ source, q: search, genre, platform, year, month: voteMonth, limit: '24', offset: String(items.length) }));
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Não foi possível carregar mais jogos.');
-      setPagination({ key: queryKey, items: [...extra, ...payload.items], hasMore: payload.hasMore });
+      if (!response.ok) throw new Error((payload as ApiErrorBody).error || 'Não foi possível carregar mais jogos.');
+      const page = payload as ApiResponse<'discover'>;
+      setPagination({ key: queryKey, items: [...extra, ...page.items], hasMore: page.hasMore });
     } finally { setLoadingMore(false); }
   }
 
@@ -90,7 +91,7 @@ export default function AllGamesPage() {
     const apply = () => setLocalLibrary(next);
     const rollback = () => setLocalLibrary(previous);
     if (isDemo) { apply(); notify('Adicionado a Meus Jogos'); return; }
-    const saved = await runOptimistic('Adicionando a Meus Jogos…', apply, rollback, () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: item.game.id }, { onConflict: 'user_id,game_id' }));
+    const saved = await runOptimistic('Adicionando a Meus Jogos…', apply, rollback, () => dataClient.upsertBacklog({ userId: user!.id, gameId: item.game.id }));
     if (saved) notify('Adicionado a Meus Jogos');
   }
 
@@ -101,7 +102,7 @@ export default function AllGamesPage() {
     const apply = () => setLocalRanking(next);
     const rollback = () => setLocalRanking(previous);
     if (isDemo) { apply(); notify('Adicionado ao ranking como Jogaria'); return; }
-    const saved = await runOptimistic('Adicionando ao ranking…', apply, rollback, () => supabase.from('votes').upsert({ user_id: user!.id, game_id: item.game.id, vote_month: voteMonth, choice: 'would_play' }, { onConflict: 'user_id,game_id,vote_month' }));
+    const saved = await runOptimistic('Adicionando ao ranking…', apply, rollback, () => dataClient.upsertVote({ userId: user!.id, gameId: item.game.id, voteMonth, choice: 'would_play' }));
     if (saved) notify('Adicionado ao ranking como Jogaria');
   }
 

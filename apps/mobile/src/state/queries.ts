@@ -22,6 +22,7 @@ import type {
   VoteParticipant,
   VoteReason,
 } from '@clube-do-jogo/domain';
+import { apiRoutes, type ApiRequestBody } from '@clube-do-jogo/data';
 import { createMobileApiTransport, getMobileSupabaseClient } from '@/platform';
 import { useAppInternal } from './app-provider';
 import { isNewVote, optimisticRanking } from './optimistic-ranking';
@@ -31,19 +32,19 @@ import { isNewVote, optimisticRanking } from './optimistic-ranking';
 // saved by the time this runs, so a push failure must never surface as a failed vote.
 function notifyRankingLeaderPush(voteMonth: string, previousLeaderId: string | null, leaderId: string | null) {
   const transport = createMobileApiTransport(getMobileSupabaseClient());
-  void transport.request('/api/push/ranking-leader', {
-    method: 'POST',
+  void transport.request(apiRoutes.pushRankingLeader.path, {
+    method: apiRoutes.pushRankingLeader.method,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ voteMonth, previousLeaderId, leaderId }),
+    body: JSON.stringify({ voteMonth, previousLeaderId, leaderId } satisfies ApiRequestBody<'pushRankingLeader'>),
   }).catch(() => {});
 }
 
 function notifyVotingThreshold(voteMonth: string, gameId: string) {
   const transport = createMobileApiTransport(getMobileSupabaseClient());
-  void transport.request('/api/push/voting-threshold', {
-    method: 'POST',
+  void transport.request(apiRoutes.pushVotingThreshold.path, {
+    method: apiRoutes.pushVotingThreshold.method,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'vote-saved', voteMonth, gameId }),
+    body: JSON.stringify({ action: 'vote-saved', voteMonth, gameId } satisfies ApiRequestBody<'pushVotingThreshold'>),
   }).catch(() => {});
 }
 

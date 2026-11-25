@@ -8,7 +8,9 @@ import type { User } from '@supabase/supabase-js';
 import type { ProductUpdate } from '@clube-do-jogo/domain';
 import { AnimatePresence, motion } from 'motion/react';
 import { CheckCircle2, CircleAlert, LoaderCircle, X } from 'lucide-react';
+import { apiRoutes, type ApiRequestBody, type DataClient } from '@clube-do-jogo/data';
 import { createClient } from '@/lib/supabase/client';
+import { createWebDataClient } from '@/lib/data';
 import { demoGames, demoMonths, demoProfiles, demoProgress } from '@/lib/demo-data';
 import type { AppRole, ClubCycle, Game, Profile, RewardGrant } from '@/lib/types';
 import { monthKey, shiftMonth } from '@/lib/utils';
@@ -21,6 +23,8 @@ interface AppContextValue {
   profile: Profile | null;
   authLoading: boolean;
   isDemo: boolean;
+  /** Acesso aos dados do Supabase; o modo demo continua em cada tela. */
+  dataClient: DataClient;
   role: AppRole;
   isAdmin: boolean;
   selectedMonth: string;
@@ -110,6 +114,7 @@ function getOperationError(result: unknown): Error | null {
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const isDemo = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const supabase = useMemo(() => createClient(), []);
+  const dataClient = useMemo(() => createWebDataClient(supabase), [supabase]);
   const [user, setUser] = useState<AppContextValue['user']>(isDemo ? { id: 'demo-user', email: 'artur@clubedojogo.com' } : null);
   const [profile, setProfile] = useState<Profile | null>(isDemo ? demoProfiles[0] : null);
   const [authLoading, setAuthLoading] = useState(!isDemo);
@@ -178,13 +183,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [showError]);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const [{ data }, { data: roleData }] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-      supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
-    ]);
-    if (data) setProfile(data as Profile);
-    setRole(roleData?.role === 'admin' ? 'admin' : 'member');
-  }, [supabase]);
+    const { profile: data, isAdmin } = await dataClient.readSessionProfile(userId, false, { ignoreErrors: true });
+    if (data) setProfile(data);
+    setRole(isAdmin ? 'admin' : 'member');
+  }, [dataClient]);
 
   const updateProfile = useCallback(async (patch: Partial<Pick<Profile, 'name' | 'bio' | 'avatar_url' | 'avatar_crop'>>) => {
     if (!user || !profile) return false;
@@ -198,33 +200,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       'Atualizando perfil…',
       () => setProfile(next),
       () => setProfile(previous),
-      () => supabase.from('profiles').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', user.id),
+      () => dataClient.updateProfileFields({ userId: user.id, patch }),
     );
-  }, [isDemo, profile, runOptimistic, supabase, user]);
+  }, [dataClient, isDemo, profile, runOptimistic, user]);
 
   const fetchRewards = useCallback(async (userId: string) => {
     if (isDemo) return;
-    const { data, error } = await supabase
-      .from('user_reward_grants')
-      .select('id, reward_id, granted_at, seen_at, reward:club_rewards(id, club_month, code, kind, name, description, theme_id, image_url, cycle:club_months(month, game:games(title, image_url)))')
-      .eq('user_id', userId)
-      .order('granted_at', { ascending: false });
-    if (error) throw error;
-    setRewardGrants((data || []) as unknown as RewardGrant[]);
-  }, [isDemo, supabase]);
+    setRewardGrants(await dataClient.readRewardGrants(userId));
+  }, [dataClient, isDemo]);
 
   const fetchClubState = useCallback(async () => {
     if (isDemo) return;
-    const { data, error } = await supabase.from('club_months').select('month, game_id, status, started_at, closed_at, selected_by, game:games (*)').order('month', { ascending: false });
-    if (error) throw error;
-    const nextCycles = (data || []) as unknown as ClubCycle[];
+    const { cycles: nextCycles } = await dataClient.readCycles(false);
     const active = nextCycles.find(item => item.status === 'active') || null;
     const months = nextCycles.map(item => item.month);
     setCycles(nextCycles);
     setAvailableMonths(months.length ? months : [monthKey()]);
     setSelectedMonthState(current => months.includes(current) ? current : active?.month || months[0] || monthKey());
     setClubRevision(current => current + 1);
-  }, [isDemo, supabase]);
+  }, [dataClient, isDemo]);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(MONTH_STORAGE_KEY);
@@ -358,16 +352,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     if (succeeded) {
       await fetchClubState();
-      void apiFetch('/api/push/club-game', {
-        method: 'POST',
+      void apiFetch(apiRoutes.pushClubGame.path, {
+        method: apiRoutes.pushClubGame.method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId: game.id, month: targetMonth }),
+        body: JSON.stringify({ gameId: game.id, month: targetMonth } satisfies ApiRequestBody<'pushClubGame'>),
       });
       if (mode === 'next' && active?.month) {
-        void apiFetch('/api/push/rewards', {
-          method: 'POST',
+        void apiFetch(apiRoutes.pushRewards.path, {
+          method: apiRoutes.pushRewards.method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clubMonth: active.month }),
+          body: JSON.stringify({ clubMonth: active.month } satisfies ApiRequestBody<'pushRewards'>),
         });
       }
     }
@@ -483,6 +477,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     profile,
     authLoading,
     isDemo,
+    dataClient,
     role,
     isAdmin: role === 'admin',
     selectedMonth,
@@ -509,7 +504,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     },
     updateProfile,
     productUpdate,
-  }), [authLoading, availableMonths, clubRevision, cycles, fetchClubState, fetchProfile, isDemo, notify, previewClubGameUndo, productUpdate, profile, redoClubGameChange, role, runOperation, runOptimistic, selectedMonth, setClubGame, setSelectedMonth, setTheme, signOut, theme, undoClubGameChange, unlockedThemeIds, updateProfile, user]);
+  }), [authLoading, availableMonths, clubRevision, cycles, dataClient, fetchClubState, fetchProfile, isDemo, notify, previewClubGameUndo, productUpdate, profile, redoClubGameChange, role, runOperation, runOptimistic, selectedMonth, setClubGame, setSelectedMonth, setTheme, signOut, theme, undoClubGameChange, unlockedThemeIds, updateProfile, user]);
 
   const currentOperation = operations.at(-1);
 

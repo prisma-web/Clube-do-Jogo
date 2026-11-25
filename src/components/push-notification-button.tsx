@@ -1,6 +1,7 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
+import { apiRoutes, type ApiRequestBody } from '@clube-do-jogo/data';
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Bell, BellRing } from 'lucide-react';
@@ -57,10 +58,10 @@ export function PushNotificationButton({ className = '' }: { className?: string 
       await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription()
         || await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlToUint8Array(publicKey) });
-      const response = await apiFetch('/api/push/subscribe', {
-        method: 'POST',
+      const response = await apiFetch(apiRoutes.pushSubscribe.path, {
+        method: apiRoutes.pushSubscribe.method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(subscription.toJSON()),
+        body: JSON.stringify(subscription.toJSON() satisfies ApiRequestBody<'pushSubscribe'>),
       });
       if (!response.ok) throw new Error('Nao foi possivel salvar a inscricao.');
       setState('enabled');

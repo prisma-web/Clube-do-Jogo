@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Search, ShieldCheck, ShieldOff, UserCog, UsersRound } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { demoProfiles } from '@/lib/demo-data';
+import { appRoleLabels } from '@clube-do-jogo/domain';
 import type { AdminUser, AppRole } from '@/lib/types';
 import { useStaleQuery } from '@/hooks/use-stale-query';
 import { useUrlDialog } from '@/hooks/use-url-state';
@@ -14,19 +15,12 @@ import { ListSkeleton } from '@/components/ui/skeleton';
 
 export default function AdminAccessPanel() {
   const supabase = useMemo(() => createClient(), []);
-  const { user, isAdmin, isDemo, runOptimistic, refreshProfile } = useApp();
+  const { user, isAdmin, isDemo, dataClient, runOptimistic, refreshProfile } = useApp();
   const [search, setSearch] = useState('');
   const roleDialog = useUrlDialog('change-role');
   const query = useStaleQuery<AdminUser[]>('admin:users', async () => {
     if (isDemo) return demoProfiles.map((profile, index) => ({ ...profile, role: index === 0 ? 'admin' : 'member' }));
-    const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }] = await Promise.all([
-      supabase.from('profiles').select('id, name, email, avatar_url, avatar_crop, bio, created_at').order('name'),
-      supabase.from('user_roles').select('user_id, role'),
-    ]);
-    if (profilesError) throw profilesError;
-    if (rolesError) throw rolesError;
-    const roleMap = new Map((roles || []).map(item => [item.user_id, item.role as AppRole]));
-    return (profiles || []).map(profile => ({ ...profile, role: roleMap.get(profile.id) || 'member' })) as AdminUser[];
+    return dataClient.readMembersWithRoles();
   }, isAdmin);
   const users = query.data || [];
   const targetId = roleDialog.getParam('item');
@@ -74,7 +68,7 @@ export default function AdminAccessPanel() {
               <article key={person.id} className="admin-user-card flex min-w-0 items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
                 <Avatar src={person.avatar_url} crop={person.avatar_crop} name={person.name} className="size-11" />
                 <div className="min-w-0 flex-1"><div className="flex min-w-0 items-center gap-2"><strong className="truncate text-sm">{person.name || 'Membro'}</strong>{person.id === user?.id && <span className="text-[9px] font-bold text-zinc-600">Você</span>}</div><span className="block truncate text-[11px] text-zinc-500">{person.email || 'Sem e-mail público'}</span></div>
-                <span className={`admin-role-badge hidden shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-black sm:inline-flex ${person.role === 'admin' ? 'bg-violet-500/12 text-violet-300' : 'bg-white/5 text-zinc-500'}`}>{person.role === 'admin' && <ShieldCheck className="size-3" />}{person.role === 'admin' ? 'Admin' : 'Usuário comum'}</span>
+                <span className={`admin-role-badge hidden shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-black sm:inline-flex ${person.role === 'admin' ? 'bg-violet-500/12 text-violet-300' : 'bg-white/5 text-zinc-500'}`}>{person.role === 'admin' && <ShieldCheck className="size-3" />}{appRoleLabels[person.role === 'admin' ? 'admin' : 'member']}</span>
                 <button disabled={lastAdmin} title={lastAdmin ? 'Promova outro administrador antes de remover este cargo.' : undefined} onClick={() => roleDialog.show({ item: person.id, action: promote ? 'admin' : 'member' })} className={`h-9 shrink-0 whitespace-nowrap rounded-xl px-3 text-[10px] font-extrabold transition disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-zinc-600 ${promote ? 'bg-violet-500/12 text-violet-300 hover:bg-violet-500/20' : 'bg-red-500/[0.07] text-red-300 hover:bg-red-500/12'}`}>{lastAdmin ? 'Último admin' : promote ? 'Tornar admin' : 'Remover admin'}</button>
               </article>
             );

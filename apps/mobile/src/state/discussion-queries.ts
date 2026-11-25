@@ -12,6 +12,7 @@ export { randomUUID as createNativeNoteId } from 'expo-crypto';
 import { randomUUID } from 'expo-crypto';
 import type { ClubComment, LocalNote, Profile } from '@clube-do-jogo/domain';
 import {
+  apiRoutes,
   createCommentsClient,
   createNotesClient,
   NotesConflictError,
@@ -22,6 +23,7 @@ import {
   type CommentUpdateInput,
   type CommentsClient,
   type NotesClient,
+  type ApiRequestBody,
   type NoteDeleteInput,
 } from '@clube-do-jogo/data';
 import { createMobileApiTransport, getMobileSupabaseClient, nativeStorage } from '@/platform';
@@ -50,10 +52,10 @@ export { mergePendingIntoList, type NoteConflict, type PendingLocalNote, type Pe
 // push failure must never surface as a failed comment.
 function notifyCommentPush(commentId: string) {
   const transport = createMobileApiTransport(getMobileSupabaseClient());
-  void transport.request('/api/push/comment', {
-    method: 'POST',
+  void transport.request(apiRoutes.pushComment.path, {
+    method: apiRoutes.pushComment.method,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ commentId }),
+    body: JSON.stringify({ commentId } satisfies ApiRequestBody<'pushComment'>),
   }).catch(() => {});
 }
 

@@ -48,7 +48,7 @@ export function NotesChat(props: NotesChatProps) {
 function ScopedNotesChat({ game, snapshotMonth }: NotesChatProps) {
   const supabase = useMemo(() => createClient(), []);
   const notesRemote = useMemo(() => createSupabaseNotesRemote(supabase), [supabase]);
-  const { user, isDemo, runOptimistic } = useApp();
+  const { user, isDemo, dataClient, runOptimistic } = useApp();
   const [notes, setNotes] = useState<LocalNote[]>([]);
   const [syncResult, setSyncResult] = useState<NotesSyncResult>();
   const [localCacheError, setLocalCacheError] = useState(false);
@@ -78,15 +78,7 @@ function ScopedNotesChat({ game, snapshotMonth }: NotesChatProps) {
       void (async () => {
         if (snapshotMonth) {
           if (isDemo) return loadNotes(user!.id, game.id);
-          const { data, error } = await supabase
-            .from('cycle_note_snapshots')
-            .select('*')
-            .eq('user_id', user!.id)
-            .eq('cycle_month', snapshotMonth)
-            .eq('game_id', game.id)
-            .order('created_at');
-          if (error) throw error;
-          return (data || []).map(note => ({ id: note.note_id, userId: note.user_id, gameId: note.game_id, body: note.body, imageDataUrl: note.image_data_url || undefined, createdAt: note.created_at, updatedAt: note.updated_at } satisfies LocalNote));
+          return dataClient.readNoteSnapshots({ userId: user!.id, gameId: game.id, month: snapshotMonth });
         }
         if (isDemo) return loadNotes(user!.id, game.id);
         const result = await syncNotes({ userId: user!.id, gameId: game.id }, { remote: notesRemote });
@@ -98,7 +90,7 @@ function ScopedNotesChat({ game, snapshotMonth }: NotesChatProps) {
       }).then(items => { if (alive) setNotes(items); }).finally(() => { if (alive) setLoading(false); });
     });
     return () => { alive = false; generationRef.current += 1; };
-  }, [game.id, isDemo, notesRemote, snapshotMonth, supabase, user]);
+  }, [dataClient, game.id, isDemo, notesRemote, snapshotMonth, user]);
 
   useEffect(() => {
     if (!loading && notes.length) requestAnimationFrame(() => virtuosoRef.current?.scrollToIndex({ index: notes.length - 1, align: 'end' }));
@@ -172,6 +164,7 @@ function ScopedNotesChat({ game, snapshotMonth }: NotesChatProps) {
     if (!deleting) return;
     await runOptimistic('Excluindo anotação…', () => setNotes(next), () => setNotes(previous), async () => {
       if (isDemo) return deleteNote(id);
+      // eslint-disable-next-line no-restricted-syntax -- compare-and-set delete (updated_at guard) is part of the formally verified notes sync; change it only with the formal-verify-notes-sync-web skill.
       const { data, error } = await supabase.from('game_notes').delete().eq('id', id).eq('user_id', user!.id).eq('game_id', game.id).eq('updated_at', deleting.updatedAt).select('id');
       if (error) throw error;
       if (!data?.length) {

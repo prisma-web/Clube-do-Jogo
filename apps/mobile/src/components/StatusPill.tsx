@@ -1,15 +1,15 @@
 import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { radii, spacing, themedStyles, useThemeColors, type ThemeColors } from '@/theme';
-import type { ProgressStatus } from '@clube-do-jogo/domain';
+import { progressStatusLabels, type ProgressStatus } from '@clube-do-jogo/domain';
 
 type StatusMeta = Record<ProgressStatus, { label: string; icon: keyof typeof Ionicons.glyphMap; color: string }>;
 
 function buildStatusMeta(colors: ThemeColors): StatusMeta {
   return {
-    not_started: { label: 'Não iniciado', icon: 'ellipse-outline', color: colors.zinc500 },
-    started: { label: 'Comecei', icon: 'play-circle-outline', color: colors.sky400 },
-    finished: { label: 'Finalizado', icon: 'checkmark-circle', color: colors.emerald400 },
+    not_started: { label: progressStatusLabels.not_started, icon: 'ellipse-outline', color: colors.zinc500 },
+    started: { label: progressStatusLabels.started, icon: 'play-circle-outline', color: colors.sky400 },
+    finished: { label: progressStatusLabels.finished, icon: 'checkmark-circle', color: colors.emerald400 },
   };
 }
 

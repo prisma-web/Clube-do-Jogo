@@ -8,9 +8,13 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
+  apiRoutes,
   configureGotyDemoStorage,
   GotyDataClient,
   resetDemoGotyState,
+  type ApiRequestBody,
+  type ApiResult,
+  type Unvalidated,
 } from '@clube-do-jogo/data';
 import {
   GOTY_2026_EDITION_YEAR,
@@ -64,21 +68,21 @@ export function gotyQueryKey(sessionEpoch: number, userId: string | null, isDemo
   return ['goty-2026', sessionEpoch, userId, isDemo] as const;
 }
 
-async function readJson(response: Response): Promise<Record<string, unknown> | null> {
+async function readJson<T>(response: Response): Promise<Unvalidated<T> | null> {
   try {
-    return await response.json() as Record<string, unknown>;
+    return await response.json() as Unvalidated<T>;
   } catch {
     return null;
   }
 }
 
 async function requestResolveCovers(limit: number): Promise<{ updated?: number; remaining?: number }> {
-  const response = await getMobileApiTransport().request('/api/goty/resolve-covers', {
-    method: 'POST',
+  const response = await getMobileApiTransport().request(apiRoutes.gotyResolveCovers.path, {
+    method: apiRoutes.gotyResolveCovers.method,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ limit }),
+    body: JSON.stringify({ limit } satisfies ApiRequestBody<'gotyResolveCovers'>),
   });
-  const payload = await readJson(response);
+  const payload = await readJson<ApiResult<'gotyResolveCovers'>>(response);
   if (!response.ok) {
     const message = typeof payload?.error === 'string' ? payload.error : 'Não foi possível atualizar as capas.';
     throw new Error(message);
@@ -276,7 +280,7 @@ export function useGotyGameSearch(params: {
           buildSearchGamesPath(query, params.includeAllYears),
           { signal },
         );
-        const payload = await readJson(response);
+        const payload = await readJson<ApiResult<'gotySearchGames'>>(response);
         if (!response.ok) {
           throw new Error(typeof payload?.error === 'string' ? payload.error : 'Não foi possível buscar jogos de 2026.');
         }

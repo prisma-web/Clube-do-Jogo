@@ -1,3 +1,5 @@
+import type { ApiErrorBody, Unvalidated } from './api-contracts';
+
 export interface ApiTransport {
   request(path: string, init?: RequestInit): Promise<Response>;
 }
@@ -23,7 +25,7 @@ export async function readApiJson<T>(transport: ApiTransport, path: string, init
 
   if (!response.ok) {
     const message = payload && typeof payload === 'object' && 'error' in payload
-      ? String((payload as { error: unknown }).error)
+      ? String((payload as Unvalidated<ApiErrorBody>).error)
       : 'A API não conseguiu concluir a solicitação.';
     throw new ApiError(response.status, message);
   }

@@ -15,32 +15,32 @@ import { ProgressConfirmSheet } from '@/components/ProgressConfirmSheet';
 import { useBacklog, useFavorite, useLibrary, useSetProgress } from '@/state/queries';
 import { usePersistentState } from '@/hooks/use-persistent-state';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
-import { selectLibraryGames, type LibraryGame, type LibraryQuickFilter, type LibrarySortMode, type ProgressStatus } from '@clube-do-jogo/domain';
+import { libraryQuickFilterLabels, librarySortModeLabels, progressStatusLabels, selectLibraryGames, type LibraryGame, type LibraryQuickFilter, type LibrarySortMode, type ProgressStatus } from '@clube-do-jogo/domain';
 import { useGotyBadgeClearance } from '@/features/goty/GotyFloatingBadge';
 
 type QuickFilter = LibraryQuickFilter;
 type SortMode = LibrarySortMode;
 
 const quickFilters: Array<{ value: QuickFilter; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
-  { value: 'all', label: 'Todos', icon: 'albums-outline' },
-  { value: 'started', label: 'Comecei', icon: 'play-outline' },
-  { value: 'finished', label: 'Finalizados', icon: 'flag-outline' },
-  { value: 'not_started', label: 'Não iniciados', icon: 'ellipse-outline' },
-  { value: 'favorites', label: 'Favoritos', icon: 'heart-outline' },
+  { value: 'all', label: libraryQuickFilterLabels.all, icon: 'albums-outline' },
+  { value: 'started', label: libraryQuickFilterLabels.started, icon: 'play-outline' },
+  { value: 'finished', label: libraryQuickFilterLabels.finished, icon: 'flag-outline' },
+  { value: 'not_started', label: libraryQuickFilterLabels.not_started, icon: 'ellipse-outline' },
+  { value: 'favorites', label: libraryQuickFilterLabels.favorites, icon: 'heart-outline' },
 ];
 
 const sortOptions: Array<[SortMode, string]> = [
-  ['updated_desc', 'Atualizados recentemente'],
-  ['updated_asc', 'Atualizados há mais tempo'],
-  ['title_asc', 'Título: A–Z'],
-  ['title_desc', 'Título: Z–A'],
-  ['duration_asc', 'Menor duração'],
-  ['duration_desc', 'Maior duração'],
-  ['rating_desc', 'Maior nota'],
-  ['rating_asc', 'Menor nota'],
+  ['updated_desc', librarySortModeLabels.updated_desc],
+  ['updated_asc', librarySortModeLabels.updated_asc],
+  ['title_asc', librarySortModeLabels.title_asc],
+  ['title_desc', librarySortModeLabels.title_desc],
+  ['duration_asc', librarySortModeLabels.duration_asc],
+  ['duration_desc', librarySortModeLabels.duration_desc],
+  ['rating_desc', librarySortModeLabels.rating_desc],
+  ['rating_asc', librarySortModeLabels.rating_asc],
 ];
 
-const statusLabel: Record<ProgressStatus, string> = { not_started: 'Não iniciado', started: 'Comecei', finished: 'Finalizado' };
+const statusLabel: Record<ProgressStatus, string> = progressStatusLabels;
 
 const filterToggles: Array<{ key: 'playableOnly' | 'shortOnly' | 'ratedOnly'; label: string }> = [
   { key: 'playableOnly', label: 'Nos meus consoles' },

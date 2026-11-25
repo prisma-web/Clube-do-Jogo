@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import type { ApiRequestBody } from '@clube-do-jogo/data';
+import { contractJson } from '@/lib/api-route';
 import {
   parseNativeInstallationInput,
   parseNativeUnlinkInput,
@@ -6,6 +7,9 @@ import {
   unlinkNativePushInstallation,
 } from '@/lib/push-native';
 import { createClient } from '@/lib/supabase/server';
+
+const registerJson = contractJson<'pushNativeRegister'>();
+const unlinkJson = contractJson<'pushNativeUnlink'>();
 
 async function authenticatedClient() {
   const client = await createClient();
@@ -15,37 +19,37 @@ async function authenticatedClient() {
 
 export async function POST(request: Request) {
   const client = await authenticatedClient();
-  if (!client) return NextResponse.json({ error: 'Nao autorizado.' }, { status: 401 });
-  let input: ReturnType<typeof parseNativeInstallationInput>;
+  if (!client) return registerJson({ error: 'Nao autorizado.' }, { status: 401 });
+  let input: ApiRequestBody<'pushNativeRegister'>;
   try {
     input = parseNativeInstallationInput(await request.json(), process.env.EXPO_PROJECT_ID);
   } catch (error) {
     const unavailable = error instanceof Error && error.message === 'Native push is not configured.';
-    return NextResponse.json(
+    return registerJson(
       { error: unavailable ? 'Push nativo nao configurado.' : 'Dados invalidos.' },
       { status: unavailable ? 503 : 400 },
     );
   }
   try {
-    return NextResponse.json(await registerNativePushInstallation(client, input));
+    return registerJson(await registerNativePushInstallation(client, input));
   } catch {
-    return NextResponse.json({ error: 'Nao foi possivel registrar esta instalacao.' }, { status: 500 });
+    return registerJson({ error: 'Nao foi possivel registrar esta instalacao.' }, { status: 500 });
   }
 }
 
 export async function DELETE(request: Request) {
   const client = await authenticatedClient();
-  if (!client) return NextResponse.json({ error: 'Nao autorizado.' }, { status: 401 });
-  let input: ReturnType<typeof parseNativeUnlinkInput>;
+  if (!client) return unlinkJson({ error: 'Nao autorizado.' }, { status: 401 });
+  let input: ApiRequestBody<'pushNativeUnlink'>;
   try {
     input = parseNativeUnlinkInput(await request.json());
   } catch {
-    return NextResponse.json({ error: 'Dados invalidos.' }, { status: 400 });
+    return unlinkJson({ error: 'Dados invalidos.' }, { status: 400 });
   }
   try {
     const unlinked = await unlinkNativePushInstallation(client, input.installationId, input.expoPushToken);
-    return NextResponse.json({ unlinked });
+    return unlinkJson({ unlinked });
   } catch {
-    return NextResponse.json({ error: 'Nao foi possivel desassociar esta instalacao.' }, { status: 500 });
+    return unlinkJson({ error: 'Nao foi possivel desassociar esta instalacao.' }, { status: 500 });
   }
 }

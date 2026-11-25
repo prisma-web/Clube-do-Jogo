@@ -2,19 +2,18 @@
 
 import { useState } from 'react';
 import { Check, MonitorX, RotateCcw, Tag, TextCursorInput } from 'lucide-react';
+import { voteReasonLabels } from '@clube-do-jogo/domain';
 import type { VoteReason } from '@/lib/types';
 import { Dialog, DialogContent } from './ui/dialog';
 
 export const voteReasons = [
-  { value: 'played_before', label: 'Já joguei e não quero de novo', Icon: RotateCcw },
-  { value: 'cannot_run', label: 'Não consigo rodar', Icon: MonitorX },
-  { value: 'too_expensive', label: 'Muito caro', Icon: Tag },
-  { value: 'other', label: 'Outro', Icon: TextCursorInput },
+  { value: 'played_before', label: voteReasonLabels.played_before, Icon: RotateCcw },
+  { value: 'cannot_run', label: voteReasonLabels.cannot_run, Icon: MonitorX },
+  { value: 'too_expensive', label: voteReasonLabels.too_expensive, Icon: Tag },
+  { value: 'other', label: voteReasonLabels.other, Icon: TextCursorInput },
 ] as const;
 
-export function voteReasonLabel(reason?: VoteReason | null) {
-  return voteReasons.find(option => option.value === reason)?.label || 'Sem motivo informado';
-}
+export { voteReasonLabel } from '@clube-do-jogo/domain';
 
 function ReasonForm({ initialReason, initialText, onCancel, onConfirm }: {
   initialReason?: VoteReason | null;

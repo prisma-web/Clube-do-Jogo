@@ -1,4 +1,5 @@
 export * from './api';
+export * from './api-contracts';
 export * from './comments';
 export * from './admin';
 export * from './client';
@@ -9,8 +10,9 @@ export * from './notes';
 export * from './profiles';
 export * from './rewards';
 export * from './goty';
+export * from './supabase';
 
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { DataSupabaseClient } from './supabase';
 import { DataClient } from './client';
 import type {
   DiscoverSource,
@@ -21,7 +23,7 @@ import type {
 import type { RankingFormula, RankingItem } from '@clube-do-jogo/domain';
 
 export function fetchRankingData(
-  supabase: SupabaseClient,
+  supabase: DataSupabaseClient,
   votingMonth: string,
   userId: string,
   isDemo: boolean,
@@ -34,19 +36,19 @@ export function fetchRankingData(
   }).readRanking({ userId, isDemo, month: votingMonth, historical });
 }
 
-export function fetchGame(supabase: SupabaseClient, gameId: string, isDemo: boolean): Promise<Game | null> {
+export function fetchGame(supabase: DataSupabaseClient, gameId: string, isDemo: boolean): Promise<Game | null> {
   return new DataClient({ supabase }).readGame({ userId: '', isDemo, gameId });
 }
 
-export function fetchGameOfMonth(supabase: SupabaseClient, month: string, isDemo: boolean): Promise<Game | null> {
+export function fetchGameOfMonth(supabase: DataSupabaseClient, month: string, isDemo: boolean): Promise<Game | null> {
   return new DataClient({ supabase }).readGameOfMonth({ userId: '', isDemo, month });
 }
 
-export function fetchUserPlatforms(supabase: SupabaseClient, userId: string, isDemo: boolean): Promise<UserPlatform[]> {
+export function fetchUserPlatforms(supabase: DataSupabaseClient, userId: string, isDemo: boolean): Promise<UserPlatform[]> {
   return new DataClient({ supabase }).readUserPlatforms(userId, isDemo);
 }
 
-export function fetchProfileWithGames(supabase: SupabaseClient, profileId: string, isDemo: boolean, voteMonth?: string): Promise<ProfileWithGames> {
+export function fetchProfileWithGames(supabase: DataSupabaseClient, profileId: string, isDemo: boolean, voteMonth?: string): Promise<ProfileWithGames> {
   return new DataClient({ supabase }).readLibrary({ profileId, userId: profileId, isDemo, voteMonth });
 }
 

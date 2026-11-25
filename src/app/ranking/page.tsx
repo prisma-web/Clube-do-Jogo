@@ -1,6 +1,7 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
+import { apiRoutes, type ApiErrorBody, type ApiRequestBody, type ApiResponse } from '@clube-do-jogo/data';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -65,7 +66,7 @@ function friendlyDay(value: string) {
 
 export default function RankingPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { user, profile, isDemo, isAdmin, selectedMonth, isHistorical, runOptimistic, clubRevision } = useApp();
+  const { user, profile, isDemo, dataClient, isAdmin, selectedMonth, isHistorical, runOptimistic, clubRevision } = useApp();
   const voteMonth = shiftMonth(selectedMonth, 1);
   const [showAll, setShowAll] = useState(false);
   const [rankingSearch, setRankingSearch] = useState('');
@@ -123,18 +124,18 @@ export default function RankingPage() {
   const visibleGroups = showAll ? rankingGroups : rankingGroups.slice(0, 10);
 
   function notifyRankingLeader(previousLeaderId: string | null, leaderId: string | null) {
-    void apiFetch('/api/push/ranking-leader', {
-      method: 'POST',
+    void apiFetch(apiRoutes.pushRankingLeader.path, {
+      method: apiRoutes.pushRankingLeader.method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ voteMonth, previousLeaderId, leaderId }),
+      body: JSON.stringify({ voteMonth, previousLeaderId, leaderId } satisfies ApiRequestBody<'pushRankingLeader'>),
     });
   }
 
   function notifyVotingThreshold(gameId: string) {
-    void apiFetch('/api/push/voting-threshold', {
-      method: 'POST',
+    void apiFetch(apiRoutes.pushVotingThreshold.path, {
+      method: apiRoutes.pushVotingThreshold.method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'vote-saved', voteMonth, gameId }),
+      body: JSON.stringify({ action: 'vote-saved', voteMonth, gameId } satisfies ApiRequestBody<'pushVotingThreshold'>),
     });
   }
 
@@ -149,10 +150,11 @@ export default function RankingPage() {
       .filter(row => row.votesCount > 0)
       .sort(compareRankingItems);
     if (isDemo) { rankingQuery.setData(next); return; }
-    const request = choice
-      ? supabase.from('votes').upsert({ user_id: user!.id, game_id: item.game.id, vote_month: voteMonth, choice, reason: choice === 'would_not_play' ? reason : null, reason_text: choice === 'would_not_play' ? reasonText : null }, { onConflict: 'user_id,game_id,vote_month' })
-      : supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', item.game.id).eq('vote_month', voteMonth);
-    const saved = await runOptimistic(choice ? 'Salvando escolha…' : 'Removendo escolha…', () => rankingQuery.setData(next), () => rankingQuery.setData(previous), () => request);
+    const vote = { userId: user!.id, gameId: item.game.id, voteMonth };
+    const request = () => choice
+      ? dataClient.upsertVote({ ...vote, choice, reason: choice === 'would_not_play' ? reason : null, reasonText: choice === 'would_not_play' ? reasonText : null })
+      : dataClient.deleteVote(vote);
+    const saved = await runOptimistic(choice ? 'Salvando escolha…' : 'Removendo escolha…', () => rankingQuery.setData(next), () => rankingQuery.setData(previous), request);
     if (saved) {
       notifyRankingLeader(previous[0]?.game.id || null, next[0]?.game.id || null);
       // Only a new vote can add a game to the pool. A changed vote keeps its
@@ -174,10 +176,10 @@ export default function RankingPage() {
       return;
     }
     try {
-      const response = await apiFetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+      const response = await apiFetch(apiRoutes.searchGames.path({ q: searchQuery }));
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Não foi possível buscar jogos.');
-      setResults(payload);
+      if (!response.ok) throw new Error((payload as ApiErrorBody).error || 'Não foi possível buscar jogos.');
+      setResults(payload as ApiResponse<'searchGames'>);
     } catch (value) {
       setSearchError(value instanceof Error ? value.message : 'Não foi possível buscar jogos.');
     } finally { setSearching(false); }
@@ -196,7 +198,7 @@ export default function RankingPage() {
     const item = applyMyVote(unvoted, me(reason, reasonText), choice, ACTIVE_RANKING_FORMULA);
     const next = [...ranking, item].sort(compareRankingItems);
     if (isDemo) { rankingQuery.setData(next); return; }
-    const saved = await runOptimistic('Salvando escolha…', () => rankingQuery.setData(next), () => rankingQuery.setData(ranking), () => supabase.from('votes').upsert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth, choice, reason: choice === 'would_not_play' ? reason : null, reason_text: choice === 'would_not_play' ? reasonText : null }, { onConflict: 'user_id,game_id,vote_month' }));
+    const saved = await runOptimistic('Salvando escolha…', () => rankingQuery.setData(next), () => rankingQuery.setData(ranking), () => dataClient.upsertVote({ userId: user!.id, gameId: game.id, voteMonth, choice, reason: choice === 'would_not_play' ? reason : null, reasonText: choice === 'would_not_play' ? reasonText : null }));
     if (saved) {
       notifyRankingLeader(ranking[0]?.game.id || null, next[0]?.game.id || null);
       notifyVotingThreshold(game.id);
@@ -227,7 +229,7 @@ export default function RankingPage() {
     if (item.inBacklog || isHistorical) return;
     const next = ranking.map(row => row.game.id === item.game.id ? { ...row, inBacklog: true } : row);
     if (isDemo) rankingQuery.setData(next);
-    else await runOptimistic('Adicionando a Meus Jogos…', () => rankingQuery.setData(next), () => rankingQuery.setData(ranking), () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: item.game.id }, { onConflict: 'user_id,game_id' }));
+    else await runOptimistic('Adicionando a Meus Jogos…', () => rankingQuery.setData(next), () => rankingQuery.setData(ranking), () => dataClient.upsertBacklog({ userId: user!.id, gameId: item.game.id }));
   }
 
   return (

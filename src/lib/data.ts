@@ -1,22 +1,37 @@
 import {
+  createDataClient,
   fetchGame,
   fetchGameOfMonth,
   fetchProfileWithGames,
   fetchRankingData as fetchRankingDataFromPackage,
   fetchUserPlatforms,
+  type DataClient,
 } from '@clube-do-jogo/data';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { RankingItem } from '@clube-do-jogo/domain';
+import type { DataSupabaseClient } from '@clube-do-jogo/data';
+import type { RankingFormula, RankingItem } from '@clube-do-jogo/domain';
+import { apiFetch } from '@/lib/api-client';
 
 export { fetchGame, fetchGameOfMonth, fetchProfileWithGames, fetchUserPlatforms };
 
+function webRankingFormula(): RankingFormula {
+  return process.env.NEXT_PUBLIC_RANKING_FORMULA === 'legacy' ? 'legacy' : 'preference';
+}
+
+/** Único ponto em que a web monta o DataClient; o AppProvider o compartilha via useApp(). */
+export function createWebDataClient(supabase: DataSupabaseClient): DataClient {
+  return createDataClient({
+    supabase,
+    api: { request: (path, init) => apiFetch(path, init) },
+    rankingFormula: webRankingFormula(),
+  });
+}
+
 export function fetchRankingData(
-  supabase: SupabaseClient,
+  supabase: DataSupabaseClient,
   votingMonth: string,
   userId: string,
   isDemo: boolean,
   historical = false,
 ): Promise<RankingItem[]> {
-  const rankingFormula = process.env.NEXT_PUBLIC_RANKING_FORMULA === 'legacy' ? 'legacy' : 'preference';
-  return fetchRankingDataFromPackage(supabase, votingMonth, userId, isDemo, historical, rankingFormula);
+  return fetchRankingDataFromPackage(supabase, votingMonth, userId, isDemo, historical, webRankingFormula());
 }

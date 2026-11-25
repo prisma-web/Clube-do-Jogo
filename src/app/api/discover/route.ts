@@ -1,10 +1,12 @@
-import { NextResponse } from 'next/server';
+import type { ApiSearchParams } from '@clube-do-jogo/data';
+import { contractJson } from '@/lib/api-route';
 import { createClient } from '@/lib/supabase/server';
 import { browseGamesWithIGDB, type IGDBBrowseSort } from '@/lib/igdb';
 import { cacheIGDBGames } from '@/lib/game-cache';
 import type { DiscoverItem, DiscoverSource, Game } from '@/lib/types';
 
 const catalogSources = new Set<DiscoverSource>(['popular', 'rated', 'recent', 'anticipated']);
+const json = contractJson<'discover'>();
 const genreNames = new Map([[12, 'role-playing'], [31, 'adventure'], [32, 'indie'], [8, 'platform'], [9, 'puzzle'], [15, 'strategy'], [5, 'shooter']]);
 
 function integerParam(value: string | null) {
@@ -26,7 +28,7 @@ function matchesFilters(game: Game, query: string, genre?: number, platform?: nu
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
+  const searchParams: ApiSearchParams<'discover'> = new URL(request.url).searchParams;
   const rawSource = searchParams.get('source') as DiscoverSource | null;
   const source: DiscoverSource = rawSource && [...catalogSources, 'friends', 'ranking'].includes(rawSource) ? rawSource : 'popular';
   const query = searchParams.get('q')?.trim() || '';
@@ -38,12 +40,12 @@ export async function GET(request: Request) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
+    if (!user) return json({ error: 'Não autorizado.' }, { status: 401 });
 
     if (catalogSources.has(source)) {
       const external = await browseGamesWithIGDB({ query, sort: source as IGDBBrowseSort, genre, platform, year, offset, limit });
       const games = await cacheIGDBGames(supabase, external);
-      return NextResponse.json({ items: games.map(game => ({ game } satisfies DiscoverItem)), hasMore: external.length === limit });
+      return json({ items: games.map(game => ({ game } satisfies DiscoverItem)), hasMore: external.length === limit });
     }
 
     if (source === 'friends') {
@@ -68,7 +70,7 @@ export async function GET(request: Request) {
         .filter(item => matchesFilters(item.game, query, genre, platform, year))
         .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
         .map(item => ({ game: item.game, activityCount: item.userIds.size, people: Array.from(item.userIds).map(id => names.get(id) || 'Membro'), addedAt: item.addedAt } satisfies DiscoverItem));
-      return NextResponse.json({ items: items.slice(offset, offset + limit), hasMore: items.length > offset + limit });
+      return json({ items: items.slice(offset, offset + limit), hasMore: items.length > offset + limit });
     }
 
     const month = searchParams.get('month') || '';
@@ -88,9 +90,9 @@ export async function GET(request: Request) {
       .filter(item => matchesFilters(item.game, query, genre, platform, year))
       .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
       .map(item => ({ game: item.game, activityCount: item.userIds.size, addedAt: item.addedAt } satisfies DiscoverItem));
-    return NextResponse.json({ items: items.slice(offset, offset + limit), hasMore: items.length > offset + limit });
+    return json({ items: items.slice(offset, offset + limit), hasMore: items.length > offset + limit });
   } catch (error) {
     console.error('Erro ao explorar jogos:', error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível carregar os jogos.' }, { status: 500 });
+    return json({ error: error instanceof Error ? error.message : 'Não foi possível carregar os jogos.' }, { status: 500 });
   }
 }

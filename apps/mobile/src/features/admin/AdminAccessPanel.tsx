@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import type { AdminUser, AppRole } from '@clube-do-jogo/domain';
+import { appRoleLabels, type AdminUser, type AppRole } from '@clube-do-jogo/domain';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Sheet } from '@/components/Sheet';
@@ -95,10 +95,10 @@ function UserRow({ user, isSelf, lastAdmin, onPress }: {
         </View>
         <Text
           style={[styles.roleBadge, user.role === 'admin' ? styles.roleBadgeAdmin : styles.roleBadgeMember]}
-          accessibilityLabel={`Cargo: ${user.role === 'admin' ? 'Admin' : 'Usuário comum'}`}
+          accessibilityLabel={`Cargo: ${appRoleLabels[user.role === 'admin' ? 'admin' : 'member']}`}
           testID={`admin-user-badge-${user.id}`}
         >
-          {user.role === 'admin' ? 'Admin' : 'Usuário comum'}
+          {appRoleLabels[user.role === 'admin' ? 'admin' : 'member']}
         </Text>
         <Text style={styles.userEmail} numberOfLines={1}>{user.email || 'Sem email público'}</Text>
       </View>

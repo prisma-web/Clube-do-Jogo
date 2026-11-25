@@ -22,6 +22,8 @@ import {
 import {
   computeBolaoLeaderboard,
   computeBolaoProgress,
+  gotyCategorySectionLabels,
+  gotyEventStatusLabels,
   isBolaoVotingOpen,
   type GotyCategory,
   type GotyCategorySection,
@@ -42,10 +44,10 @@ const FILTER_OPTIONS: Array<{ id: BallotFilter; label: string }> = [
   { id: 'all', label: 'Todas' },
   { id: 'pending', label: 'Pendentes' },
   { id: 'answered', label: 'Respondidas' },
-  { id: 'main', label: 'Principais' },
-  { id: 'craft', label: 'Arte & Técnica' },
-  { id: 'genre', label: 'Gêneros' },
-  { id: 'community_esports', label: 'Comunidade & Esports' },
+  { id: 'main', label: gotyCategorySectionLabels.main },
+  { id: 'craft', label: gotyCategorySectionLabels.craft },
+  { id: 'genre', label: gotyCategorySectionLabels.genre },
+  { id: 'community_esports', label: gotyCategorySectionLabels.community_esports },
 ];
 
 function formatDateTimePt(value?: string | null): string {
@@ -631,9 +633,9 @@ export function GotyBolaoTab({
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                   {(
                     [
-                      { value: 'open', label: 'Aberto', desc: 'Aceita votos' },
-                      { value: 'locked', label: 'Encerrado', desc: 'Bloqueia edição' },
-                      { value: 'results_published', label: 'Apurado', desc: 'Resultados finais' },
+                      { value: 'open', label: gotyEventStatusLabels.open.label, desc: gotyEventStatusLabels.open.description },
+                      { value: 'locked', label: gotyEventStatusLabels.locked.label, desc: gotyEventStatusLabels.locked.description },
+                      { value: 'results_published', label: gotyEventStatusLabels.results_published.label, desc: gotyEventStatusLabels.results_published.description },
                     ] as const
                   ).map(option => {
                     const active = state.event.status === option.value;

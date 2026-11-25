@@ -1,34 +1,37 @@
-import { NextResponse } from 'next/server';
+import type { ApiUntrustedBody } from '@clube-do-jogo/data';
+import { contractJson } from '@/lib/api-route';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { dispatchPushNotification, isAdminUser, isPushConfigured } from '@/lib/push';
 
-type RequestBody = { clubMonth?: unknown };
+const json = contractJson<'pushRewards'>();
+
+type RequestBody = ApiUntrustedBody<'pushRewards'>;
 
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Nao autorizado.' }, { status: 401 });
+  if (!user) return json({ error: 'Nao autorizado.' }, { status: 401 });
 
   let body: RequestBody;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: 'Pedido invalido.' }, { status: 400 });
+    return json({ error: 'Pedido invalido.' }, { status: 400 });
   }
   const clubMonth = typeof body.clubMonth === 'string' ? body.clubMonth : '';
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(clubMonth)) return NextResponse.json({ error: 'Mes invalido.' }, { status: 400 });
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(clubMonth)) return json({ error: 'Mes invalido.' }, { status: 400 });
 
   const admin = createAdminClient();
-  if (!admin) return NextResponse.json({ sent: 0, configured: false });
-  if (!await isAdminUser(admin, user.id)) return NextResponse.json({ error: 'Nao autorizado.' }, { status: 403 });
+  if (!admin) return json({ sent: 0, configured: false });
+  if (!await isAdminUser(admin, user.id)) return json({ error: 'Nao autorizado.' }, { status: 403 });
 
   const { data: rewards, error: rewardsError } = await admin.from('club_rewards').select('id').eq('club_month', clubMonth);
-  if (rewardsError) return NextResponse.json({ error: 'Nao foi possivel carregar recompensas.' }, { status: 500 });
+  if (rewardsError) return json({ error: 'Nao foi possivel carregar recompensas.' }, { status: 500 });
   const rewardIds = (rewards || []).map(reward => reward.id);
-  if (!rewardIds.length) return NextResponse.json({ sent: 0 });
+  if (!rewardIds.length) return json({ sent: 0 });
   const { data: grants, error: grantsError } = await admin.from('user_reward_grants').select('id, user_id').in('reward_id', rewardIds);
-  if (grantsError) return NextResponse.json({ error: 'Nao foi possivel carregar recompensas distribuidas.' }, { status: 500 });
+  if (grantsError) return json({ error: 'Nao foi possivel carregar recompensas distribuidas.' }, { status: 500 });
 
   let sent = 0;
   let queued = 0;
@@ -46,7 +49,7 @@ export async function POST(request: Request) {
           url: '/perfil',
           tag: eventKey,
         }, [grant.user_id], undefined, false);
-        return NextResponse.json({ error: 'Nao foi possivel registrar a notificacao.' }, { status: 500 });
+        return json({ error: 'Nao foi possivel registrar a notificacao.' }, { status: 500 });
       }
     }
     const result = await dispatchPushNotification(admin, eventKey, {
@@ -59,7 +62,7 @@ export async function POST(request: Request) {
     queued += result.native.queued;
     nativeError ||= 'error' in result.native;
   }
-  return NextResponse.json({
+  return json({
     sent,
     configured: isPushConfigured(),
     native: {

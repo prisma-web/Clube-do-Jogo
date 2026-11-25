@@ -1,9 +1,12 @@
-import { NextResponse } from 'next/server';
+import type { ApiSearchParams } from '@clube-do-jogo/data';
+import { contractJson } from '@/lib/api-route';
 import { GOTY_2026_CURATED_CATALOG, type GotySearchGameResult } from '@clube-do-jogo/domain';
 import { createClient } from '@/lib/supabase/server';
 import { searchGoty2026GamesWithIGDB } from '@/lib/igdb';
 import { cacheIGDBGames } from '@/lib/game-cache';
 import type { Game } from '@/lib/types';
+
+const json = contractJson<'gotySearchGames'>();
 
 function normalize(value: string): string {
   return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
@@ -32,7 +35,7 @@ function deduplicateGames(items: GotySearchGameResult[]): GotySearchGameResult[]
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
+  const searchParams: ApiSearchParams<'gotySearchGames'> = new URL(request.url).searchParams;
   const query = searchParams.get('q')?.trim() || '';
   const includeAllYears = searchParams.get('includeAllYears') === 'true';
   const limit = Math.max(1, Math.min(30, Number(searchParams.get('limit')) || 18));
@@ -41,7 +44,7 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
+      return json({ error: 'Não autorizado.' }, { status: 401 });
     }
 
     const merged: GotySearchGameResult[] = [];
@@ -122,14 +125,14 @@ export async function GET(request: Request) {
     }
 
     const items = deduplicateGames(merged).slice(0, limit);
-    return NextResponse.json({
+    return json({
       items,
       source,
       only2026: !includeAllYears,
     });
   } catch (error) {
     console.error('Erro na rota /api/goty/search-games:', error);
-    return NextResponse.json(
+    return json(
       { error: error instanceof Error ? error.message : 'Erro ao buscar jogos de 2026.' },
       { status: 500 },
     );

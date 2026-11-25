@@ -1,8 +1,8 @@
 import type {
   RealtimeChannel,
   RealtimePostgresChangesPayload,
-  SupabaseClient,
 } from '@supabase/supabase-js';
+import type { DataSupabaseClient } from './supabase';
 import type { ClubComment, CommentReaction, Profile } from '@clube-do-jogo/domain';
 import { demoComments, demoProfiles } from '@clube-do-jogo/domain/demo';
 import type { DataScope } from './client';
@@ -252,7 +252,7 @@ function mapComments(
   return roots;
 }
 
-async function authenticatedClient(supabase: SupabaseClient, userId: string, operation: string) {
+async function authenticatedClient(supabase: DataSupabaseClient, userId: string, operation: string) {
   const auth = supabase.auth;
   if (!auth) throw new DataError(operation, 'Configure o Supabase para acessar a conversa.');
   const { data, error } = await auth.getUser();
@@ -262,7 +262,7 @@ async function authenticatedClient(supabase: SupabaseClient, userId: string, ope
 }
 
 async function readRemote(
-  supabase: SupabaseClient,
+  supabase: DataSupabaseClient,
   input: CommentsQuery,
 ) {
   const client = await authenticatedClient(supabase, input.userId, 'ler comentários');
@@ -300,7 +300,7 @@ function mapReturnedComment(value: unknown, input: CommentsQuery, operation: str
   };
 }
 
-async function readRemoteById(supabase: SupabaseClient, input: CommentsQuery, commentId: string) {
+async function readRemoteById(supabase: DataSupabaseClient, input: CommentsQuery, commentId: string) {
   const client = await authenticatedClient(supabase, input.userId, 'ler comentário');
   const { data, error } = await client.from('club_comments').select('*')
     .eq('id', commentId).eq('user_id', input.userId).eq('game_id', input.gameId).eq('club_month', input.clubMonth).maybeSingle();
@@ -434,7 +434,7 @@ function eventFromPayload(
   };
 }
 
-function subscribeRemote(supabase: SupabaseClient, input: CommentsSubscriptionOptions) {
+function subscribeRemote(supabase: DataSupabaseClient, input: CommentsSubscriptionOptions) {
   const seen = new Set<string>();
   let active = true;
   let channel: RealtimeChannel | null = null;
@@ -461,14 +461,14 @@ function subscribeRemote(supabase: SupabaseClient, input: CommentsSubscriptionOp
   };
 }
 
-export function createCommentsClient(options: { supabase?: SupabaseClient | null; demo?: boolean } = {}): CommentsClient {
+export function createCommentsClient(options: { supabase?: DataSupabaseClient | null; demo?: boolean } = {}): CommentsClient {
   const demo = options.demo === true;
   const demoStore = demo ? new DemoCommentsStore() : null;
   const read = (input: CommentsQuery) => {
     validateScope(input, 'ler comentários');
     if (demo) return Promise.resolve(demoStore!.read(input));
     if (!options.supabase) return Promise.reject(new DataError('ler comentários', 'Configure o Supabase para acessar a conversa.'));
-    return withDataErrors('ler comentários', 'Não foi possível carregar a conversa.', () => readRemote(options.supabase as SupabaseClient, input));
+    return withDataErrors('ler comentários', 'Não foi possível carregar a conversa.', () => readRemote(options.supabase as DataSupabaseClient, input));
   };
   const create = async (input: CommentInput) => {
     validateScope(input, 'publicar comentário');
@@ -481,7 +481,7 @@ export function createCommentsClient(options: { supabase?: SupabaseClient | null
     if (!options.supabase) throw new DataError('publicar comentário', 'Configure o Supabase para acessar a conversa.');
     return withDataErrors('publicar comentário', 'Não foi possível publicar o comentário.', async () => {
       const body = normalizeBody(input.body, 'publicar comentário');
-      const client = await authenticatedClient(options.supabase as SupabaseClient, input.userId, 'publicar comentário');
+      const client = await authenticatedClient(options.supabase as DataSupabaseClient, input.userId, 'publicar comentário');
       const { data, error } = await client.from('club_comments').insert({
         user_id: input.userId,
         game_id: input.gameId,
@@ -504,13 +504,13 @@ export function createCommentsClient(options: { supabase?: SupabaseClient | null
     if (!options.supabase) throw new DataError('editar comentário', 'Configure o Supabase para acessar a conversa.');
     return withDataErrors('editar comentário', 'Não foi possível editar o comentário.', async () => {
       const body = normalizeBody(input.body, 'editar comentário');
-      const client = await authenticatedClient(options.supabase as SupabaseClient, input.userId, 'editar comentário');
+      const client = await authenticatedClient(options.supabase as DataSupabaseClient, input.userId, 'editar comentário');
       const { data, error } = await client.from('club_comments').update({ body, updated_at: new Date().toISOString() })
         .eq('id', input.commentId).eq('user_id', input.userId).eq('game_id', input.gameId).eq('club_month', input.clubMonth)
         .eq('updated_at', input.expectedUpdatedAt).select('*').maybeSingle();
       if (error) throw error;
       if (data) return mapReturnedComment(data, input, 'editar comentário');
-      const remote = await readRemoteById(options.supabase as SupabaseClient, input, input.commentId);
+      const remote = await readRemoteById(options.supabase as DataSupabaseClient, input, input.commentId);
       if (remote) throw new DataError('editar comentário', 'O comentário mudou. Atualize a conversa e tente novamente.');
       throw new DataError('editar comentário', 'O comentário não foi encontrado.');
     });
@@ -525,14 +525,14 @@ export function createCommentsClient(options: { supabase?: SupabaseClient | null
     }
     if (!options.supabase) throw new DataError('apagar comentário', 'Configure o Supabase para acessar a conversa.');
     return withDataErrors('apagar comentário', 'Não foi possível apagar o comentário.', async () => {
-      const client = await authenticatedClient(options.supabase as SupabaseClient, input.userId, 'apagar comentário');
+      const client = await authenticatedClient(options.supabase as DataSupabaseClient, input.userId, 'apagar comentário');
       let query = client.from('club_comments').delete()
         .eq('id', input.commentId).eq('user_id', input.userId).eq('game_id', input.gameId).eq('club_month', input.clubMonth);
       if (input.expectedUpdatedAt) query = query.eq('updated_at', input.expectedUpdatedAt);
       const { data, error } = await query.select('id').maybeSingle();
       if (error) throw error;
       if (data || !input.expectedUpdatedAt) return;
-      const remote = await readRemoteById(options.supabase as SupabaseClient, input, input.commentId);
+      const remote = await readRemoteById(options.supabase as DataSupabaseClient, input, input.commentId);
       if (remote) throw new DataError('apagar comentário', 'O comentário mudou. Atualize a conversa e tente novamente.');
     });
   };
@@ -549,7 +549,7 @@ export function createCommentsClient(options: { supabase?: SupabaseClient | null
     if (!options.supabase) throw new DataError('salvar reação', 'Configure o Supabase para acessar a conversa.');
     return withDataErrors('salvar reação', 'Não foi possível salvar a reação.', async () => {
       const emoji = normalizeEmoji(input.emoji, 'salvar reação');
-      const client = await authenticatedClient(options.supabase as SupabaseClient, input.userId, 'salvar reação');
+      const client = await authenticatedClient(options.supabase as DataSupabaseClient, input.userId, 'salvar reação');
       if (input.enabled) {
         const { error } = await client.from('comment_reactions').insert({
           comment_id: input.commentId,
@@ -570,7 +570,7 @@ export function createCommentsClient(options: { supabase?: SupabaseClient | null
   const subscribe = (input: CommentsSubscriptionOptions) => {
     validateScope(input, 'acompanhar comentários');
     if (demo || !options.supabase) return () => undefined;
-    return subscribeRemote(options.supabase as SupabaseClient, input);
+    return subscribeRemote(options.supabase as DataSupabaseClient, input);
   };
   return {
     read,
@@ -588,22 +588,22 @@ export function createCommentsClient(options: { supabase?: SupabaseClient | null
 
 export const createCommentsDataClient = createCommentsClient;
 
-export function readComments(supabase: SupabaseClient, input: CommentsQuery) {
+export function readComments(supabase: DataSupabaseClient, input: CommentsQuery) {
   return createCommentsClient({ supabase }).read(input);
 }
 
-export function createComment(supabase: SupabaseClient, input: CommentInput) {
+export function createComment(supabase: DataSupabaseClient, input: CommentInput) {
   return createCommentsClient({ supabase }).create(input);
 }
 
-export function updateComment(supabase: SupabaseClient, input: CommentUpdateInput) {
+export function updateComment(supabase: DataSupabaseClient, input: CommentUpdateInput) {
   return createCommentsClient({ supabase }).update(input);
 }
 
-export function deleteComment(supabase: SupabaseClient, input: CommentDeleteInput) {
+export function deleteComment(supabase: DataSupabaseClient, input: CommentDeleteInput) {
   return createCommentsClient({ supabase }).remove(input);
 }
 
-export function setCommentReaction(supabase: SupabaseClient, input: CommentReactionInput) {
+export function setCommentReaction(supabase: DataSupabaseClient, input: CommentReactionInput) {
   return createCommentsClient({ supabase }).setReaction(input);
 }

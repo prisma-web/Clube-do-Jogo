@@ -1,6 +1,7 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
+import { apiRoutes, type ApiRequestBody } from '@clube-do-jogo/data';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
@@ -10,7 +11,7 @@ import EmojiPicker, { EmojiStyle, Theme, type EmojiClickData } from 'emoji-picke
 import { CornerDownRight, MessageCircle, Send, SmilePlus, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { demoComments, demoProfiles } from '@/lib/demo-data';
-import type { ClubComment, CommentReaction, Game, Profile } from '@/lib/types';
+import type { ClubComment, CommentReaction, Game } from '@/lib/types';
 import { formatDateTime } from '@/lib/utils';
 import { useStaleQuery } from '@/hooks/use-stale-query';
 import { useApp } from './app-provider';
@@ -18,16 +19,9 @@ import { Avatar } from './ui/avatar';
 import { Skeleton } from './ui/skeleton';
 import { NomaiThreadConnector } from './nomai-thread-connector';
 
-type RawComment = Omit<ClubComment, 'profile' | 'reactions' | 'replies'>;
-type RawReaction = { comment_id: string; emoji: string; user_id: string };
-
-function fallbackProfile(userId: string): Profile {
-  return { id: userId, name: 'Membro', avatar_url: null };
-}
-
 export function Timeline({ game }: { game: Game }) {
   const supabase = useMemo(() => createClient(), []);
-  const { user, profile, isDemo, selectedMonth, isHistorical, runOptimistic } = useApp();
+  const { user, profile, isDemo, dataClient, selectedMonth, isHistorical, runOptimistic } = useApp();
   const [body, setBody] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState('');
@@ -43,39 +37,7 @@ export function Timeline({ game }: { game: Game }) {
 
   const query = useStaleQuery<ClubComment[]>(`comments:${game.id}:${selectedMonth}`, async () => {
     if (isDemo) return demoComments.map(comment => ({ ...comment, club_month: selectedMonth }));
-    const [{ data: comments, error: commentsError }, { data: reactions, error: reactionsError }] = await Promise.all([
-      supabase.from('club_comments').select('*').eq('game_id', game.id).eq('club_month', selectedMonth).order('created_at'),
-      supabase.from('comment_reactions').select('comment_id, emoji, user_id').eq('game_id', game.id).eq('club_month', selectedMonth),
-    ]);
-    if (commentsError) throw commentsError;
-    if (reactionsError) throw reactionsError;
-    const userIds = Array.from(new Set([...(comments || []).map(comment => comment.user_id), ...(reactions || []).map(reaction => reaction.user_id)]));
-    const { data: profiles, error: profilesError } = userIds.length
-      ? await supabase.from('profiles').select('id, name, avatar_url, avatar_crop').in('id', userIds)
-      : { data: [], error: null };
-    if (profilesError) throw profilesError;
-    const profilesById = new Map((profiles || []).map(item => [item.id, item as Profile]));
-    const reactionMap = new Map<string, Map<string, Profile[]>>();
-    ((reactions || []) as unknown as RawReaction[]).forEach(reaction => {
-      if (!reactionMap.has(reaction.comment_id)) reactionMap.set(reaction.comment_id, new Map());
-      const byEmoji = reactionMap.get(reaction.comment_id)!;
-      const people = byEmoji.get(reaction.emoji) || [];
-      people.push(profilesById.get(reaction.user_id) || fallbackProfile(reaction.user_id));
-      byEmoji.set(reaction.emoji, people);
-    });
-    const mapped = ((comments || []) as unknown as RawComment[]).map((comment): ClubComment => ({
-      ...comment,
-      profile: profilesById.get(comment.user_id) || fallbackProfile(comment.user_id),
-      reactions: Array.from(reactionMap.get(comment.id)?.entries() || []).map(([emoji, users]): CommentReaction => ({ emoji, users, reactedByMe: users.some(person => person.id === user!.id) })),
-      replies: [],
-    }));
-    const roots = mapped.filter(comment => !comment.parent_id);
-    mapped.filter(comment => comment.parent_id).forEach(reply => {
-      const direct = mapped.find(comment => comment.id === reply.parent_id);
-      const root = direct?.parent_id ? roots.find(comment => comment.id === direct.parent_id) : roots.find(comment => comment.id === reply.parent_id);
-      root?.replies.push(reply);
-    });
-    return roots;
+    return dataClient.readCommentTimeline({ userId: user?.id ?? '', gameId: game.id, clubMonth: selectedMonth });
   });
   const comments = query.data || [];
   const refreshTimeline = query.refresh;
@@ -106,21 +68,15 @@ export function Timeline({ game }: { game: Game }) {
     } else {
       let savedCommentId: string | null = null;
       const saved = await runOptimistic(parentId ? 'Enviando resposta…' : 'Publicando comentário…', () => query.setData(nextComments), () => query.setData(comments), async () => {
-        const result = await supabase
-          .from('club_comments')
-          .insert({ user_id: user!.id, game_id: game.id, club_month: selectedMonth, parent_id: parentId, body: text })
-          .select('id')
-          .single();
-        savedCommentId = result.data?.id || null;
-        return result;
+        savedCommentId = await dataClient.insertComment({ userId: user!.id, gameId: game.id, clubMonth: selectedMonth, parentId, body: text });
       });
       if (saved) {
         await query.refresh();
         if (savedCommentId) {
-          void apiFetch('/api/push/comment', {
-            method: 'POST',
+          void apiFetch(apiRoutes.pushComment.path, {
+            method: apiRoutes.pushComment.method,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ commentId: savedCommentId }),
+            body: JSON.stringify({ commentId: savedCommentId } satisfies ApiRequestBody<'pushComment'>),
           }).catch(() => {});
         }
       }
@@ -150,10 +106,8 @@ export function Timeline({ game }: { game: Game }) {
       query.setData(nextComments);
       return;
     }
-    const request = reaction?.reactedByMe
-      ? supabase.from('comment_reactions').delete().eq('comment_id', comment.id).eq('user_id', user!.id).eq('emoji', emoji)
-      : supabase.from('comment_reactions').insert({ comment_id: comment.id, user_id: user!.id, emoji, game_id: game.id, club_month: selectedMonth });
-    await runOptimistic(reaction?.reactedByMe ? 'Removendo reação…' : 'Adicionando reação…', () => query.setData(nextComments), () => query.setData(comments), () => request);
+    const request = () => dataClient.writeCommentReaction({ userId: user!.id, commentId: comment.id, emoji, gameId: game.id, clubMonth: selectedMonth, enabled: !reaction?.reactedByMe });
+    await runOptimistic(reaction?.reactedByMe ? 'Removendo reação…' : 'Adicionando reação…', () => query.setData(nextComments), () => query.setData(comments), request);
   }
 
   async function deleteComment() {
@@ -171,7 +125,7 @@ export function Timeline({ game }: { game: Game }) {
         'Apagando comentário…',
         () => query.setData(nextComments),
         () => query.setData(comments),
-        () => supabase.from('club_comments').delete().eq('id', comment.id).eq('user_id', user!.id),
+        () => dataClient.deleteOwnComment({ userId: user!.id, commentId: comment.id }),
       );
       if (deleted) setDeleteTarget(null);
     }

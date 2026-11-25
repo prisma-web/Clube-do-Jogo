@@ -14,14 +14,14 @@ import { useDiscoveryPages, type DiscoveryFilters } from '@/state/library-querie
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { usePersistentState } from '@/hooks/use-persistent-state';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
-import type { DiscoverItem, DiscoverSource } from '@clube-do-jogo/domain';
+import { discoverSourceLabels, type DiscoverItem, type DiscoverSource } from '@clube-do-jogo/domain';
 import { useGotyBadgeClearance } from '@/features/goty/GotyFloatingBadge';
 
 const sources: Array<{ value: DiscoverSource; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
-  { value: 'popular', label: 'Populares', icon: 'flame-outline' },
-  { value: 'rated', label: 'Melhores notas', icon: 'star-outline' },
-  { value: 'recent', label: 'Lançamentos', icon: 'sparkles-outline' },
-  { value: 'anticipated', label: 'Em breve', icon: 'time-outline' },
+  { value: 'popular', label: discoverSourceLabels.popular, icon: 'flame-outline' },
+  { value: 'rated', label: discoverSourceLabels.rated, icon: 'star-outline' },
+  { value: 'recent', label: discoverSourceLabels.recent, icon: 'sparkles-outline' },
+  { value: 'anticipated', label: discoverSourceLabels.anticipated, icon: 'time-outline' },
 ];
 
 const genres: Array<[number | null, string]> = [

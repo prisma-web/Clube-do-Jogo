@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { rpcArgsAcceptingNull, type DataSupabaseClient } from './supabase';
 import {
   createDemoGotyState,
   GOTY_2026_DEFAULT_EVENT,
@@ -158,13 +158,13 @@ function responseError(response: { error: unknown }): void {
 }
 
 export class GotyDataClient {
-  private readonly supabase: SupabaseClient | null;
+  private readonly supabase: DataSupabaseClient | null;
 
-  constructor(supabase?: SupabaseClient | null) {
+  constructor(supabase?: DataSupabaseClient | null) {
     this.supabase = supabase ?? null;
   }
 
-  private client(operation: string): SupabaseClient {
+  private client(operation: string): DataSupabaseClient {
     if (!this.supabase) {
       throw new DataError(operation, 'Configure o Supabase para sincronizar o GOTY 2026.');
     }
@@ -440,13 +440,16 @@ export class GotyDataClient {
 
     return withDataErrors('atualizar configurações do GOTY 2026', 'Não foi possível atualizar o estado do evento.', async () => {
       const client = this.client('atualizar configurações do GOTY 2026');
-      const { data, error } = await client.rpc('set_goty_event_settings', {
+      const { data, error } = await client.rpc('set_goty_event_settings', rpcArgsAcceptingNull<
+        'set_goty_event_settings',
+        'next_status' | 'next_voting_closes_at' | 'next_personal_voting_open'
+      >({
         target_edition_year: editionYear,
         next_status: input.status ?? null,
         next_voting_closes_at: input.votingClosesAt === undefined ? null : input.votingClosesAt,
         clear_voting_closes_at: input.votingClosesAt === null,
         next_personal_voting_open: input.personalVotingOpen ?? null,
-      });
+      }));
       if (error) throw error;
       return data as GotyEventConfig;
     });
@@ -473,10 +476,13 @@ export class GotyDataClient {
 
     return withDataErrors('registrar vencedor oficial', 'Não foi possível salvar o vencedor oficial da categoria.', async () => {
       const client = this.client('registrar vencedor oficial');
-      const { error } = await client.rpc('set_goty_category_winner', {
+      const { error } = await client.rpc('set_goty_category_winner', rpcArgsAcceptingNull<
+        'set_goty_category_winner',
+        'target_winner_nominee_id'
+      >({
         target_category_id: input.categoryId,
         target_winner_nominee_id: input.winnerNomineeId,
-      });
+      }));
       if (error) throw error;
     });
   }

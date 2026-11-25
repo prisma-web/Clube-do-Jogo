@@ -12,6 +12,7 @@ import {
 } from '@clube-do-jogo/domain';
 import { createClient } from '@/lib/supabase/client';
 import { apiFetch } from '@/lib/api-client';
+import { apiRoutes, type ApiErrorBody, type ApiRequestBody, type ApiResponse } from '@clube-do-jogo/data';
 import { useApp } from '@/components/app-provider';
 import { useStaleQuery } from '@/hooks/use-stale-query';
 import { ListSkeleton } from '@/components/ui/skeleton';
@@ -77,13 +78,13 @@ export function GotyExperience() {
     void (async () => {
       for (let attempt = 0; attempt < 6; attempt += 1) {
         if (cancelled) return;
-        const response = await apiFetch('/api/goty/resolve-covers', {
-          method: 'POST',
+        const response = await apiFetch(apiRoutes.gotyResolveCovers.path, {
+          method: apiRoutes.gotyResolveCovers.method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ limit: 20 }),
+          body: JSON.stringify({ limit: 20 } satisfies ApiRequestBody<'gotyResolveCovers'>),
         }).catch(() => null);
         if (!response?.ok) return;
-        const payload = await response.json().catch(() => null) as { updated?: number; remaining?: number } | null;
+        const payload = await response.json().catch(() => null) as Partial<ApiResponse<'gotyResolveCovers'>> | null;
         if (!payload) return;
         if (typeof payload.updated === 'number' && payload.updated > 0 && !cancelled) {
           await query.refresh();
@@ -312,15 +313,16 @@ export function GotyExperience() {
     await runOperation('Atualizando capas dos indicados via IGDB…', async () => {
       let totalUpdated = 0;
       for (let attempt = 0; attempt < 6; attempt += 1) {
-        const response = await apiFetch('/api/goty/resolve-covers', {
-          method: 'POST',
+        const response = await apiFetch(apiRoutes.gotyResolveCovers.path, {
+          method: apiRoutes.gotyResolveCovers.method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ limit: 25 }),
+          body: JSON.stringify({ limit: 25 } satisfies ApiRequestBody<'gotyResolveCovers'>),
         });
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || 'Não foi possível atualizar as capas.');
-        totalUpdated += Number(payload.updated || 0);
-        if (!payload.remaining || payload.remaining <= 0) break;
+        if (!response.ok) throw new Error((payload as ApiErrorBody).error || 'Não foi possível atualizar as capas.');
+        const covers = payload as ApiResponse<'gotyResolveCovers'>;
+        totalUpdated += Number(covers.updated || 0);
+        if (!covers.remaining || covers.remaining <= 0) break;
       }
       await query.refresh();
       notify(

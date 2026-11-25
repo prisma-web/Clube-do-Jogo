@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { CalendarCheck2, CalendarClock, CheckCircle2, ChevronDown, Circle, PlayCircle } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { progressStatusLabels, ratingCriterionLabels } from '@clube-do-jogo/domain';
 import { demoProgress, demoProfiles } from '@/lib/demo-data';
-import type { Game, GameProgress, ProgressStatus, Profile, RatingCriterion, RatingDetails, RatingMode } from '@/lib/types';
+import type { Game, GameProgress, ProgressStatus, RatingCriterion, RatingDetails, RatingMode } from '@/lib/types';
 import { formatFinishedCount, formatShortDate } from '@/lib/utils';
 import { transitionProgress } from '@/lib/progress';
 import { useStaleQuery } from '@/hooks/use-stale-query';
@@ -16,17 +16,17 @@ import { RatingDisplay, RatingSlider } from './rating-slider';
 import { ProgressConfirmationDialog } from './progress-confirmation-dialog';
 
 const statusMeta: Record<ProgressStatus, { label: string; icon: typeof Circle; color: string }> = {
-  not_started: { label: 'Não iniciado', icon: Circle, color: 'text-zinc-500' },
-  started: { label: 'Comecei', icon: PlayCircle, color: 'text-sky-400' },
-  finished: { label: 'Finalizado', icon: CheckCircle2, color: 'text-emerald-400' },
+  not_started: { label: progressStatusLabels.not_started, icon: Circle, color: 'text-zinc-500' },
+  started: { label: progressStatusLabels.started, icon: PlayCircle, color: 'text-sky-400' },
+  finished: { label: progressStatusLabels.finished, icon: CheckCircle2, color: 'text-emerald-400' },
 };
 
 const detailCriteria: Array<{ key: RatingCriterion; label: string }> = [
-  { key: 'graphics', label: 'Gráficos' },
-  { key: 'gameplay', label: 'Gameplay' },
-  { key: 'story', label: 'História' },
-  { key: 'music', label: 'Música' },
-  { key: 'fun', label: 'Diversão' },
+  { key: 'graphics', label: ratingCriterionLabels.graphics },
+  { key: 'gameplay', label: ratingCriterionLabels.gameplay },
+  { key: 'story', label: ratingCriterionLabels.story },
+  { key: 'music', label: ratingCriterionLabels.music },
+  { key: 'fun', label: ratingCriterionLabels.fun },
 ];
 
 function detailsFrom(value: RatingDetails | null | undefined, fallback: number): RatingDetails {
@@ -46,40 +46,13 @@ function detailsAverage(details: RatingDetails) {
 }
 
 export function ProgressList({ game, snapshotMonth }: { game: Game; snapshotMonth?: string }) {
-  const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, runOptimistic, notify } = useApp();
+  const { user, isDemo, dataClient, runOptimistic, notify } = useApp();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<ProgressStatus | null>(null);
   const query = useStaleQuery<GameProgress[]>(`progress:${game.id}:${snapshotMonth || 'latest'}`, async () => {
     if (isDemo) return demoProgress.map(item => ({ ...item, game_id: game.id }));
-    if (snapshotMonth) {
-      const { data, error } = await supabase
-        .from('cycle_progress_snapshots')
-        .select('*, profile:profiles!cycle_progress_snapshots_user_id_fkey (id, name, avatar_url, avatar_crop)')
-        .eq('cycle_month', snapshotMonth)
-        .eq('game_id', game.id);
-      if (error) throw error;
-      return (data || []) as unknown as GameProgress[];
-    }
-    const [{ data: profiles, error: profilesError }, { data: progress, error: progressError }] = await Promise.all([
-      supabase.from('profiles').select('id, name, avatar_url, avatar_crop').order('name'),
-      supabase.from('game_progress').select('*').eq('game_id', game.id),
-    ]);
-    if (profilesError) throw profilesError;
-    if (progressError) throw progressError;
-    const progressMap = new Map((progress || []).map(item => [item.user_id, item]));
-    return (profiles as Profile[]).map(profile => ({
-      id: progressMap.get(profile.id)?.id || `new-${profile.id}`,
-      user_id: profile.id,
-      game_id: game.id,
-      status: (progressMap.get(profile.id)?.status || 'not_started') as ProgressStatus,
-      rating: progressMap.get(profile.id)?.rating ?? null,
-      rating_mode: (progressMap.get(profile.id)?.rating_mode || 'simple') as RatingMode,
-      rating_details: progressMap.get(profile.id)?.rating_details || null,
-      started_at: progressMap.get(profile.id)?.started_at || null,
-      finished_at: progressMap.get(profile.id)?.finished_at || null,
-      profile,
-    }));
+    // Com mês, lê o retrato congelado do ciclo; sem mês, todos os membros com o progresso atual.
+    return dataClient.readProgress({ userId: user?.id || '', isDemo: false, gameId: game.id, month: snapshotMonth, historical: Boolean(snapshotMonth) });
   });
   const progress = query.data || [];
   const [progressParent] = useAutoAnimate<HTMLDivElement>({ duration: 160, easing: 'cubic-bezier(.22, 1, .36, 1)' });
@@ -102,7 +75,7 @@ export function ProgressList({ game, snapshotMonth }: { game: Game; snapshotMont
     };
     const nextProgress = progress.some(item => item.user_id === user!.id) ? progress.map(item => item.user_id === user!.id ? next : item) : [next, ...progress];
     if (isDemo) query.setData(nextProgress);
-    else await runOptimistic('Atualizando progresso…', () => query.setData(nextProgress), () => query.setData(progress), () => supabase.from('game_progress').upsert({ user_id: user!.id, game_id: game.id, status: next.status, rating: next.rating, rating_mode: next.rating_mode, rating_details: next.rating_details, started_at: next.started_at, finished_at: next.finished_at, updated_at: now }, { onConflict: 'user_id,game_id' }));
+    else await runOptimistic('Atualizando progresso…', () => query.setData(nextProgress), () => query.setData(progress), () => dataClient.upsertProgress({ userId: user!.id, gameId: game.id, progress: next, updatedAt: now }));
   }
 
   async function saveRating(rating: number, mode: RatingMode, details: RatingDetails | null) {
@@ -113,7 +86,7 @@ export function ProgressList({ game, snapshotMonth }: { game: Game; snapshotMont
       notify('Nota atualizada');
       return;
     }
-    const saved = await runOptimistic('Salvando nota…', () => query.setData(next), () => query.setData(progress), () => supabase.from('game_progress').update({ rating, rating_mode: mode, rating_details: details, updated_at: new Date().toISOString() }).eq('user_id', user!.id).eq('game_id', game.id));
+    const saved = await runOptimistic('Salvando nota…', () => query.setData(next), () => query.setData(progress), () => dataClient.updateRating({ userId: user!.id, gameId: game.id, rating, ratingMode: mode, ratingDetails: details }));
     if (saved) notify('Nota atualizada');
   }
 

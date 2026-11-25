@@ -1,6 +1,7 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
+import { apiRoutes, type ApiResponse } from '@clube-do-jogo/data';
 
 import { useState } from 'react';
 import { Check, UserRound } from 'lucide-react';
@@ -26,9 +27,9 @@ export function GameMugshots({ gameId, title }: { gameId: string; title: string 
   const query = useStaleQuery<{ mugshots: Mugshot[] }>(
     `game-mugshots:${gameId}`,
     async () => {
-      const response = await apiFetch(`/api/games/${gameId}/mugshots`);
+      const response = await apiFetch(apiRoutes.gameMugshots.path(gameId));
       if (!response.ok) throw new Error('Não foi possível buscar os personagens.');
-      return response.json();
+      return response.json() as Promise<ApiResponse<'gameMugshots'>>;
     },
     !isDemo,
     { staleTime: 300_000 },

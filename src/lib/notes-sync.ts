@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { DataSupabaseClient } from '@clube-do-jogo/data';
 import type { LocalNote } from './types';
 import {
   getNoteSyncMetadata,
@@ -577,7 +577,7 @@ function throwIfSupabaseError(error: { message?: string } | null) {
   if (error) throw new Error(error.message || 'Falha do Supabase ao sincronizar anotação.');
 }
 
-export function createSupabaseNotesRemote(supabase: SupabaseClient): NotesRemoteStore {
+export function createSupabaseNotesRemote(supabase: DataSupabaseClient): NotesRemoteStore {
   return {
     async list(context) {
       const rows: GameNoteRow[] = [];
