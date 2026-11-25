@@ -82,3 +82,5 @@ export const gotyEventStatusLabels: Readonly<Record<GotyEventStatus, { readonly 
   locked: { label: 'Encerrado', description: 'Bloqueia edição' },
   results_published: { label: 'Apurado', description: 'Resultados finais' },
 };
+
+export const gameDescriptionFallback = 'Sem descrição disponível.';

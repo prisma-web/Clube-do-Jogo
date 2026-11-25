@@ -8,7 +8,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Tabs from '@radix-ui/react-tabs';
 import { CalendarDays, CheckCircle2, Clock3, Gamepad2, Heart, ImageIcon, LayoutDashboard, ListChecks, NotebookPen, Share2, Trash2 } from 'lucide-react';
-import { choiceParticipants, countChoices, emptyChoiceProfiles, gameCoverUrl, moveParticipant } from '@clube-do-jogo/domain';
+import { choiceParticipants, countChoices, emptyChoiceProfiles, gameCoverUrl, gameDescriptionPreview, moveParticipant } from '@clube-do-jogo/domain';
 import { createClient } from '@/lib/supabase/client';
 import { demoRanking } from '@/lib/demo-data';
 import { fetchGame, fetchUserPlatforms } from '@/lib/data';
@@ -126,6 +126,8 @@ export default function GamePage() {
   }
 
   if (gameQuery.isInitialLoading) return <div className="mx-auto max-w-3xl space-y-5"><Skeleton className="-mx-4 aspect-video rounded-none sm:mx-0 sm:rounded-2xl" /><Skeleton className="h-10 w-4/5" /><Skeleton className="h-24 w-full" /></div>;
+  const description = gameDescriptionPreview(game?.description, 180);
+
   if (!game) return <div className="grid min-h-[60dvh] place-items-center text-center"><div><Gamepad2 className="mx-auto size-9 text-zinc-700" /><h1 className="mt-3 text-lg font-black">Jogo não encontrado</h1></div></div>;
 
   const trailer = youtubeEmbedUrl(game.trailer_url);
@@ -203,8 +205,8 @@ export default function GamePage() {
             <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2">{ratingValue === null ? <span className="text-zinc-500">Sem nota</span> : <RatingDisplay value={ratingValue} className="text-xs" />}</span>
             {game.release_year && <span className="game-detail-meta-chip inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/[.06] px-3 py-2"><CalendarDays className="size-3.5 text-zinc-500" />{game.release_year}</span>}
           </div>
-          <p className={`game-detail-description mt-3 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-[15px] sm:leading-7 ${descriptionExpanded ? '' : 'line-clamp-3'}`}>{game.description || 'Sem descrição disponível.'}</p>
-          {game.description && game.description.length > 180 && <button onClick={() => setDescriptionExpanded(value => !value)} className="mt-1 text-[11px] font-extrabold text-violet-300">{descriptionExpanded ? 'Ver menos' : 'Ver mais'}</button>}
+          <p className={`game-detail-description mt-3 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-[15px] sm:leading-7 ${descriptionExpanded ? '' : 'line-clamp-3'}`}>{description.text}</p>
+          {description.hasMore && <button onClick={() => setDescriptionExpanded(value => !value)} className="mt-1 text-[11px] font-extrabold text-violet-300">{descriptionExpanded ? 'Ver menos' : 'Ver mais'}</button>}
           {!isPreview && <ClubGameAdminDialog game={game} className="mt-5" />}
         </section>
 

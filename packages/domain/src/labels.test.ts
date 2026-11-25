@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   appRoleLabels,
   discoverSourceLabels,
+  gameDescriptionFallback,
   gotyCategorySectionLabels,
   gotyEventStatusLabels,
   libraryQuickFilterLabels,
@@ -65,4 +66,8 @@ test('falls back when a negative vote has no known reason', () => {
   assert.equal(voteReasonLabel(undefined), 'Sem motivo informado');
   assert.equal(voteReasonLabel('toString' as VoteReason), 'Sem motivo informado');
   assert.equal(voteReasonLabel('legacy_reason' as VoteReason), 'Sem motivo informado');
+});
+
+test('pins the text shown for a game without description', () => {
+  assert.equal(gameDescriptionFallback, 'Sem descrição disponível.');
 });

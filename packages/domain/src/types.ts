@@ -40,7 +40,7 @@ export interface Game {
   average_rating?: number | null;
   release_year?: number | null;
   image_url: string | null;
-  description: string;
+  description: string | null;
   screenshot_urls?: string[] | null;
   trailer_url?: string | null;
   genres?: string[] | null;
