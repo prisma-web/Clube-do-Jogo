@@ -1,6 +1,3 @@
--- Execute uma vez no SQL Editor do Supabase.
--- Guarda apenas os consoles escolhidos por cada usuário.
-
 ALTER TABLE public.games
 ADD COLUMN IF NOT EXISTS platform_ids INTEGER[] NOT NULL DEFAULT '{}';
 

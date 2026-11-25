@@ -5,9 +5,6 @@ import { mock, test } from 'node:test';
 import type { ReactElement, ReactNode } from 'react';
 import { avatarPreviewOffset, type AvatarCrop } from '@clube-do-jogo/domain';
 
-// O editor de verdade, com os gestos de verdade. Só a borda nativa é falsa: o
-// GestureDetector guarda os handlers que o editor registra, e a Image é uma função
-// que o teste acha na árvore para ler o transform.
 const appRequire = createRequire(path.join(process.cwd(), 'apps/mobile/package.json'));
 const { createElement, useState } = appRequire('react') as typeof import('react');
 const { renderToStaticMarkup } = appRequire('react-dom/server') as typeof import('react-dom/server');
@@ -56,8 +53,6 @@ function findImage(node: ReactNode): ImageProps | null {
   return findImage(element.props.children);
 }
 
-// Renderiza o editor com `crop` e, entre a primeira e a segunda passada, arrasta o dedo
-// `drag` pixels. Devolve o translate da imagem em cada passada.
 async function translations(crop: AvatarCrop, drag?: { x: number; y: number }) {
   const { AvatarCropEditor } = await editorModule;
   const seen: Array<{ x: number; y: number }> = [];
@@ -79,7 +74,6 @@ async function translations(crop: AvatarCrop, drag?: { x: number; y: number }) {
 
 test('the preview places the crop the way the saved avatar shows it inside the border', async () => {
   const { PREVIEW_BORDER, PREVIEW_SIZE } = await import('../../apps/mobile/src/features/profile/avatar-preview-frame');
-  // A imagem ocupa o círculo menos as duas bordas; é esse o tamanho do Avatar salvo.
   const visible = PREVIEW_SIZE - PREVIEW_BORDER * 2;
   const crop = { x: 0, y: 100, zoom: 2 };
   const [placed] = await translations(crop);

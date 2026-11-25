@@ -1,10 +1,6 @@
 import * as React from 'react';
 import { usePersistentState, type PersistentStateStatus } from '@/hooks/use-persistent-state';
 
-// Mirrors the web's device-only cosmic ambience preference (src/lib/cosmic-ambience.ts):
-// on/off is independent of the "sons do comunicador" UI signal toggle, and volume defaults
-// to 80%, matching the web's DEFAULT_AMBIENCE_VOLUME. The stored key is identity-scoped
-// (account vs demo + userId) by usePersistentState, the same scope as mobile-preferences-core.
 export interface CosmicAmbiencePreference {
   enabled: boolean;
   volume: number;

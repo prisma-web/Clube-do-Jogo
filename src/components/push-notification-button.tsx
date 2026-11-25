@@ -10,8 +10,6 @@ import { useApp } from './app-provider';
 type PushState = 'checking' | 'inactive' | 'enabled' | 'blocked' | 'unavailable' | 'error';
 
 const noopSubscribe = () => () => {};
-// Suporte a push só é conhecido no cliente. useSyncExternalStore reconcilia o
-// snapshot do servidor (false) com o do cliente sem erro de hidratação.
 const getSupportSnapshot = () => 'serviceWorker' in navigator && 'PushManager' in window;
 const getSupportServerSnapshot = () => false;
 

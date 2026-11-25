@@ -1,7 +1,3 @@
--- Production delta for the preference voting and 0-10 rating release.
--- Existing rows are preserved. Values already stored on the 0-10 scale are
--- not converted a second time.
-
 BEGIN;
 
 UPDATE public.game_progress

@@ -2,9 +2,6 @@ import assert from 'node:assert/strict';
 import { after, beforeEach, mock, test } from 'node:test';
 import { webcrypto } from 'node:crypto';
 
-// Caminho real: createRequestContext lê header e cookies do Next, monta o cliente
-// do Supabase de verdade e confere o token. Só a borda é falsa: o pedido (o módulo
-// next/headers) e a rede (fetch), que serve o JWKS e o /user do Auth.
 const SUPABASE_URL = 'https://projeto.supabase.co';
 const MEMBER = '8f14e45f-ceea-467a-9e2f-4c0bd5a6a111';
 const savedEnvironment = {
@@ -28,8 +25,6 @@ const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('b
 const keyPair = webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
 const publicJwk = keyPair.then(async pair => ({ ...(await webcrypto.subtle.exportKey('jwk', pair.publicKey)), kid: 'chave-do-teste', alg: 'ES256', use: 'sig', key_ops: ['verify'] }));
 
-// Sessões que o Auth ainda reconhece. Sair da conta tira a sessão daqui, mas o
-// token assinado continua íntegro até vencer.
 const liveTokens = new Set<string>();
 
 async function sign(claims: Record<string, unknown>, { live = true } = {}) {
@@ -147,7 +142,6 @@ test('a conferência no servidor percebe a sessão encerrada, a local não', asy
 
   liveTokens.delete(token);
   assert.equal(await memberId({ checkRevocation: true }), null);
-  // O preço aceito da conferência local: o token vale até vencer.
   assert.equal(await memberId(), MEMBER);
 });
 
@@ -159,11 +153,7 @@ test('a conferência no servidor também vale para o cookie da sessão', async (
   assert.equal(await memberId({ checkRevocation: true }), null);
 });
 
-// Toda rota que usa a service role em nome do membro tem que perceber a sessão
-// encerrada. A lista sai do código, então uma rota nova entra sozinha.
-// Rotas que não agem por membro nenhum e se autenticam de outro jeito.
 const NOT_MEMBER_ROUTES = new Set([
-  // O worker do push nativo entra com o CRON_SECRET.
   'src/app/api/push/worker/route.ts',
 ]);
 

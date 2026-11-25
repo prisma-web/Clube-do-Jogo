@@ -36,15 +36,9 @@ export interface ThemeAudioController {
   dispose(): void;
   retry(): void;
   playSignal(signal: ThemeAudioSignal): void;
-  /**
-   * Plays `signal` as soon as the session is ready and signals are enabled, if that happens within
-   * a short window. Used by "ligar sons do comunicador": the toggle starts the session, so the
-   * players are not loaded yet at the moment of the tap.
-   */
   queueSignal(signal: ThemeAudioSignal): void;
   setAmbienceEnabled(enabled: boolean): void;
   setAmbienceVolume(volume: number): void;
-  /** Gates every UI signal, including the automatic `navigate` cue played on a scene mode change. */
   setSignalsEnabled(enabled: boolean): void;
   isModeActive(mode: CosmicSceneMode): boolean;
   subscribe(listener: () => void): () => void;
@@ -155,9 +149,6 @@ export function createThemeAudioController({
   function maybePlayModeSignal(targetResources: PlayerResources): void {
     const player = targetResources.signals.navigate;
     if (!signalsEnabled) {
-      // "Sons do comunicador" off: the ambience loop may still be running, but the mode-change
-      // cue is a UI signal and must stay silent. Drop the pending cue so it does not fire later
-      // when signals are turned back on.
       pendingModeSignal = false;
       return;
     }

@@ -89,7 +89,6 @@ test('filtros e busca do Bolão seguem as regras da web', () => {
   assert.equal(ballotFilterCount('main', state.categories, 1), main.length);
   assert.equal(ballotFilterCount('pending', state.categories, 1), 29);
 
-  // Busca por indicado, sem acento e sem diferenciar maiúsculas
   const byNominee = filterBallotCategories(state.categories, voted, 'all', 'grand theft');
   assert.ok(byNominee.some(category => category.slug === 'game-of-the-year'));
   const byPtName = filterBallotCategories(state.categories, voted, 'all', 'DIRECAO');
@@ -205,14 +204,11 @@ test('busca de jogos: rota com includeAllYears e catálogo curado de reserva', (
 });
 
 test('o fim das listas sai de baixo do badge GOTY nas abas e nas telas empilhadas', () => {
-  // Abas: o conteúdo termina na tab bar; o badge fica 12 acima dela e tem 48 de altura.
   assert.equal(gotyBadgeBottomOffset('/ranking', 24), 24 + 56 + 12);
   assert.equal(gotyBadgeClearance('/ranking', 24), 12 + 48 + 12);
   assert.equal(gotyBadgeClearance('/ranking', 0), gotyBadgeClearance('/ranking', 48));
-  // Telas empilhadas: o conteúdo vai até a borda, então o inset entra na folga.
   assert.equal(gotyBadgeBottomOffset('/jogos/abc', 24), 36);
   assert.equal(gotyBadgeClearance('/jogos/abc', 24), 36 + 48 + 12);
   assert.equal(gotyBadgeClearance('/jogos/abc', 0), 16 + 48 + 12);
-  // Onde o badge não aparece, nenhuma folga extra.
   assert.equal(gotyBadgeClearance('/goty-2026', 24), 0);
 });

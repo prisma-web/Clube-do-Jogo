@@ -1,5 +1,3 @@
-// Lógica pura da experiência GOTY 2026 no app (sem dependências de React Native),
-// espelhando as regras de src/components/goty/* da web.
 import {
   GOTY_2026_CURATED_CATALOG,
   GOTY_2026_EDITION_YEAR,
@@ -60,14 +58,12 @@ export function parseGotyTab(value: unknown): GotyTab {
   return raw === 'seu-goty' ? 'seu-goty' : 'bolao';
 }
 
-/** "10 de dezembro de 2026" — data da cerimônia no fuso local do aparelho. */
 export function formatCeremonyDate(value?: string | null): string {
   const date = parseDate(value);
   if (!date) return '10 de dezembro de 2026';
   return `${pad(date.getDate())} de ${MONTHS_LONG[date.getMonth()]} de ${date.getFullYear()}`;
 }
 
-/** "10 dez 2026, 20:59" ou "Sem prazo definido". */
 export function formatDateTimePt(value?: string | null): string {
   if (!value) return 'Sem prazo definido';
   const date = parseDate(value);
@@ -75,7 +71,6 @@ export function formatDateTimePt(value?: string | null): string {
   return `${pad(date.getDate())} ${MONTHS_SHORT[date.getMonth()]} ${date.getFullYear()}, ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/** Valor editável do prazo no formato DD/MM/AAAA HH:mm (horário local). */
 export function formatDeadlineInput(iso?: string | null): string {
   const date = parseDate(iso);
   if (!date) return '';
@@ -84,7 +79,6 @@ export function formatDeadlineInput(iso?: string | null): string {
 
 export type DeadlineParseResult = { ok: true; iso: string | null } | { ok: false; error: string };
 
-/** Converte DD/MM/AAAA HH:mm (local) em ISO; texto vazio remove o prazo. */
 export function parseDeadlineInput(text: string): DeadlineParseResult {
   const trimmed = text.trim();
   if (!trimmed) return { ok: true, iso: null };
@@ -154,8 +148,6 @@ export function ballotFilterCount(
   if (filter === 'pending') return categories.length - answeredCount;
   return categories.filter(category => category.section === filter).length;
 }
-
-// ---------- Transformações otimistas (mesmas regras de goty-experience.tsx) ----------
 
 export function applyBolaoVote(
   state: GotyFullState,
@@ -269,8 +261,6 @@ export function applyCategoryWinner(
   };
 }
 
-// ---------- Capas dos indicados (POST /api/goty/resolve-covers) ----------
-
 export function hasUnresolvedGameCovers(state: GotyFullState): boolean {
   return state.categories.some(category =>
     category.nominees.some(nominee => nominee.game_query && !nominee.image_url),
@@ -278,16 +268,13 @@ export function hasUnresolvedGameCovers(state: GotyFullState): boolean {
 }
 
 export interface ResolveCoversBatchOptions {
-  /** Executa uma chamada POST /api/goty/resolve-covers e devolve o payload JSON. */
   requestBatch: (limit: number) => Promise<{ updated?: number; remaining?: number }>;
   limit: number;
   maxAttempts?: number;
   isCancelled?: () => boolean;
-  /** Chamado sempre que um lote atualizou pelo menos uma capa. */
   onBatchUpdated?: (updated: number) => Promise<void> | void;
 }
 
-/** Resolve capas em lotes até não restar pendências (máx. 6 tentativas, igual à web). */
 export async function resolveCoversInBatches(options: ResolveCoversBatchOptions): Promise<number> {
   const maxAttempts = options.maxAttempts ?? 6;
   let totalUpdated = 0;
@@ -301,8 +288,6 @@ export async function resolveCoversInBatches(options: ResolveCoversBatchOptions)
   }
   return totalUpdated;
 }
-
-// ---------- Busca de jogos (fallback/demo de /api/goty/search-games) ----------
 
 export const GOTY_SEARCH_LIMIT = 18;
 
@@ -339,7 +324,6 @@ export function buildSearchGamesPath(query: string, includeAllYears: boolean, li
   });
 }
 
-/** Linha de metadados: "Lançamento 2026 · Ação · PS5". */
 export function pickMetaLine(
   pick: Pick<GotyPersonalPick, 'game_release_year' | 'game_genres' | 'game_platforms'>,
   options: { yearPrefix?: string; genres?: number; platforms?: number } = {},
@@ -376,41 +360,26 @@ export function hashString(value: string): number {
   return Math.abs(hash);
 }
 
-/** Decide se o badge flutuante deve aparecer na rota atual. */
 export function shouldShowGotyBadge(pathname: string): boolean {
   return !(pathname === '/goty-2026' || pathname.startsWith('/goty-2026/'));
 }
 
 const TAB_ROUTES = new Set(['/', '/jogo-do-mes', '/ranking', '/jogos', '/seus-jogos', '/perfil']);
 
-/** Rotas que exibem a tab bar inferior (o badge precisa ficar acima dela). */
 export function isTabBarRoute(pathname: string): boolean {
   return TAB_ROUTES.has(pathname);
 }
 
-/** Altura padrão da tab bar do expo-router, sem o inset inferior. */
 export const GOTY_BADGE_TAB_BAR_HEIGHT = 56;
-/** Respiro entre o badge e a tab bar (ou a borda inferior). */
 export const GOTY_BADGE_GAP = 12;
-/** Altura do badge: emblema de 36 + padding vertical de 5 + borda de 1. */
 export const GOTY_BADGE_HEIGHT = 48;
 
-/**
- * Distância do badge à borda inferior da tela. Nas abas ele fica acima da tab bar;
- * nas telas empilhadas, perto da borda, respeitando o inset do sistema.
- */
 export function gotyBadgeBottomOffset(pathname: string, insetBottom: number): number {
   return isTabBarRoute(pathname)
     ? insetBottom + GOTY_BADGE_TAB_BAR_HEIGHT + GOTY_BADGE_GAP
     : Math.max(16, insetBottom + GOTY_BADGE_GAP);
 }
 
-/**
- * Folga que o fim de uma lista rolável precisa para o último item não ficar embaixo do
- * badge. Nas abas o conteúdo termina na tab bar, então o inset e a barra já ficaram
- * de fora; nas telas empilhadas o conteúdo vai até a borda da tela. Zero onde o badge
- * não aparece.
- */
 export function gotyBadgeClearance(pathname: string, insetBottom: number): number {
   if (!shouldShowGotyBadge(pathname)) return 0;
   const aboveContentEnd = isTabBarRoute(pathname)

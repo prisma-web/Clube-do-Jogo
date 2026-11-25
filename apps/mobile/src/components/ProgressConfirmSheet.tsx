@@ -19,7 +19,6 @@ function confirmationMessage(currentStatus: ProgressStatus, targetStatus: Progre
   return { message, destructive };
 }
 
-// Parity with src/components/game-dialog-preview.tsx: cover, title and duration.
 function GamePreview({ game }: { game: Pick<Game, 'title' | 'image_url' | 'duration_hours'> }) {
   const colors = useThemeColors();
   const styles = useStyles();

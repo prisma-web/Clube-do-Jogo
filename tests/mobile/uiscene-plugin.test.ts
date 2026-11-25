@@ -4,12 +4,6 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-// O plugin edita o AppDelegate.swift gerado por string. O template do Expo não é
-// publicado em node_modules (o prebuild baixa o tarball), então a fixture aqui é a
-// cópia verbatim do template do SDK 57 que este projeto gera hoje. Se o Expo mudar
-// o template, o prebuild passa a falhar alto por causa das asserções do plugin, e
-// estes testes documentam o contrato que precisa voltar a valer.
-
 const require = createRequire(import.meta.url);
 const pluginPath = fileURLToPath(new URL('../../apps/mobile/plugins/withUISceneLifecycle.js', import.meta.url));
 const templatePath = fileURLToPath(new URL('./fixtures/AppDelegate.sdk57.swift', import.meta.url));
@@ -60,28 +54,19 @@ test('template de referência é o que o plugin espera: sem cenas e criando a pr
 test('adota UIScene: janela sai do AppDelegate e nasce na cena, com launchOptions preservadas', () => {
   const output = transform(template);
 
-  // O AppDelegate não pode mais criar a janela, senão a cena fica sem root view.
   assert.doesNotMatch(output, /window = UIWindow\(frame: UIScreen\.main\.bounds\)/);
-  // Mas precisa guardar as launchOptions: o scene delegate não as recebe e o
-  // React Native as usa para deep link a frio e para notificação que abriu o app.
   assert.match(output, /AppDelegate\.sceneLaunchOptions = launchOptions/);
   assert.match(output, /static var sceneLaunchOptions: \[UIApplication\.LaunchOptionsKey: Any\]\?/);
 
-  // O delegate precisa existir e estar ligado, senão o manifesto só troca
-  // "não lança" por janela em branco.
   assert.match(output, /class SceneDelegate: UIResponder, UIWindowSceneDelegate/);
   assert.match(output, /configuration\.delegateClass = SceneDelegate\.self/);
   assert.match(output, /UIWindow\(windowScene: windowScene\)/);
   assert.match(output, /factory\.startReactNative\(/);
 
-  // Deep link e universal link migram para a cena e são reencaminhados ao app
-  // delegate, porque expo-linking e expo-dev-launcher escutam lá.
   assert.match(output, /func scene\(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>\)/);
   assert.match(output, /func scene\(_ scene: UIScene, continue userActivity: NSUserActivity\)/);
   assert.match(output, /appDelegate\.application\(UIApplication\.shared, open: context\.url, options: options\)/);
 
-  // URL de partida a frio volta para launchOptions, que é de onde
-  // RCTLinkingManager.getInitialURL lê.
   assert.match(output, /launchOptions\[\.url\] = url/);
 });
 
@@ -107,8 +92,5 @@ test('manifesto de cena declara configuração única apontando para UIWindowSce
   const application = roles.UIWindowSceneSessionRoleApplication as Record<string, string>[];
   assert.equal(application.length, 1);
   assert.equal(application[0].UISceneClassName, 'UIWindowScene');
-  // Sem UISceneDelegateClassName de propósito: quem escolhe a classe é
-  // application(_:configurationForConnecting:options:), o que evita depender da
-  // substituição de $(PRODUCT_MODULE_NAME) e do name mangling do Swift.
   assert.equal(application[0].UISceneDelegateClassName, undefined);
 });

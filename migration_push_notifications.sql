@@ -1,6 +1,3 @@
--- Notificacoes push para comentarios da timeline.
--- Execute uma vez no SQL Editor do Supabase antes de publicar esta versao.
-
 CREATE TABLE IF NOT EXISTS public.push_subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,

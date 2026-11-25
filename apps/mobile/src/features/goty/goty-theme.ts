@@ -1,9 +1,5 @@
 import { StyleSheet } from 'react-native';
 
-/**
- * Paleta fixa dourada/escura da experiência GOTY 2026 — independente do tema do app,
- * igual à web (src/components/goty/*), para preservar a identidade de "noite de gala".
- */
 export const gotyColors = {
   stage: '#07070b',
   stageRaised: '#0c0b10',

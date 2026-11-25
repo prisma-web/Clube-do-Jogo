@@ -19,7 +19,6 @@ export function ReactionPickerSheet({ visible, notice, onSelect, onClose }: {
   return (
     <Sheet visible={visible} title="Adicionar reação" onClose={onClose} avoidKeyboard>
       {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-      {/* flexShrink: RN defaults it to 0, so with the keyboard up a 667pt screen clipped the search field off the sheet instead of shrinking the picker. No minHeight: a floor in points ignores the font scale, and at accessibility sizes it pushed the search field under the keyboard again. */}
       <View style={{ height: Math.min(420, height * 0.6), flexShrink: 1 }}>
         <EmojiKeyboard
           onEmojiSelected={emoji => onSelect(emoji.emoji)}

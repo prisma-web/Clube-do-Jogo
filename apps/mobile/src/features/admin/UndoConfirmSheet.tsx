@@ -37,7 +37,6 @@ export function UndoConfirmSheet({ target, onClose, onUndone }: {
   );
 }
 
-/** Conteúdo da confirmação, reaproveitado inline pelo fluxo de decisão do ClubGameChangeSheet. */
 export function UndoConfirmBody({ preview, onCancel, onUndone, onPendingChange }: {
   preview: ClubGameUndoPreview;
   onCancel: () => void;

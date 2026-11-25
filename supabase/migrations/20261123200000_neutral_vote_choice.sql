@@ -1,14 +1,9 @@
--- Makes "Neutro" a stored vote choice. A neutral row means the member
--- answered the game; it scores zero and never counts as a legacy vote.
--- Additive and idempotent: no existing vote or snapshot row is rewritten.
-
 BEGIN;
 
 ALTER TABLE public.votes DROP CONSTRAINT IF EXISTS votes_choice_check;
 ALTER TABLE public.votes ADD CONSTRAINT votes_choice_check
   CHECK (choice IN ('would_play', 'neutral', 'would_not_play'));
 
--- No neutral row can exist before this migration, so the check cannot fail on current data.
 ALTER TABLE public.votes DROP CONSTRAINT IF EXISTS votes_neutral_reason_check;
 ALTER TABLE public.votes ADD CONSTRAINT votes_neutral_reason_check
   CHECK (choice <> 'neutral' OR (reason IS NULL AND reason_text IS NULL));

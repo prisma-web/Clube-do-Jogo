@@ -65,7 +65,6 @@ export function GotyExperience() {
     { staleTime: 20_000 },
   );
 
-  // Em produção com Supabase + IGDB, preenche em lotes todas as capas ausentes em segundo plano
   useEffect(() => {
     if (isDemo || !query.data || autoCoverTriggered.current) return;
     const hasUnresolvedGameCovers = query.data.categories.some(category =>
@@ -335,13 +334,11 @@ export function GotyExperience() {
 
   return (
     <div className="goty-stage relative -mx-2 max-w-6xl animate-fade-in overflow-x-clip rounded-[24px] border border-[#dfc06c]/25 bg-[#07070b] p-3.5 text-[#fbf5e3] shadow-[0_28px_90px_rgba(0,0,0,0.72)] sm:mx-auto sm:rounded-[32px] sm:p-6 lg:p-8">
-      {/* Iluminação de palco de premiação */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 h-72 rounded-t-[24px] bg-[radial-gradient(ellipse_at_50%_0%,rgba(223,180,81,0.22),rgba(223,180,81,0.04)_48%,transparent_75%)] sm:rounded-t-[32px]"
       />
 
-      {/* Cabeçalho de gala GOTY 2026 */}
       <header className="relative flex flex-col gap-4 border-b border-[#dfc06c]/18 pb-5 sm:flex-row sm:items-end sm:justify-between sm:gap-5 sm:pb-6">
         <div className="flex min-w-0 items-start gap-3 sm:gap-4">
           <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-[#f0cf72]/45 bg-gradient-to-br from-[#2d2210] via-[#13100b] to-[#08080b] shadow-[0_12px_32px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,244,200,0.35)] sm:size-16">
@@ -377,7 +374,6 @@ export function GotyExperience() {
         </a>
       </header>
 
-      {/* Conteúdo principal com as duas abas */}
       <div className="relative mt-5 sm:mt-6">
         {query.isInitialLoading || !state ? (
           <ListSkeleton count={5} />

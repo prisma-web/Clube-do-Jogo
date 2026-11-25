@@ -17,8 +17,6 @@ export function Screen({ children, scroll = true, contentContainerStyle, onRefre
   const theme = useNativeTheme();
   const styles = useStyles();
   const badgeClearance = useGotyBadgeClearance();
-  // Com uma cena de tema ativa o fundo fica transparente para revelar o cenário montado
-  // atrás da navegação; sem cena o fundo continua opaco.
   const safeArea = [styles.safeArea, theme.scene !== 'none' && styles.safeAreaScenic];
 
   if (!scroll) {
@@ -31,8 +29,6 @@ export function Screen({ children, scroll = true, contentContainerStyle, onRefre
   return (
     <SafeAreaView style={safeArea} edges={edges ?? ['top']}>
       <KeyboardAvoidingView style={styles.keyboardArea} behavior="height" enabled={Platform.OS === 'android'}>
-        {/* A folga inferior só vale no ramo rolável: em scroll={false} ela viraria espaço morto
-            fixo e cortaria a lista. Ela cresce para o fim do conteúdo sair de baixo do badge GOTY. */}
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: Math.max(SCROLL_BOTTOM_PADDING, badgeClearance) }, contentContainerStyle as object]}
           refreshControl={onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={theme.colors.violet400} /> : undefined}

@@ -21,7 +21,6 @@ self.addEventListener('fetch', event => {
   if (url.pathname.startsWith('/_next/webpack-hmr')) return;
 
   if (request.mode === 'navigate') {
-    // Network first: a cached page would keep running the previous deploy's code.
     event.respondWith(
       fetch(request)
         .then(response => {
@@ -79,8 +78,6 @@ self.addEventListener('notificationclick', event => {
       const openClient = clientList.find(client => 'focus' in client);
       if (openClient) {
         const focused = openClient.focus();
-        // Só navega se a aba não estiver já na URL alvo, evitando recarregar e
-        // perder o estado da página.
         if (openClient.url === targetUrl || typeof openClient.navigate !== 'function') return focused;
         return focused.then(client => client.navigate(targetUrl)).catch(() => {});
       }

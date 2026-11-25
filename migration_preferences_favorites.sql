@@ -1,11 +1,8 @@
--- Preferências mensais substituem o voto binário. Registros antigos equivalem
--- a “Jogaria”, o que mantém todo o histórico utilizável após a migração.
 ALTER TABLE public.votes
   ADD COLUMN IF NOT EXISTS choice TEXT NOT NULL DEFAULT 'would_play',
   ADD COLUMN IF NOT EXISTS reason TEXT,
   ADD COLUMN IF NOT EXISTS reason_text TEXT;
 
--- A opção antiga “Sem condições” passa a “Não consigo rodar”.
 UPDATE public.votes
 SET choice = 'would_not_play', reason = 'cannot_run', reason_text = NULL
 WHERE choice = 'unavailable';
@@ -23,7 +20,6 @@ ALTER TABLE public.votes ADD CONSTRAINT votes_reason_text_length_check
 CREATE INDEX IF NOT EXISTS votes_month_choice_idx
   ON public.votes(vote_month, choice, game_id);
 
--- Favoritos são públicos no perfil, mas somente o dono pode alterá-los.
 CREATE TABLE IF NOT EXISTS public.favorite_games (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -43,8 +39,6 @@ DROP POLICY IF EXISTS "Excluir favorito proprio" ON public.favorite_games;
 CREATE POLICY "Excluir favorito proprio" ON public.favorite_games
   FOR DELETE USING (auth.uid() = user_id);
 
--- O snapshot conserva os dois cálculos. Assim a troca de fórmula não exige
--- reescrever dados históricos nem apagar a implementação original.
 ALTER TABLE public.ranking_snapshots
   ADD COLUMN IF NOT EXISTS would_play_count INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS would_not_play_count INTEGER NOT NULL DEFAULT 0,
@@ -54,8 +48,6 @@ ALTER TABLE public.ranking_snapshots
   ADD COLUMN IF NOT EXISTS unavailable_user_ids UUID[] NOT NULL DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS legacy_total_points NUMERIC;
 
--- Pontuações iguais compartilham a mesma colocação. A restrição antiga
--- obrigava uma posição exclusiva por jogo e impedia representar empates.
 ALTER TABLE public.ranking_snapshots
   DROP CONSTRAINT IF EXISTS ranking_snapshots_voting_month_position_key;
 CREATE INDEX IF NOT EXISTS ranking_snapshots_month_position_idx

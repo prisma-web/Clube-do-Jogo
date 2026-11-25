@@ -32,16 +32,9 @@ type FakeOptions = {
   calls?: UpsertCall[];
   failFirstWith?: { code: string };
   roundTrips?: { count: number };
-  // Linhas que já estão no banco, por título. Upsert de um jogo com esse título e
-  // outro igdb_id bate na unique de título (23505), como no banco de verdade.
   existingByTitle?: Map<string, StoredRow>;
 };
 
-// Imita o postgrest-js: num upsert em lote, `columns` é a união das chaves das
-// linhas, e com defaultToNull (o padrão) a chave que falta numa linha vira NULL no
-// ON CONFLICT DO UPDATE. Num objeto só, as colunas são as chaves dele.
-// Devolve as linhas do lote fora de ordem, que é o que o PostgREST pode fazer:
-// se a rota passar a depender da ordem do retorno, o teste pega.
 function fakeSupabase(payloads: UpsertPayload[], options: FakeOptions = {}): DataSupabaseClient {
   const { calls, failFirstWith, roundTrips, existingByTitle = new Map() } = options;
   const stored = (payload: UpsertPayload, columns: string[]) => ({
@@ -62,8 +55,6 @@ function fakeSupabase(payloads: UpsertPayload[], options: FakeOptions = {}): Dat
           batch.forEach(one => payloads.push(one));
           calls?.push({ rows: batch, columns });
           if (roundTrips) roundTrips.count += 1;
-          // Coluna que falta é problema de schema, não de sorte: recusa toda vez que
-          // ela chega, senão o teste do retorno ao schema antigo passa por acidente.
           const schemaError = failFirstWith && batch.some(one => Object.hasOwn(one, 'average_rating')) ? failFirstWith : null;
           const error = schemaError ?? (batch.some(titleConflict) ? { code: '23505' } : null);
           const rows = batch.map(one => stored(one, columns)).reverse();

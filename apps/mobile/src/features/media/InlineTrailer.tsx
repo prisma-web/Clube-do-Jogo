@@ -6,12 +6,6 @@ import { themedStyles, useThemeColors, radii, spacing } from '@/theme';
 import { youtubeEmbedUrl } from './youtube';
 import { YoutubePlayer } from './YoutubePlayer';
 
-/**
- * Embedded trailer for the top of the game detail (parity with the web's
- * FloatingTrailer). The WebView only mounts after the user taps play, so opening
- * a game never loads YouTube on its own. `onExpand` hands playback over to the
- * fullscreen TrailerModal; `onMinimize` collapses the player back to the poster.
- */
 export function InlineTrailer({ url, title, posterUrl, onExpand }: {
   url: string | null | undefined;
   title: string;

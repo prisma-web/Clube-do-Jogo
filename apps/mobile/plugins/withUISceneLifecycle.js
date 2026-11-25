@@ -1,20 +1,5 @@
-// Config plugins do Expo são carregados com require na avaliação de app.config.ts,
-// então este arquivo precisa ser CommonJS.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { withAppDelegate, withInfoPlist } = require('expo/config-plugins');
-
-/**
- * Adota o ciclo de vida de UIScene no template nativo iOS.
- *
- * Apps compilados com o SDK do iOS 27 não lançam sem isso:
- * "UIScene life cycle is required for apps built with this SDK".
- * Expo SDK 57 / React Native 0.86 ainda não adotam cenas
- * (https://github.com/expo/expo/issues/46663), e `apps/mobile/ios/` é gerado,
- * então a adoção precisa viver aqui para sobreviver ao prebuild.
- *
- * Declarar o manifesto sem ligar o delegate troca "não lança" por janela
- * branca, então as duas metades andam juntas neste mesmo plugin.
- */
 
 const SCENE_DELEGATE_CLASS = `
 // MARK: - UIScene life cycle
@@ -223,9 +208,6 @@ const withSceneAppDelegate = (config) =>
 
 const withSceneManifest = (config) =>
   withInfoPlist(config, (cfg) => {
-    // Sem UISceneDelegateClassName de propósito: quem escolhe a classe é
-    // `application(_:configurationForConnecting:options:)`, o que evita depender da
-    // substituição de $(PRODUCT_MODULE_NAME) e do name mangling do Swift.
     cfg.modResults.UIApplicationSceneManifest = {
       UIApplicationSupportsMultipleScenes: false,
       UISceneConfigurations: {

@@ -12,9 +12,6 @@ import { IMAGE_FRAME, PREVIEW_BORDER, PREVIEW_SIZE } from './avatar-preview-fram
 
 export const DEFAULT_AVATAR_SELECTION_CROP: AvatarCrop = { ...DEFAULT_AVATAR_CROP, zoom: 1.1 };
 
-// Fixo de propósito. contentPosition é prop do expo-image, e mexer nela durante o
-// gesto remontava a imagem a cada quadro, deixando o círculo vazio até o dedo parar.
-// O recorte vive no transform, e avatarPreviewOffset faz ele bater com o Avatar.
 const CONTENT_POSITION = { top: '50%', left: '50%' } as const;
 
 export function AvatarCropEditor({ visible, imageUrl, name, crop: initialCrop, saving, onClose, onSave }: {
@@ -30,7 +27,6 @@ export function AvatarCropEditor({ visible, imageUrl, name, crop: initialCrop, s
   const styles = useStyles();
   const [crop, setCrop] = useState(initialCrop);
   const [gesture] = useState(() => createAvatarCropGesture(IMAGE_FRAME));
-  // Tamanho natural da imagem aberta. Até o onLoad dela, a prévia trata como quadrada.
   const [loaded, setLoaded] = useState<{ uri: string; size: AvatarImageSize } | null>(null);
   const imageSize = loaded && loaded.uri === imageUrl ? loaded.size : null;
   const offset = avatarPreviewOffset(IMAGE_FRAME, imageSize, crop);

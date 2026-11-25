@@ -28,7 +28,6 @@ export async function POST(request: Request) {
       return json({ updated: 0, remaining: 0 });
     }
 
-    // Agrupa por título de jogo para não consultar a IGDB repetidamente para jogos com várias indicações
     const byQuery = new Map<string, string[]>();
     for (const row of nominees as Array<{ id: string; game_query: string | null }>) {
       if (!row.game_query) continue;
@@ -41,7 +40,6 @@ export async function POST(request: Request) {
     let updatedCount = 0;
 
     for (const [gameQuery, nomineeIds] of queries) {
-      // 1. Tenta primeiro o cache local em public.games
       const { data: cachedGame } = await supabase
         .from('games')
         .select('id, igdb_id, image_url')
@@ -54,7 +52,6 @@ export async function POST(request: Request) {
       let igdbId: number | null = cachedGame?.igdb_id ?? null;
       const gameId: string | null = cachedGame?.id ?? null;
 
-      // 2. Se não estiver em cache, busca capa na IGDB
       if (!imageUrl) {
         const match = await lookupIGDBCoverByTitle(gameQuery);
         if (match?.image_url) {

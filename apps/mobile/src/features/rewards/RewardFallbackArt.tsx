@@ -1,11 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-/**
- * Illustrative fallback for rewards without `image_url` (or whose image fails to load). It is the
- * native rendition of the web's /reward-unlock.svg (src/components/reward-celebration.tsx): a gift
- * box with a gold ribbon and bow, drawn with plain views so it needs no SVG renderer.
- */
 export function RewardFallbackArt() {
   return (
     <View style={styles.root} accessibilityRole="image" accessibilityLabel="Ilustração de presente" testID="reward-fallback-art">

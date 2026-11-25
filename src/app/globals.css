@@ -1,6 +1,4 @@
 @import "tailwindcss";
-/* Cores e color-scheme de cada tema: gerados de packages/domain/src/theme-palettes.ts (npm run themes:generate).
-   Aqui ficam só os valores exclusivos da web: header/nav, sombras, padrões, ambiente e o restante da cena. */
 @import "./theme-tokens.generated.css";
 
 :root {
@@ -109,7 +107,6 @@ body,
 :root[data-theme='crossing'] body { font-family: var(--font-geist-sans), Arial, sans-serif; }
 :root[data-theme='crossing'] :where(button, a, section, article) { transition-duration: 190ms; }
 
-/* Theme-aware components: materials, framing and fixed visual landmarks. */
 .participant-avatar { border-color: var(--surface) !important; }
 .ranking-participants { overflow: visible; letter-spacing: 0 !important; }
 .app-dialog,
@@ -122,7 +119,6 @@ body,
 }
 :root[data-theme] .gallery-more { background-color: rgb(0 0 0 / 58%) !important; color: #fff !important; }
 
-/* Zelda Deluxe: black collector's edition, engraved circles and metallic gold. */
 :root[data-theme='zelda'] main :where(article, section[class*='border']) {
   border-color: rgb(215 187 111 / 20%) !important;
   background-color: #111310 !important;
@@ -197,7 +193,6 @@ body,
 :root[data-theme='zelda'] .game-action-vote[data-active='true'] { background: linear-gradient(145deg, rgb(215 187 111 / 20%), rgb(118 83 30 / 18%)) !important; }
 :root[data-theme='zelda'] button.bg-violet-600:disabled { color: #c5b99e !important; }
 
-/* Animal Crossing: opaque paper cards, rounded prompts, dots and cheerful stripes. */
 :root[data-theme='crossing'] main :where(article, section[class*='border']) {
   border-color: rgb(115 119 79 / 22%) !important;
   background: #fff9e8 !important;
@@ -258,7 +253,6 @@ body,
 :root[data-theme='nier'] .participant-avatar { color: #4b413d !important; }
 :root[data-theme='nier'] button.bg-violet-600:disabled { color: #4b413d !important; }
 
-/* Second refinement: identity color, neutral material and semantic support colors. */
 .month-popup {
   width: min(18rem, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
@@ -289,7 +283,6 @@ body,
   color: var(--support-completed) !important;
 }
 
-/* Zelda: flat black collector material, restrained gold and short ornamental rules. */
 :root[data-theme='zelda'] main :where(article, section[class*='border']) {
   border-color: rgb(211 181 99 / 18%) !important;
   background: #10120f !important;
@@ -356,7 +349,6 @@ body,
 :root[data-theme='zelda'] .game-month-cover { border: 1px solid rgb(223 193 111 / 36%) !important; box-shadow: 0 20px 42px rgb(0 0 0 / 65%) !important; }
 :root[data-theme='zelda'] .danger-action { border-color: rgb(166 78 86 / 45%) !important; background: #251315 !important; color: #e9aab0 !important; }
 
-/* NieR: flat modular HUD, hard offsets, technical marks and almost no ornamental chrome. */
 :root[data-theme='nier'] main :where(article, section[class*='border']) {
   border: 0 !important;
   border-radius: 0 !important;
@@ -408,7 +400,6 @@ body,
 :root[data-theme='nier'] .game-detail-tint { background: transparent !important; }
 :root[data-theme='nier'] .danger-action { border-color: #8f4037 !important; border-radius: 0 !important; background: rgb(143 64 55 / 10%) !important; color: #7c332d !important; }
 
-/* Animal Crossing: soft paper, close-value pastels and friendly repeated motifs. */
 :root[data-theme='crossing'] main :where(article, section[class*='border']) {
   border-color: rgb(125 154 116 / 16%) !important;
   background-color: #fffaf0 !important;
@@ -465,10 +456,8 @@ body,
 :root[data-theme='crossing'] .game-detail-tint { background: rgb(117 193 157 / 6%) !important; mix-blend-mode: normal; }
 :root[data-theme='crossing'] .danger-action { border-color: rgb(210 111 120 / 26%) !important; background: #fbe7e5 !important; color: #9d414a !important; }
 
-/* Third refinement: denser identities, external light and softer cozy materials. */
 .ranking-card::before { display: none !important; }
 
-/* Zelda collector pattern, filled gold seal and a more deliberate threaded timeline. */
 :root[data-theme='zelda'] .game-month-chip {
   border: 1px solid #e8ca72 !important;
   background: linear-gradient(145deg, #f1dc95 0%, #d0aa4c 48%, #9a6f22 100%) !important;
@@ -505,7 +494,6 @@ body,
 :root[data-theme='zelda'] .thread-reply::before { display: none; }
 :root[data-theme='zelda'] .thread-reply .comment-avatar { margin-top: 2px; box-shadow: 0 0 0 3px #0d0f0c, 0 0 0 4px rgb(216 187 104 / 22%); }
 
-/* Animal Crossing: gentle checker field, rounded type and dotted paper everywhere. */
 :root[data-theme='nier'] .game-action { padding-inline: 8px !important; font-size: 10px; letter-spacing: .015em !important; }
 :root[data-theme='crossing'] body { font-family: var(--font-nunito), ui-rounded, 'Arial Rounded MT Bold', sans-serif; }
 :root[data-theme='crossing'] main :where(article, section[class*='border']),
@@ -534,7 +522,6 @@ body,
 :root[data-theme='crossing'] .month-popup-item { background: #f6f0dc; color: #526d61; }
 :root[data-theme='crossing'] .danger-action { border-color: rgb(205 119 126 / 16%) !important; background: #fae9e5 !important; color: #a34b55 !important; }
 
-/* Semantic action colors stay recognizable even when a theme changes its primary. */
 :root[data-theme] .participants-tabs [value='votes'][data-state='active'],
 :root[data-theme] .app-tabs [value='votes'][data-state='active'] {
   background: color-mix(in srgb, var(--support-vote) 12%, transparent) !important;
@@ -558,7 +545,6 @@ body,
 :root[data-theme='crossing'] .app-tabs [value='completed'][data-state='active'] { color: #467b38 !important; }
 :root[data-theme='crossing'] .app-tabs [value='backlog'][data-state='active'] { color: #3d7483 !important; }
 
-/* Final material pass: quiet glass in the default theme and flat patterned Crossing paper. */
 :root[data-theme='original'] main :where(article, section[class*='bg-white/'], .game-list-card, .comment-card, .comment-composer, .ranking-participants) {
   backdrop-filter: blur(3px);
 }
@@ -682,7 +668,6 @@ body,
 :root[data-theme='crossing'] .danger-action { border: 0 !important; box-shadow: none !important; }
 :root[data-theme='crossing'] .dialog-overlay { background: radial-gradient(circle at 50% 34%, rgb(91 117 88 / 28%), rgb(45 67 50 / 58%)) !important; backdrop-filter: blur(7px) saturate(.8) !important; }
 
-/* Crossing: warm paper hierarchy, patterned media above and calm paper below. */
 :root[data-theme='crossing'] .ranking-card {
   overflow: visible;
   background: #fff9ec !important;
@@ -835,7 +820,6 @@ body,
 :root[data-theme='crossing'] .gallery-toolbar button:not(:disabled):hover { background: rgb(255 255 255 / 14%) !important; }
 :root[data-theme='crossing'] .gallery-toolbar button:disabled { color: rgb(255 255 255 / 44%) !important; }
 
-/* Crossing neutral palette: one family of paper tones, no outlines or patterns. */
 :root[data-theme='crossing'] {
   --theme-header: #f5e9ca;
   --theme-nav: #f9efd6;
@@ -934,7 +918,6 @@ body,
 }
 :root[data-theme='crossing'] .game-month-chip svg { color: currentColor !important; fill: currentColor !important; }
 
-/* Crossing finishing pass: the soft green field stays outside the paper surfaces. */
 :root[data-theme='crossing'] {
   --theme-pattern: url('/patterns/crossing-leaves.svg');
   --theme-pattern-size: 220px 200px;
@@ -1013,8 +996,6 @@ body,
   box-shadow: 0 6px 0 -2px rgb(93 64 45 / 24%), 0 12px 18px rgb(93 64 45 / 8%) !important;
 }
 
-/* Archived Animal Crossing study: island mint, warm paper, leaf and coral accents. */
-/* As cores desta camada (e das duas anteriores) são o valor `web` de crossing em packages/domain/src/theme-palettes.ts. */
 :root[data-theme='crossing'] {
   --theme-header: rgb(251 247 220 / 97%);
   --theme-nav: rgb(255 249 225 / 98%);
@@ -1151,8 +1132,6 @@ body,
   }
 }
 
-/* Administration follows each visual identity instead of introducing a
-   fourth, dashboard-like language. */
 .admin-choice { white-space: normal; }
 .admin-choice[data-emphasis='secondary'] { border-color: rgb(255 255 255 / 8%); background: rgb(255 255 255 / 3.5%); color: #d4d4d8; }
 .admin-choice[data-emphasis='secondary'] span span { color: #71717a; }
@@ -1327,7 +1306,6 @@ iframe {
 .animate-tab-in { animation: tab-in 140ms var(--ease-snappy); }
 .page-transition { animation: tab-in 160ms var(--ease-snappy); }
 
-/* Radix keeps the closed state mounted only when it can read these animations. */
 .animated-popup[data-state='open'] { animation: pop-in 190ms var(--ease-snappy) both; will-change: opacity, transform, filter; }
 .animated-popup[data-state='closed'] { animation: pop-out 130ms cubic-bezier(.4, 0, 1, 1) both; }
 .animated-modal[data-state='open'] { animation: modal-in 230ms var(--ease-snappy) both; will-change: opacity, transform, filter; }
@@ -1342,7 +1320,6 @@ iframe {
   -webkit-line-clamp: 2;
 }
 
-/* Ori: a deep, hand-painted night forest carried by cool spirit light. */
 .theme-effects { display: none; }
 
 @keyframes ori-light-drift {
@@ -1759,7 +1736,6 @@ iframe {
 :root[data-theme='ori'] .admin-entry { border-color: rgb(137 224 240 / 16%) !important; background: rgb(85 221 244 / 6%) !important; }
 :root[data-theme='ori'] .danger-action { border-color: rgb(240 118 134 / 26%) !important; background: rgb(100 29 47 / 20%) !important; color: #ff9ba8 !important; }
 
-/* Shared semantic surfaces for profile management and the game detail route. */
 .game-detail-stage { position: relative; }
 .game-detail-trailer {
   border-color: var(--hairline) !important;
@@ -1957,7 +1933,6 @@ iframe {
   }
 }
 
-/* Reward reveal: intentionally more theatrical than the app's utility dialogs. */
 .reward-dialog {
   --reward-accent: #a78bfa;
   --reward-accent-soft: #f0abfc;
@@ -2175,7 +2150,6 @@ iframe {
 :root[data-theme='ori'] .reward-secondary,
 :root[data-theme='ori'] .reward-close { background: rgb(85 221 244 / 7%) !important; color: #9bc7d0; }
 
-/* Profile controls and rating metadata introduced by the profile refresh. */
 .profile-hero-action {
   border-color: var(--hairline) !important;
   background: color-mix(in srgb, var(--color-violet-500) 10%, var(--surface-soft)) !important;
@@ -2271,7 +2245,6 @@ iframe {
 :root[data-theme='ori'] .game-rating { color: #bff7ff !important; text-shadow: 0 0 10px rgb(85 221 244 / 18%); }
 :root[data-theme='ori'] .app-tabs [value='platforms'][data-state='active'] { background: rgb(85 221 244 / 12%) !important; color: #bff7ff !important; }
 
-/* Participant directory: compact profile cards with a distinct material per theme. */
 .participants-people-list {
   scrollbar-gutter: stable;
   background: color-mix(in srgb, var(--surface-soft) 38%, transparent);
@@ -2437,7 +2410,6 @@ iframe {
   box-shadow: 0 0 12px rgb(85 221 244 / 10%);
 }
 
-/* Preference voting, personal library and the flatter game-detail composition. */
 .preference-choice {
   border-color: var(--hairline);
   background: var(--surface-soft);
@@ -2536,7 +2508,6 @@ iframe {
 :root[data-theme='ori'] .library-filter-chip[data-selected='true'] { box-shadow: inset 0 0 20px rgb(85 221 244 / 7%), 0 0 13px rgb(85 221 244 / 7%); }
 :root[data-theme='ori'] .club-progress-card { border-color: rgb(137 224 240 / 13%) !important; background: rgb(2 15 29 / 62%) !important; }
 
-/* Fogueira Cósmica — an original field-observatory poster and handmade communicator. */
 :root[data-theme='cosmic-campfire'] {
   --theme-header: rgb(2 5 8 / 91%);
   --theme-nav: rgb(3 6 9 / 96%);
@@ -2572,7 +2543,6 @@ iframe {
   pointer-events: none;
 }
 
-/* A communicator, not a generic glass dashboard. */
 :root[data-theme='cosmic-campfire'] :where(.theme-header, .theme-nav, .app-tabs, .app-dialog, .app-popup) {
   border-color: rgb(230 192 140 / 17%) !important;
   background-color: rgb(3 7 10 / 93%) !important;
@@ -2829,7 +2799,6 @@ iframe {
   box-shadow: 0 30px 90px rgb(0 3 9 / 72%), inset 0 1px rgb(255 223 181 / 4%) !important;
 }
 
-/* Hero is a framed expedition poster; supporting cards stay quiet. */
 :root[data-theme='cosmic-campfire'] .game-month-hero {
   border: 1px solid rgb(244 194 129 / 31%) !important;
   border-radius: 3px !important;
@@ -2867,7 +2836,6 @@ iframe {
 :root[data-theme='cosmic-campfire'] .game-month-title { color: #fff4df !important; text-shadow: 0 2px 22px rgb(0 0 0 / 78%) !important; }
 :root[data-theme='cosmic-campfire'] .game-month-description { color: #c9c0b1 !important; }
 
-/* Discussion reads as a sequence of received transmissions. */
 :root[data-theme='cosmic-campfire'] .thread-transmission {
   cursor: pointer;
   outline: none;
@@ -3149,7 +3117,6 @@ iframe {
   height: 100dvh;
 }
 
-/* The Recanto keeps its fire above mobile chrome and lets the upper canvas fall to black. */
 .hearth-scene { display: none; }
 :root[data-theme='cosmic-campfire'][data-cosmic-backdrop='hearth'] .hearth-scene {
   display: block;
@@ -3321,8 +3288,6 @@ iframe {
   background: radial-gradient(ellipse at 50% 76%, transparent 0 25%, rgb(0 0 0 / 10%) 59%, rgb(0 0 0 / 48%) 100%), linear-gradient(180deg, rgb(0 0 0 / 4%), transparent 54%, rgb(0 0 0 / 15%));
 }
 
-/* A first-person drift through open space. Bodies pass the viewer;
-   nothing revolves around a diagrammatic center. */
 .spaceflight-scene { display: none; }
 :root[data-theme='cosmic-campfire'][data-cosmic-backdrop='spaceflight'] .spaceflight-scene {
   display: block;
@@ -3606,7 +3571,6 @@ iframe {
   transition-duration: .01ms !important;
 }
 
-/* Poster-first collections, platform identities and dense ranking placements. */
 .favorite-game-card,
 .discover-game-card {
   border-color: var(--hairline) !important;
@@ -3808,7 +3772,6 @@ iframe {
   .rating-stars { transition: none !important; }
 }
 
-/* GOTY 2026 — Palco de premiação (obsidiana + ouro metálico), preservado em todos os temas */
 @keyframes gotyFabHalo {
   0%, 100% {
     box-shadow: 0 0 0 0 rgb(227 193 104 / 30%);

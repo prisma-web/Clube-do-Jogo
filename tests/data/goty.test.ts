@@ -19,14 +19,12 @@ test('GotyDataClient demo mode enforces bolao lock while keeping Seu GOTY indepe
   await client.saveBolaoVote({ ...scope, categoryId: gotyCategory.id, nomineeId: gtaNominee.id });
   await client.setBolaoConfirmation({ ...scope, confirm: true });
 
-  // Lock bolao and register official winner
   await client.updateEventSettings({ ...scope, status: 'locked' });
   await assert.rejects(
     () => client.saveBolaoVote({ ...scope, categoryId: gotyCategory.id, nomineeId: gotyCategory.nominees[0].id }),
     /encerrado/,
   );
 
-  // Register official winner and verify leaderboard scores the user
   await client.setCategoryWinner({ ...scope, categoryId: gotyCategory.id, winnerNomineeId: gtaNominee.id });
   const afterWinner = await client.readFullState(scope);
   const board = computeBolaoLeaderboard(
@@ -40,7 +38,6 @@ test('GotyDataClient demo mode enforces bolao lock while keeping Seu GOTY indepe
   assert.equal(me.correctCount, 1);
   assert.equal(me.hitGoty, true);
 
-  // Seu GOTY remains editable even when Bolao is locked
   const myGotyCat = afterWinner.personalCategories[0];
   const game = GOTY_2026_CURATED_CATALOG[0];
   await client.savePersonalPick({ ...scope, categoryId: myGotyCat.id, game });
@@ -60,7 +57,6 @@ test('GotyDataClient demo mode works without window.localStorage (React Native)'
   const globalRef = globalThis as { localStorage?: unknown };
   const hadLocalStorage = 'localStorage' in globalRef;
   const previousLocalStorage = globalRef.localStorage;
-  // Simula o ambiente React Native: sem localStorage algum
   delete globalRef.localStorage;
   configureGotyDemoStorage(undefined);
   try {
@@ -98,7 +94,6 @@ test('GotyDataClient demo mode persists through an injected storage and supports
     const stored = JSON.parse([...backing.values()][0]) as { personalPicks: Array<{ user_id: string }> };
     assert.ok(stored.personalPicks.some(pick => pick.user_id === 'demo-user'));
 
-    // Somente memória: nada novo é escrito no storage injetado
     configureGotyDemoStorage(null);
     const before = writes.length;
     await client.clearPersonalPick({ ...scope, categoryId: state.personalCategories[0].id });

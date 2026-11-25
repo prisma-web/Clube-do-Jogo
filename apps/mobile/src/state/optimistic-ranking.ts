@@ -10,11 +10,9 @@ import type { Game, RankingFormula, RankingItem, VoteChoice, VoteParticipant } f
 export type OptimisticVote = {
   gameId: string;
   choice: VoteChoice | null;
-  /** Needed to show a game that is not in the ranking yet (search, Explorar). */
   game?: Game;
 };
 
-/** An empty ranking row for a game nobody has answered yet, like the web `chooseSearchGame`. */
 export function unvotedRankingItem(game: Game, addedAt = new Date().toISOString()): RankingItem {
   const choiceProfiles = emptyChoiceProfiles();
   return {
@@ -39,11 +37,6 @@ export function unvotedRankingItem(game: Game, addedAt = new Date().toISOString(
   };
 }
 
-/**
- * Applies the current member's answer to the cached ranking, mirroring the web
- * `setPreference`/`chooseSearchGame`: a row whose last vote was removed leaves
- * the ranking at once, and a vote on a game outside the ranking adds it.
- */
 export function optimisticRanking(
   items: RankingItem[] | undefined,
   input: OptimisticVote,
@@ -61,11 +54,6 @@ export function optimisticRanking(
     .sort(compareRankingItems);
 }
 
-/**
- * The voting-threshold push only fires for a brand-new vote. Changing an
- * existing answer keeps the row's created_at, so the route would see the same
- * first voter again (web: `choice && !item.myChoice`).
- */
 export function isNewVote(previous: RankingItem[] | undefined, input: Pick<OptimisticVote, 'gameId' | 'choice'>): boolean {
   if (!input.choice) return false;
   const existing = previous?.find(item => item.game.id === input.gameId);

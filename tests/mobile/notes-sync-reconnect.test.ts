@@ -5,14 +5,8 @@ import type { QueryClient as ReactQueryClient } from '@tanstack/react-query';
 import { createFlushGate } from '../../apps/mobile/src/state/notes-queue';
 import { refetchNotesAfterWrite } from '../../apps/mobile/src/state/notes-refresh';
 
-// --- Bug 1: a reconnect that arrives while a send is still awaiting must not be lost. ---------
-
 type Outcome = 'ok' | 'fail';
 
-/**
- * The flushOne loop of useNotesPendingQueue, reduced to the gate: each send awaits a response the
- * test settles by hand, and a failed send keeps the note queued, like markAttempt.
- */
 function harness() {
   const gate = createFlushGate();
   const queued = new Set<string>(['B']);
@@ -33,11 +27,11 @@ function harness() {
 
 test('reconexão durante um envio pendurado reenvia assim que ele falha', async () => {
   const { queued, sends, flushOne } = harness();
-  flushOne('B'); // "Salvar anotação" sem rede: o pedido fica pendurado
+  flushOne('B');
   assert.equal(sends.length, 1);
-  flushOne('B'); // a rede volta: onlineManager -> flushAll, ainda com o envio aguardando
+  flushOne('B');
   assert.equal(sends.length, 1, 'não abre um segundo envio concorrente da mesma nota');
-  await sends[0].settle('fail'); // o pedido velho falha (timeout / ping do OkHttp)
+  await sends[0].settle('fail');
   assert.equal(sends.length, 2, 'o gatilho da reconexão vira um novo envio');
   await sends[1].settle('ok');
   assert.equal(queued.has('B'), false);
@@ -72,9 +66,6 @@ test('vários gatilhos durante um envio viram um único reenvio', async () => {
   assert.equal(sends.length, 2, 'o gatilho foi consumido pelo primeiro reenvio');
 });
 
-// --- Bug 2: the list read again after a send is accepted must include it. ----------------------
-
-/** A notes read that takes its snapshot of the server when it starts and answers when told to. */
 function slowServer(initial: string[]) {
   const rows = [...initial];
   const reads: Array<{ snapshot: string[]; answer(): void }> = [];
@@ -98,13 +89,12 @@ async function tick() {
 }
 
 test('controle: invalidateQueries reaproveita a primeira leitura em voo e guarda a lista velha', async () => {
-  // Documents the React Query v5 behaviour behind the bug (query-core Query.fetch).
   const client = new QueryClient();
   const server = slowServer(['A']);
   const { unsubscribe } = mount(client, server.queryFn);
   await tick();
   assert.equal(server.reads.length, 1, 'a tela abriu e começou a primeira leitura');
-  server.rows.push('B'); // o envio de B é aceito enquanto a leitura ainda não respondeu
+  server.rows.push('B');
   const invalidated = client.invalidateQueries({ queryKey: KEY, exact: true });
   await tick();
   assert.equal(server.reads.length, 1, 'nenhuma leitura nova: a em voo foi reaproveitada');
@@ -126,7 +116,7 @@ test('refetchNotesAfterWrite lê de novo quando a primeira leitura começou ante
   await tick();
   assert.equal(server.reads.length, 2, 'a leitura velha foi cancelada e outra começou');
   assert.deepEqual(server.reads[1].snapshot, ['A', 'B']);
-  server.reads[0].answer(); // a resposta velha chega depois e é ignorada
+  server.reads[0].answer();
   server.reads[1].answer();
   await refreshed;
   assert.deepEqual(client.getQueryData(KEY), ['A', 'B']);
@@ -142,7 +132,7 @@ test('refetchNotesAfterWrite também refaz uma leitura em voo quando a lista já
   server.reads[0].answer();
   await tick();
   assert.deepEqual(client.getQueryData(KEY), ['A']);
-  void client.refetchQueries({ queryKey: KEY, exact: true }); // foco / reconexão
+  void client.refetchQueries({ queryKey: KEY, exact: true });
   await tick();
   assert.equal(server.reads.length, 2);
   server.rows.push('B');
@@ -164,7 +154,7 @@ test('refetchNotesAfterWrite sem tela montada só marca a lista para a próxima 
   await tick();
   server.reads[0].answer();
   await tick();
-  unsubscribe(); // a tela de anotações foi fechada; o envio respondeu depois
+  unsubscribe();
   server.rows.push('B');
   await refetchNotesAfterWrite(client as unknown as ReactQueryClient, KEY);
   assert.equal(server.reads.length, 1, 'nada é buscado sem tela');

@@ -1,6 +1,3 @@
--- Avaliacao do clube em escala de 0 a 100, com criterios detalhados opcionais.
--- Execute uma vez no SQL Editor do Supabase antes de publicar esta versao.
-
 BEGIN;
 
 ALTER TABLE public.game_progress

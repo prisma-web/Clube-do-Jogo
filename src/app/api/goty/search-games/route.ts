@@ -49,7 +49,6 @@ export async function GET(request: Request) {
     const merged: GotySearchGameResult[] = [];
     let source: 'igdb' | 'cache' | 'curated' = 'curated';
 
-    // 1. Consulta IGDB com análise de data comercial efetiva 2026
     try {
       const igdbGames = await searchGoty2026GamesWithIGDB({
         query,
@@ -93,7 +92,6 @@ export async function GET(request: Request) {
       console.warn('Fallback na busca GOTY 2026 (IGDB indisponível):', igdbError);
     }
 
-    // 2. Complementa com cache local do Supabase (jogos de 2026 ou qualquer ano se includeAllYears)
     if (merged.length < limit) {
       let dbQuery = supabase.from('games').select('*').limit(limit);
       if (query) dbQuery = dbQuery.ilike('title', `%${query}%`);
@@ -116,7 +114,6 @@ export async function GET(request: Request) {
       }
     }
 
-    // 3. Complementa com catálogo curado de 2026 (útil para lançamentos recentes / offline)
     if (merged.length < limit) {
       for (const curated of searchCurated2026(query)) {
         merged.push(curated);

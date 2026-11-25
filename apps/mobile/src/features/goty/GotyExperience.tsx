@@ -33,13 +33,11 @@ export function GotyExperience() {
   const scrollRef = useRef<ScrollView>(null);
   const contentRef = useRef<View>(null);
 
-  // Deep link / navegação com ?tab=bolao|seu-goty depois que a tela já está montada.
   if (seenTabParam !== params.tab) {
     setSeenTabParam(params.tab);
     if (params.tab !== undefined) setActiveTab(parseGotyTab(params.tab));
   }
 
-  // Um admin que perde o papel volta para a votação.
   const bolaoView: BolaoView = !isAdmin && selectedBolaoView === 'admin' ? 'ballot' : selectedBolaoView;
 
   const handleTabChange = useCallback((next: GotyTab) => {
@@ -73,7 +71,6 @@ export function GotyExperience() {
   return (
     <GotyFeedbackProvider bottomOffset={showDock ? DOCK_HEIGHT + insets.bottom : insets.bottom}>
       <View style={styles.stage}>
-        {/* O cabeçalho da tela é sempre escuro, mesmo com tema claro no app. */}
         <StatusBar style="light" />
         <View style={styles.spotlight} pointerEvents="none" />
         <ScrollView

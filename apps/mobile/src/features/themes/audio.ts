@@ -15,7 +15,6 @@ export interface ThemeAudioState {
   error: string | null;
   retry(): void;
   playSignal(signal: ThemeSignal): void;
-  /** Plays once the session that is starting right now is ready (see controller.queueSignal). */
   queueSignal(signal: ThemeSignal): void;
 }
 

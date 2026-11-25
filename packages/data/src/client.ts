@@ -160,7 +160,6 @@ export interface SessionProfile {
 }
 
 export interface SessionProfileOptions {
-  /** Ignora erros de leitura: perfil vira `null` e o cargo, membro. */
   ignoreErrors?: boolean;
 }
 
@@ -175,9 +174,7 @@ export interface VoteRowKey extends UserGameRow {
 
 export interface VoteRowInput extends VoteRowKey {
   choice: VoteChoice;
-  /** `undefined` deixa a coluna fora do upsert e preserva o valor gravado. */
   reason?: VoteReason | null;
-  /** `undefined` deixa a coluna fora do upsert e preserva o valor gravado. */
   reasonText?: string | null;
 }
 
@@ -358,8 +355,6 @@ function dedupeDiscoveryItems(items: DiscoverItem[]) {
   });
 }
 
-// O ramo de array não existe no contrato (a rota sempre devolve `{ items, hasMore }`);
-// fica como tolerância.
 function discoveryPageFromPayload(payload: unknown): DiscoveryPage {
   if (Array.isArray(payload)) {
     return { items: dedupeDiscoveryItems(payload as DiscoverItem[]), hasMore: false };
@@ -416,11 +411,6 @@ function normalizeProfilePatch(patch: ProfilePatch): ProfilePatch {
 
 type ProfilePatchRow = Omit<ProfilePatch, 'avatar_crop'> & { avatar_crop?: Json };
 
-/**
- * `profiles.avatar_crop` é `Json` no banco. `AvatarCrop` é uma interface (sem
- * assinatura de índice), então o TypeScript não a aceita como `Json`, embora
- * seja só `{ x, y, zoom }` numéricos. Identidade em tempo de execução.
- */
 function profilePatchRow(patch: ProfilePatch): ProfilePatchRow {
   return patch as ProfilePatchRow;
 }
@@ -448,8 +438,6 @@ function normalizePlatformInput(platform: UserPlatformInput): UserPlatformInput 
   };
 }
 
-// A rota devolve um array (`ApiResponse<'searchPlatforms'>`); o formato `{ items }` não
-// existe no contrato e fica só como tolerância.
 function platformItemsFromPayload(payload: unknown): UserPlatform[] {
   const rows = Array.isArray(payload)
     ? payload
@@ -470,7 +458,6 @@ function platformItemsFromPayload(payload: unknown): UserPlatform[] {
   });
 }
 
-// A rota devolve `{ mugshots }`; o ramo de array não existe no contrato e fica como tolerância.
 function mugshotsFromPayload(payload: unknown): GameMugshot[] {
   const rows = Array.isArray(payload)
     ? payload
@@ -637,11 +624,6 @@ function libraryFromRows(
   };
 }
 
-/**
- * O Supabase devolve `{ error }` como objeto simples. A web sempre mostrou
- * `error.message` no aviso; este Error carrega a mesma mensagem (e code,
- * details e hint) para quem rejeita em vez de devolver o resultado.
- */
 function supabaseError(error: unknown): Error {
   if (error instanceof Error) return error;
   if (error && typeof error === 'object' && 'message' in error) {
@@ -676,7 +658,6 @@ function commentTimelineFromRows(
     reactions: Array.from(reactionMap.get(comment.id)?.entries() || []).map(([emoji, users]): CommentReaction => ({ emoji, users, reactedByMe: users.some(person => person.id === userId) })),
     replies: [],
   }));
-  // A conversa tem só dois níveis: resposta de resposta entra na raiz.
   const roots = mapped.filter(comment => !comment.parent_id);
   mapped.filter(comment => comment.parent_id).forEach(reply => {
     const direct = mapped.find(comment => comment.id === reply.parent_id);
@@ -1057,7 +1038,6 @@ export class DataClient {
     });
   }
 
-  /** Title search backed by `GET /api/search` (local cache first, then IGDB), like the web ranking search. */
   async searchGames(input: GameSearchQuery): Promise<Game[]> {
     const query = typeof input.query === 'string' ? input.query.trim() : '';
     if (!query) return [];
@@ -1101,8 +1081,6 @@ export class DataClient {
         if (error) throw error;
         return;
       }
-      // Upsert keeps the row (and its created_at) when a member changes an
-      // existing vote, so "added at" ordering and first-voter pushes stay right.
       const { error } = await client.from('votes').upsert({
         user_id: input.userId,
         game_id: input.gameId,
@@ -1210,12 +1188,6 @@ export class DataClient {
     });
   }
 
-  // Operações no formato que a web sempre gravou e leu. Diferente dos métodos
-  // acima, estas não conferem a sessão com auth.getUser() antes da consulta e
-  // não trocam a mensagem do erro: rejeitam com a mensagem do Supabase, que é
-  // a que o aviso da web mostra. Não têm ramo demo; o chamador cuida dele.
-
-  /** Upsert do voto pela chave do voto; motivo `undefined` fica fora da gravação. */
   async upsertVote(input: VoteRowInput): Promise<void> {
     const { error } = await this.client('salvar voto').from('votes').upsert({
       user_id: input.userId,
@@ -1262,7 +1234,6 @@ export class DataClient {
     if (error) throw supabaseError(error);
   }
 
-  /** Grava o progresso já calculado pelo chamador, sem reler a linha atual. */
   async upsertProgress(input: ProgressRowInput): Promise<void> {
     const { progress } = input;
     const { error } = await this.client('salvar progresso').from('game_progress').upsert({
@@ -1279,7 +1250,6 @@ export class DataClient {
     if (error) throw supabaseError(error);
   }
 
-  /** Atualiza só a nota de uma linha de progresso que já existe. */
   async updateRating(input: RatingRowInput): Promise<void> {
     const { error } = await this.client('salvar avaliação').from('game_progress')
       .update({ rating: input.rating, rating_mode: input.ratingMode, rating_details: input.ratingDetails, updated_at: new Date().toISOString() })
@@ -1307,7 +1277,6 @@ export class DataClient {
     if (error) throw supabaseError(error);
   }
 
-  /** Grava o patch como veio, sem normalizar nem devolver a linha. */
   async updateProfileFields(input: ProfileFieldsInput): Promise<void> {
     const { error } = await this.client('atualizar perfil').from('profiles')
       .update({ ...profilePatchRow(input.patch), updated_at: new Date().toISOString() })
@@ -1325,10 +1294,8 @@ export class DataClient {
     return (data || []) as unknown as RewardGrant[];
   }
 
-  /** Votos do mês, quem terminou e a relação do usuário com o jogo. */
   async readGameAudience(input: GameAudienceQuery): Promise<GameAudience> {
     const client = this.client('ler participantes do jogo');
-    // Falha ao ler biblioteca ou favorito conta como "não está".
     const [{ data: votes, error: votesError }, { data: completed, error: completedError }, { data: backlog }, { data: favorite }] = await Promise.all([
       client.from('votes').select('user_id, choice, reason, reason_text').eq('game_id', input.gameId).eq('vote_month', input.voteMonth),
       client.from('game_progress').select('user_id').eq('game_id', input.gameId).eq('status', 'finished'),
@@ -1366,7 +1333,6 @@ export class DataClient {
     };
   }
 
-  /** Comentários do ciclo em dois níveis, com reações e perfis. */
   async readCommentTimeline(input: CommentTimelineQuery): Promise<ClubComment[]> {
     const client = this.client('ler comentários');
     const [{ data: comments, error: commentsError }, { data: reactions, error: reactionsError }] = await Promise.all([
@@ -1385,7 +1351,6 @@ export class DataClient {
     return commentTimelineFromRows(commentRows, reactionRows, (profiles || []) as Profile[], input.userId);
   }
 
-  /** Publica o comentário e devolve o id gravado (ou `null` se não veio). */
   async insertComment(input: CommentRowInput): Promise<string | null> {
     const { data, error } = await this.client('publicar comentário')
       .from('club_comments')
@@ -1396,7 +1361,6 @@ export class DataClient {
     return (data as { id?: string } | null)?.id || null;
   }
 
-  /** Liga ou desliga a reação do usuário; remover não filtra por jogo ou ciclo. */
   async writeCommentReaction(input: CommentReactionRowInput): Promise<void> {
     const client = this.client('salvar reação');
     const { error } = input.enabled
@@ -1412,7 +1376,6 @@ export class DataClient {
     if (error) throw supabaseError(error);
   }
 
-  /** Todos os perfis com o cargo; quem não tem linha em user_roles é membro. */
   async readMembersWithRoles(): Promise<AdminUser[]> {
     const client = this.client('ler usuários');
     const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }] = await Promise.all([
@@ -1425,7 +1388,6 @@ export class DataClient {
     return ((profiles || []) as Profile[]).map(profile => ({ ...profile, role: roleMap.get(profile.id) || 'member' })) as AdminUser[];
   }
 
-  /** Anotações congeladas do usuário no fechamento do ciclo. */
   async readNoteSnapshots(input: NoteSnapshotsQuery): Promise<LocalNote[]> {
     const { data, error } = await this.client('ler anotações')
       .from('cycle_note_snapshots')

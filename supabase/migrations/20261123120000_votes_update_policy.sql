@@ -1,8 +1,3 @@
--- Lets members change their own vote with an upsert (INSERT ... ON CONFLICT DO UPDATE).
--- Without an UPDATE policy, the conflict branch fails with
--- "new row violates row-level security policy (USING expression)".
--- Additive: only creates a policy; mirrors the INSERT/DELETE window
--- (own vote, for the election after the active cycle).
 DROP POLICY IF EXISTS "Permitir atualização de voto próprio" ON public.votes;
 CREATE POLICY "Permitir atualização de voto próprio" ON public.votes
 FOR UPDATE

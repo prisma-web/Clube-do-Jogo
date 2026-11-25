@@ -82,11 +82,9 @@ interface IGDBCharacter {
   };
 }
 
-// Cache do token de acesso em memória para evitar requisições repetidas
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
 async function getTwitchToken(): Promise<string> {
-  // Retornar do cache se ainda válido (com 5 min de margem)
   if (cachedToken && Date.now() < cachedToken.expiresAt - 300_000) {
     return cachedToken.token;
   }
@@ -216,7 +214,6 @@ export async function searchGamesWithIGDB(query: string): Promise<IGDBGameResult
 
   const token = await getTwitchToken();
 
-  // 1. Buscar jogos pelo nome com campos relevantes (incluindo cover para a imagem)
   const gamesRes = await fetch('https://api.igdb.com/v4/games', {
     method: 'POST',
     headers: {
@@ -266,8 +263,6 @@ export async function browseGamesWithIGDB(options: {
   const conditions = ['version_parent = null', 'cover != null'];
   let order = 'total_rating_count desc';
   if (sort === 'rated') {
-    // A nota da comunidade, com uma amostra relevante, evita que poucos votos
-    // coloquem jogos muito nichados acima dos grandes clássicos.
     conditions.push('rating != null', 'rating_count >= 500');
     order = 'rating desc';
   } else if (sort === 'recent') {
@@ -388,7 +383,6 @@ export async function getGameByIGDBId(igdbId: number): Promise<IGDBGameResult | 
       }
     }
   } catch {
-    // Se falhar, mantem o valor padrao
   }
 
   const imageUrl = game.cover?.image_id
@@ -495,7 +489,6 @@ export async function searchGoty2026GamesWithIGDB(options: {
   if (!trimmed && !options.includeAllYears) {
     conditions.push(`release_dates.date >= ${start2026}`, `release_dates.date <= ${end2026}`);
   } else if (trimmed && !options.includeAllYears) {
-    // Inclui jogos com lançamento em 2026 ou graduação de Early Access em 2026 via release_dates.y
     conditions.push(`release_dates.y = ${targetYear}`);
   }
 
@@ -563,7 +556,6 @@ export async function lookupIGDBCoverByTitle(title: string): Promise<{ igdb_id: 
   const normalizedTarget = title.trim().toLowerCase();
   const exactMatches = games.filter(item => item.name.trim().toLowerCase() === normalizedTarget);
   const pool = exactMatches.length > 0 ? exactMatches : games;
-  // Quando houver homônimos (ex: remakes/reboots 2026 vs clássicos), prioriza a edição mais recente (2026+)
   const sorted = [...pool].sort((a, b) => (b.first_release_date ?? 0) - (a.first_release_date ?? 0));
   const chosen = sorted[0];
   if (!chosen?.cover?.image_id) return null;

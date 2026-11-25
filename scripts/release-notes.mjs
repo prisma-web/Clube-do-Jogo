@@ -1,13 +1,7 @@
 #!/usr/bin/env node
-// Notas de novidade em updates/notes/. Roda sem npm ci: o Node remove os tipos do parser do domínio ao importá-lo.
-//   check <base-sha> <head-sha> [--opt-out]                  valida as notas que o PR toca e exige uma nota nova, salvo --opt-out
-//   assemble <tag> --released <tags> [--out <arquivo>]       gera o product-update.json com as notas adicionadas desde o release anterior
-// --released lista, separadas por vírgula, as tags com release publicado no GitHub (pode ser vazia).
 import { execFileSync, spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 
-// Do Node 22.6 ao 22.17, a remoção de tipos fica atrás de uma flag. Antes do 22.10, process.features.typescript nem existe,
-// então o processo relançado se reconhece pela variável de ambiente e não relança de novo.
 const RELAUNCHED = 'RELEASE_NOTES_STRIP_TYPES';
 if (!process.features.typescript && !process.env[RELAUNCHED]) {
   const [major, minor] = process.versions.node.split('.').map(Number);
@@ -58,7 +52,6 @@ function webpSize(bytes) {
   }
 }
 
-/** The parsed note at `rev`, or the pt-BR errors that make it invalid. */
 function readNote(rev, slug) {
   const path = `${NOTES_DIR}/${slug}.json`;
   const raw = blob(rev, path);
@@ -92,7 +85,6 @@ function exists(rev, path) {
 }
 
 function check(base, head, optOut) {
-  // Com detecção de renomeação, renomear uma nota é R, não A: não conta como nota nova.
   const changes = git(['diff', '--name-status', '--find-renames', `${base}...${head}`, '--', NOTES_DIR])
     .split('\n')
     .filter(Boolean)
@@ -142,7 +134,6 @@ function compareTags(a, b) {
   return left[0] - right[0] || left[1] - right[1] || left[2] - right[2];
 }
 
-/** Slugs of the notes added in `range`, in commit order. A renamed note keeps its place, and renaming a released note adds nothing. */
 function addedSlugs(range) {
   const paths = [];
   const log = git(['log', '--topo-order', '--reverse', '--find-renames', '--diff-filter=AR', '--name-status', '--format=', range, '--', NOTES_DIR]);
@@ -154,7 +145,6 @@ function addedSlugs(range) {
   return paths.map(path => NOTE_FILE.exec(path)).filter(match => match?.[2] === 'json').map(match => match[1]);
 }
 
-/** The highest published release below `tag` in its history. A tag whose build failed has no release, so its notes go to the next one. */
 function previousRelease(tag, released) {
   return git(['tag', '--merged', tag, '--list', 'v*'])
     .split('\n')

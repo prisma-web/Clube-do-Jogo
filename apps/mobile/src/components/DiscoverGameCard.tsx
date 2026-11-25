@@ -5,13 +5,11 @@ import { gameCoverUrl, type DiscoverItem } from '@clube-do-jogo/domain';
 import { radii, spacing, themedStyles, useThemeColors } from '@/theme';
 import { RatingValue } from './RatingValue';
 
-/** "Ana", "Ana +2": the web discover card's summary of who is playing. */
 export function peopleSummary(people: readonly string[] | undefined): string | null {
   if (!people?.length) return null;
   return people.length > 1 ? `${people[0]} +${people.length - 1}` : people[0];
 }
 
-/** Poster card for Explorar, mirroring src/components/discover-game-card.tsx. */
 export function DiscoverGameCard({ item, onOpen, onOptions }: {
   item: DiscoverItem;
   onOpen: () => void;

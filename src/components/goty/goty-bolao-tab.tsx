@@ -203,7 +203,6 @@ export function GotyBolaoTab({
 
   return (
     <div className="space-y-6">
-      {/* Sub-navegação interna do Bolão */}
       <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
         <div
           className={cn(
@@ -276,7 +275,6 @@ export function GotyBolaoTab({
         </div>
       </div>
 
-      {/* Painel de progresso & revisão */}
       {view === 'ballot' && (
         <>
           <section className="goty-surface sticky top-[calc(4.15rem+env(safe-area-inset-top))] z-30 rounded-2xl border border-[#dfc06c]/25 bg-[#0e0d13]/95 px-3 py-2.5 shadow-[0_14px_38px_rgba(0,0,0,0.68)] backdrop-blur-xl min-[960px]:top-4 sm:rounded-3xl sm:p-5">
@@ -339,7 +337,6 @@ export function GotyBolaoTab({
             </div>
           </section>
 
-          {/* Busca e filtros de categoria */}
           <div className="space-y-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#9d8f70]" />
@@ -385,7 +382,6 @@ export function GotyBolaoTab({
             </div>
           </div>
 
-          {/* Lista das 30 categorias oficiais */}
           {filteredCategories.length === 0 ? (
             <div className="grid min-h-52 place-items-center rounded-3xl border border-dashed border-[#dfc06c]/20 bg-[#0f0e14] p-8 text-center">
               <div>
@@ -422,10 +418,8 @@ export function GotyBolaoTab({
         </>
       )}
 
-      {/* Classificação Geral & Desempenho Individual */}
       {view === 'leaderboard' && (
         <div className="space-y-6">
-          {/* Card de desempenho individual */}
           <section className="goty-surface relative overflow-hidden rounded-3xl border border-[#dfc06c]/30 bg-gradient-to-br from-[#19150d] via-[#100f15] to-[#0a0a0e] p-5 sm:p-6">
             <div
               aria-hidden="true"
@@ -472,7 +466,6 @@ export function GotyBolaoTab({
             </div>
           </section>
 
-          {/* Pódio Top 3 quando já houver resultados apurados */}
           {announcedCount > 0 && leaderboard.length > 0 && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {leaderboard.slice(0, 3).map((entry, idx) => (
@@ -523,7 +516,6 @@ export function GotyBolaoTab({
             </div>
           )}
 
-          {/* Tabela geral */}
           <section className="goty-surface overflow-hidden rounded-3xl border border-[#dfc06c]/20 bg-[#0f0e14]">
             <div className="flex items-center justify-between border-b border-[#dfc06c]/15 px-5 py-4">
               <div>
@@ -597,7 +589,6 @@ export function GotyBolaoTab({
         </div>
       )}
 
-      {/* Painel Administrativo de Controle e Apuração Manual */}
       {view === 'admin' && isAdmin && (
         <div className="space-y-6">
           <section className="goty-surface rounded-3xl border border-[#dfc06c]/30 bg-[#100f15] p-5 sm:p-6">
@@ -757,7 +748,6 @@ export function GotyBolaoTab({
         </div>
       )}
 
-      {/* Modal de Revisão e Confirmação das Previsões */}
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
         <DialogContent
           title={isConfirmed ? 'Suas previsões confirmadas' : 'Revisar meu Bolão GOTY 2026'}
@@ -863,7 +853,6 @@ export function GotyBolaoTab({
         </DialogContent>
       </Dialog>
 
-      {/* Modal de consulta das previsões de um participante */}
       <Dialog open={Boolean(inspectEntry)} onOpenChange={open => { if (!open) setInspectEntry(null); }}>
         <DialogContent
           title={inspectEntry ? `Palpites de ${inspectEntry.profile.name || 'Membro'}` : 'Palpites'}

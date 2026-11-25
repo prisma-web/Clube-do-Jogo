@@ -16,7 +16,6 @@ import {
 } from './labels';
 import type { VoteReason } from './types';
 
-// These strings are visible on web and mobile. Editing one here is a deliberate copy change.
 test('pins the visible names of domain concepts', () => {
   assert.deepEqual(voteChoiceLabels, { would_play: 'Jogaria', neutral: 'Neutro', would_not_play: 'Não' });
   assert.deepEqual(voteReasonLabels, {

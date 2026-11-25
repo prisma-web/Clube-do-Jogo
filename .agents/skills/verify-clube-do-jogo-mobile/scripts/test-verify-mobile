@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Testes de regressão do verify-mobile que não precisam de simulador nem de build.
-# Cada caso roda o helper copiado num repositório git temporário, com lock em XDG_STATE_HOME próprio.
 set -euo pipefail
 
 HELPER="$(cd "$(dirname "$0")" && pwd)/verify-mobile"
@@ -25,7 +23,6 @@ setup() {
   git -C "$REPO" init -q
   git -C "$REPO" add -A
   git -C "$REPO" -c user.email=t@t -c user.name=t commit -q -m init
-  # Wrapper falso no formato do device_open: um sh que executa um launcher com o array bound.
   mkdir -p "$WORK/device"
   printf 'const bound = ["--platform","ios","--udid","%s","--session","s"];\n' "$UDID" > "$WORK/device/agent-device-launcher.mjs"
   printf "#!/bin/sh\nexec node '%s' \"\$@\"\n" "$WORK/device/agent-device-launcher.mjs" > "$WORK/device/agent-device"
@@ -50,7 +47,6 @@ write_lock() {
   printf 'PID=%s\nPROC_START=%s\nRUN_ID=%s\nWORKTREE=%s\n' "$2" "$3" "$4" "$(cd "$REPO" && pwd -P)" > "$LOCKS/$1/owner"
 }
 
-# 1. cleanup com --run-id que sai do estado é recusado e não apaga a evidência.
 setup; make_run r1
 if vm cleanup --run-id ../../evidence/verify-clube-do-jogo-mobile/r1 2>/dev/null; then fail "cleanup aceitou run-id com ../"
 elif [ -f "$REPO/evidence/verify-clube-do-jogo-mobile/r1/prova.txt" ]; then pass "cleanup recusa run-id com ../ e mantém a evidência"
@@ -60,14 +56,12 @@ for bad in .. . builds 'r1/..' '-x'; do
   if vm cleanup --run-id "$bad" 2>/dev/null; then fail "cleanup aceitou run-id '$bad'"; else pass "cleanup recusa run-id '$bad'"; fi
 done
 
-# 2. um symlink no estado apontando para a evidência é recusado.
 setup; make_run r1
 ln -s "$REPO/evidence/verify-clube-do-jogo-mobile/r1" "$REPO/state/verify-clube-do-jogo-mobile/evil"
 if vm cleanup --run-id evil 2>/dev/null; then fail "cleanup seguiu symlink"
 elif [ -f "$REPO/evidence/verify-clube-do-jogo-mobile/r1/prova.txt" ]; then pass "cleanup recusa estado que é symlink"
 else fail "symlink recusado mas a evidência sumiu"; fi
 
-# 3. cleanup do próprio run limpa o estado, libera o próprio lock órfão e mantém o de outro run.
 setup; make_run r1
 write_lock "$UDID" "$(dead_pid)" "" r1
 write_lock OUTRO-UDID "$(dead_pid)" "" r2
@@ -76,7 +70,6 @@ if [ ! -e "$REPO/state/verify-clube-do-jogo-mobile/r1" ] && [ -f "$REPO/evidence
   && [ ! -e "$LOCKS/$UDID" ] && [ -d "$LOCKS/OUTRO-UDID" ]; then pass "cleanup libera só o lock órfão do próprio run"
 else fail "cleanup não limpou estado/lock como esperado"; fi
 
-# 4. cleanup recusa enquanto um drive vivo do run segura o lock.
 setup; make_run r1
 sleep 30 & live=$!
 write_lock "$UDID" "$live" "$(ps -o lstart= -p "$live" | sed 's/^ *//')" r1
@@ -84,7 +77,6 @@ if vm cleanup --run-id r1 2>/dev/null; then fail "cleanup apagou com drive vivo"
 elif [ -d "$LOCKS/$UDID" ] && [ -d "$REPO/state/verify-clube-do-jogo-mobile/r1" ]; then pass "cleanup recusa com drive vivo"
 else fail "cleanup recusou mas mexeu no estado"; fi
 
-# 5. drive recusa aparelho com lock vivo de outra sessão.
 if out=$(vm drive --run-id r1 --udid "$UDID" --agent-device "$WORK/device/agent-device" "$WORK/flow.yaml" 2>&1); then fail "drive ignorou lock vivo"
 elif grep -q "em uso" <<<"$out" && [ "$(sed -n 's/^PID=//p' "$LOCKS/$UDID/owner")" = "$live" ]; then pass "drive recusa lock vivo e não o toca"
 else fail "drive falhou por outro motivo: $out"; fi

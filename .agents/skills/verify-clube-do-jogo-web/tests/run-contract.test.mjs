@@ -10,7 +10,6 @@ import { processInfo } from '../scripts/processes.mjs';
 const skill = 'verify-clube-do-jogo-web';
 
 function fixture() {
-  // realpath: macOS tmpdir is a /var -> /private/var symlink, and the helper resolves its own path.
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'clube-verification-')));
   const scripts = join(root, `.agents/skills/${skill}/scripts`);
   const helper = join(scripts, `${skill}.mjs`);
@@ -287,7 +286,6 @@ test('launch stops an unpublished process when the checkout dirties after spawn'
     f.initGit();
     const bin = join(f.root, 'bin');
     mkdirSync(bin, { recursive: true });
-    // The delay lands the write after spawn returns, so only a check made once the port is bound sees it.
     writeFileSync(join(bin, 'npm'), `#!/bin/sh
 sleep 1
 printf '%s\\n' 'changed after spawn' > fixture.txt
@@ -552,13 +550,11 @@ setTimeout(() => process.exit(0), 500);
   }
 });
 
-
 test('launch refuses a listening port whose owner cannot be inspected', () => {
   const f = fixture();
   try {
     const bin = join(f.root, 'bin');
     mkdirSync(bin);
-    // A listener row with no owning PID, as ss (Linux) and netstat (macOS) print for a foreign socket.
     writeFileSync(join(bin, 'ss'), '#!/bin/sh\nprintf "LISTEN 0 511 127.0.0.1:3102 0.0.0.0:*\\n"\n', { mode: 0o755 });
     writeFileSync(join(bin, 'netstat'), '#!/bin/sh\nprintf "tcp4 0 0 127.0.0.1.3102 *.* LISTEN 0 0 131072 131072\\n"\n', { mode: 0o755 });
     const result = f.runEnv({ ...process.env, PATH: `${bin}:${process.env.PATH}` }, 'launch', '--port', '3102');

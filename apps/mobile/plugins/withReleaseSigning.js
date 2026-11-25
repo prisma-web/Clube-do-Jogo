@@ -1,17 +1,5 @@
-// Config plugins do Expo são carregados com require na avaliação de app.config.ts,
-// então este arquivo precisa ser CommonJS.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { withAppBuildGradle } = require('expo/config-plugins');
-
-/**
- * Faz o build `release` do Android assinar com a keystore de distribuição.
- *
- * A keystore é lida na hora do Gradle, de propriedade (-P ou gradle.properties) ou
- * variável de ambiente: ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD,
- * ANDROID_KEY_ALIAS e ANDROID_KEY_PASSWORD. Assim nenhum segredo vai parar no
- * android/ gerado. Sem ANDROID_KEYSTORE_PATH, o release continua com a keystore
- * de debug do template, como antes.
- */
 
 const MARKER = 'releaseSigningValue';
 

@@ -26,8 +26,6 @@ const navigation: Array<{ href: string; label: string; mobileLabel?: string; ico
   { href: '/perfil', label: 'Perfil', icon: UserRound },
 ];
 
-// Mantém o modo de contemplação implementado, mas fora da interface até que
-// decidamos reativá-lo em um build futuro.
 const SHOW_COSMIC_BACKGROUND_VIEW = process.env.NEXT_PUBLIC_SHOW_COSMIC_BACKGROUND_VIEW === 'true';
 
 const atmosphereLights = [

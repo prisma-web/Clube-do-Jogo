@@ -1,4 +1,3 @@
-// Loaded into the Next dev server by playwright.config.ts: answers the latest release notes download with a fixture.
 import { readFileSync } from 'node:fs';
 
 const update = JSON.parse(readFileSync(new URL('./product-update.json', import.meta.url), 'utf8'));

@@ -5,8 +5,6 @@ import { nativeStorage } from '@/platform';
 import { useAppInternal } from './app-provider';
 import { notesCacheKey, parseNotesCache, serializeNotesCache, type NotesOfflineCache } from './notes-offline-cache';
 
-// Writes for one cache key land in the order they were issued, so an older list can never
-// overwrite a newer one. Separate from draftWrites: this key holds server data, not user input.
 const cacheWrites = new Map<string, Promise<void>>();
 
 function enqueueCacheWrite(key: string, write: () => Promise<void>) {
@@ -20,15 +18,10 @@ function enqueueCacheWrite(key: string, write: () => Promise<void>) {
 }
 
 export interface NotesOfflineCacheState {
-  /** Last server-confirmed list for this account/game, or null when none was saved. */
   cache: NotesOfflineCache | null;
   loading: boolean;
 }
 
-/**
- * Persists every successful notes read and exposes the last one, so PrivateNotes can show the
- * synced notes when the server does not answer (offline, paused query, or error).
- */
 export function useNotesOfflineCache(
   gameId: string,
   snapshotMonth: string | null,
@@ -56,8 +49,6 @@ export function useNotesOfflineCache(
   const { data, dataUpdatedAt, isSuccess } = query;
   React.useEffect(() => {
     if (!key || !isSuccess || !data) return;
-    // Only persisted here: PrivateNotes reads the cache only while the query has no data, and React
-    // Query keeps the last data across later errors, so the in-memory copy never needs updating.
     const serialized = serializeNotesCache(data, new Date(dataUpdatedAt || Date.now()).toISOString());
     void enqueueCacheWrite(key, () => nativeStorage.setItem(key, serialized)).catch(() => undefined);
   }, [data, dataUpdatedAt, isSuccess, key]);

@@ -1,10 +1,3 @@
--- Clube do Jogo: cargos, ciclos manuais e dados permanentes por jogo.
--- Execute depois de schema.sql e migration_monthly_club.sql.
-
--- ---------------------------------------------------------------------------
--- 1. Cargos administrativos
--- ---------------------------------------------------------------------------
-
 CREATE TABLE IF NOT EXISTS public.user_roles (
   user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
   role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('member', 'admin')),
@@ -125,10 +118,6 @@ REVOKE ALL ON FUNCTION public.set_user_role(UUID, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.is_admin(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.set_user_role(UUID, TEXT) TO authenticated;
 
--- ---------------------------------------------------------------------------
--- 2. Ciclos mensais controlados pelo encontro, não pelo calendário
--- ---------------------------------------------------------------------------
-
 ALTER TABLE public.club_months ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'closed';
 ALTER TABLE public.club_months ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ;
 ALTER TABLE public.club_months ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
@@ -168,8 +157,6 @@ ALTER TABLE public.club_cycle_events ADD COLUMN IF NOT EXISTS reverted_at TIMEST
 ALTER TABLE public.club_cycle_events ADD COLUMN IF NOT EXISTS reverted_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.club_cycle_events ADD COLUMN IF NOT EXISTS redo_invalidated_at TIMESTAMPTZ;
 
--- Criada antes das funções de encerramento para que o estado das anotações
--- possa ser fotografado na mesma transação que fecha o ciclo.
 CREATE TABLE IF NOT EXISTS public.game_notes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -334,8 +321,6 @@ BEGIN
     RAISE EXCEPTION 'Jogo não encontrado';
   END IF;
 
-  -- Qualquer decisão manual inicia uma nova linha do tempo e invalida redos
-  -- pendentes de decisões que haviam sido desfeitas.
   UPDATE public.club_cycle_events
   SET redo_invalidated_at = NOW()
   WHERE reverted_at IS NOT NULL AND redo_invalidated_at IS NULL;
@@ -554,7 +539,6 @@ BEGIN
 END;
 $$;
 
--- Desativa a antiga virada automática por data sem quebrar clientes antigos.
 CREATE OR REPLACE FUNCTION public.finalize_closed_club_months()
 RETURNS VOID
 LANGUAGE plpgsql
@@ -584,7 +568,6 @@ GRANT EXECUTE ON FUNCTION public.get_club_game_undo_preview(UUID) TO authenticat
 GRANT EXECUTE ON FUNCTION public.undo_club_game_change(UUID, BOOLEAN) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.redo_club_game_change(UUID) TO authenticated;
 
--- Votos pertencem à eleição do ciclo seguinte ao ciclo ativo.
 DROP POLICY IF EXISTS "Permitir inserção de voto próprio" ON public.votes;
 CREATE POLICY "Permitir inserção de voto próprio" ON public.votes
 FOR INSERT WITH CHECK (
@@ -604,11 +587,6 @@ FOR DELETE USING (
   )
 );
 
--- ---------------------------------------------------------------------------
--- 3. Progresso permanente por usuário + jogo
--- ---------------------------------------------------------------------------
-
--- As políticas mensais dependem da coluna antiga e precisam sair antes dela.
 DROP POLICY IF EXISTS "Criar progresso atual proprio" ON public.game_progress;
 DROP POLICY IF EXISTS "Atualizar progresso atual proprio" ON public.game_progress;
 DROP POLICY IF EXISTS "Excluir progresso proprio" ON public.game_progress;
@@ -650,10 +628,6 @@ FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Excluir progresso proprio" ON public.game_progress
 FOR DELETE USING (auth.uid() = user_id);
 
--- ---------------------------------------------------------------------------
--- 4. Anotações privadas permanentes por jogo e sincronizadas
--- ---------------------------------------------------------------------------
-
 CREATE INDEX IF NOT EXISTS game_notes_user_game_idx
 ON public.game_notes(user_id, game_id, created_at);
 
@@ -691,9 +665,6 @@ REVOKE INSERT, UPDATE, DELETE ON public.cycle_note_snapshots FROM authenticated;
 GRANT SELECT ON public.cycle_progress_snapshots TO authenticated;
 GRANT SELECT ON public.cycle_note_snapshots TO authenticated;
 
--- Os ciclos encerrados antes desta migration não possuem um estado histórico
--- recuperável. Este backfill guarda o melhor estado disponível no momento da
--- atualização; os próximos encerramentos serão fotografados de forma exata.
 DO $$
 DECLARE
   closed_cycle RECORD;
@@ -706,8 +677,6 @@ BEGIN
 END;
 $$;
 
--- Comentários públicos continuam ligados ao ciclo, mas o ciclo ativo substitui
--- a comparação antiga com o mês do relógio.
 DROP POLICY IF EXISTS "Criar comentario no mes atual" ON public.club_comments;
 CREATE POLICY "Criar comentario no ciclo ativo" ON public.club_comments
 FOR INSERT WITH CHECK (
@@ -741,9 +710,3 @@ FOR DELETE USING (
   AND club_month = (SELECT month FROM public.club_months WHERE status = 'active')
 );
 
--- A migration não cria senhas nem grava credenciais no repositório. Depois de
--- criar o usuário geral em Authentication > Users, promova-o no SQL Editor:
---
--- INSERT INTO public.user_roles (user_id, role)
--- SELECT id, 'admin' FROM auth.users WHERE email = 'EMAIL_DO_ADMIN'
--- ON CONFLICT (user_id) DO UPDATE SET role = 'admin', updated_at = NOW();

@@ -34,15 +34,12 @@ test('gallery zoom stays within bounds', () => {
 
 test('gallery pan is clamped to the zoomed image edges and resets at 1x', () => {
   const viewport = { width: 400, height: 600 };
-  const landscape = { width: 1600, height: 900 }; // contained: 400 x 225
+  const landscape = { width: 1600, height: 900 };
   assert.deepEqual(containedSize(viewport, landscape), { width: 400, height: 225 });
   assert.deepEqual(clampPan({ x: 300, y: 300 }, 1, viewport, landscape), { x: 0, y: 0 });
-  // 2x: image is 800 x 450, overflows 200px per side horizontally, never vertically.
   assert.deepEqual(clampPan({ x: 500, y: 120 }, 2, viewport, landscape), { x: 200, y: 0 });
   assert.deepEqual(clampPan({ x: -500, y: -120 }, 2, viewport, landscape), { x: -200, y: 0 });
-  // 3x: 1200 x 675 overflows 37.5px vertically.
   assert.deepEqual(clampPan({ x: 10, y: -100 }, 3, viewport, landscape), { x: 10, y: -37.5 });
-  // Unknown image size falls back to the viewport.
   assert.deepEqual(clampPan({ x: 999, y: 999 }, 2, viewport, null), { x: 200, y: 300 });
 });
 

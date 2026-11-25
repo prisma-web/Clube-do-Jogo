@@ -18,8 +18,6 @@ import { gotyColors, gotyShared } from './goty-theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-// ---------- Feedback (toast dourado da experiência) ----------
-
 type FeedbackTone = 'success' | 'error' | 'info';
 type FeedbackMessage = { id: number; text: string; tone: FeedbackTone };
 
@@ -78,8 +76,6 @@ export function GotyFeedbackProvider({ children, bottomOffset = 0 }: { children:
     </GotyFeedbackContext.Provider>
   );
 }
-
-// ---------- Sheet temático ----------
 
 export function GotySheet({
   visible,
@@ -140,8 +136,6 @@ export function GotySheet({
   );
 }
 
-// ---------- Controle segmentado dourado ----------
-
 export function GotySegmented<T extends string>({
   options,
   value,
@@ -190,8 +184,6 @@ export function GotySegmented<T extends string>({
     </View>
   );
 }
-
-// ---------- Chips e pílulas ----------
 
 export function GotyChip({
   label,

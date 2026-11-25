@@ -43,7 +43,6 @@ const statusOrder: ProgressStatus[] = ['not_started', 'started', 'finished'];
 
 type GameDetailTab = 'overview' | 'progress' | 'notes';
 
-// Parity with src/app/jogos/[id]/page.tsx (`section` URL param).
 const tabs: { key: GameDetailTab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'overview', label: 'Visão geral', icon: 'grid-outline' },
   { key: 'progress', label: 'Progresso', icon: 'list-outline' },
@@ -63,8 +62,6 @@ export default function GameDetailScreen() {
   const activeTab = parseTab(section);
   const setActiveTab = (tab: GameDetailTab) => router.setParams({ section: tab });
   const statusMeta = useStatusMeta();
-  // Voting is the only cycle-scoped action here: progress, rating and private notes
-  // stay live while a historical cycle is selected (parity with the web).
   const { userId, profile, isAdmin, isHistorical, isDemo } = useApp();
   const clubGameAdmin = useClubGameAdminAction();
 
@@ -190,7 +187,6 @@ export default function GameDetailScreen() {
   const mutationError = backlog.error || favorite.error || vote.error || setProgress.error;
   const hasCover = Boolean(game.image_url);
   const hasTrailer = Boolean(youtubeEmbedUrl(game.trailer_url));
-  // Cover first, like the web gallery: it can be enlarged and used as avatar too.
   const galleryImages = Array.from(new Set([game.image_url, ...(game.screenshot_urls ?? [])].filter((url): url is string => Boolean(url))));
   const mugshots = mugshotsQuery.data ?? [];
   const allGalleryImages = [...galleryImages, ...mugshots.map(mugshot => mugshot.image_url)];
@@ -204,7 +200,6 @@ export default function GameDetailScreen() {
     try {
       await Share.share({ message: `${game!.title} — ${url}`, url });
     } catch {
-      // usuário cancelou o compartilhamento
     }
   }
 
@@ -224,7 +219,6 @@ export default function GameDetailScreen() {
     );
   }
 
-  // Re-adjusting the active avatar starts from its saved crop, not the default.
   const avatarEditorCrop = avatarSource && avatarSource.url === activeAvatarUrl
     ? normalizeAvatarCrop(profile?.avatar_crop)
     : DEFAULT_AVATAR_SELECTION_CROP;
@@ -508,7 +502,6 @@ export default function GameDetailScreen() {
         onConfirm={confirmStatus}
       />
 
-      {/* No per-index key: remounting the native <Modal> on every image change flickers. */}
       {galleryIndex !== null && <ImageGalleryModal
         visible={galleryIndex !== null}
         title={game.title}

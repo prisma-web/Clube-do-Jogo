@@ -1,6 +1,3 @@
--- Recompensa cosmética do ciclo de julho de 2026.
--- Execute depois de migration_rewards.sql e durante o ciclo ativo.
-
 DO $$
 BEGIN
   IF NOT EXISTS (

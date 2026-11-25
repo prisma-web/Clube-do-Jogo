@@ -1,6 +1,3 @@
--- Timeline: comentarios compartilhados e atualizados em tempo real.
--- Execute uma vez no SQL Editor do Supabase.
-
 ALTER TABLE public.club_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.comment_reactions ENABLE ROW LEVEL SECURITY;
 

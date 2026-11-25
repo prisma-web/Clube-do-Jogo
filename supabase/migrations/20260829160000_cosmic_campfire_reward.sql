@@ -1,7 +1,3 @@
--- Recompensa cosmética do ciclo de agosto de 2026.
--- A concessão continua sendo feita exclusivamente pelo trigger de fechamento
--- do ciclo, usando o snapshot de progresso capturado na mesma transação.
-
 DO $$
 DECLARE
   cycle_status TEXT;

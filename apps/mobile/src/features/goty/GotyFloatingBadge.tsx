@@ -6,15 +6,6 @@ import { gotyBadgeBottomOffset, gotyBadgeClearance, shouldShowGotyBadge } from '
 import { gotyColors } from './goty-theme';
 import { TgaEmblem } from './TgaEmblem';
 
-/**
- * Atalho flutuante "Especial GOTY 2026" (paridade com goty-floating-badge.tsx da web):
- * fica acima da tab bar nas abas principais, desce para perto da borda nas telas
- * empilhadas e some na própria rota /goty-2026.
- */
-/**
- * Folga inferior que uma tela rolável precisa para o fim do conteúdo não ficar
- * embaixo do badge (zero onde ele não aparece).
- */
 export function useGotyBadgeClearance(): number {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();

@@ -229,7 +229,6 @@ const NON_COMMERCIAL_STATUS_TOKENS = [
 
 const EXCLUDED_GAME_TYPES = new Set([1, 2, 3, 5, 6, 7, 11, 12]);
 
-// IGDB game_status legacy/current IDs for non-released states: 2=Alpha, 3=Beta, 4=Early Access, 5=Offline, 6=Cancelled, 7=Rumored, 8=Delisted
 const NON_RELEASED_GAME_STATUSES = new Set([2, 3, 4, 5, 6, 7, 8]);
 
 function isNonCommercialStatus(statusName?: string | null): boolean {
@@ -380,7 +379,6 @@ export function evaluate2026ReleaseEligibility(
     };
   }
 
-  // Only Early Access / non-commercial dates exist so far
   if (rawDates.length > 0 && rawDates.every(entry => isNonCommercialStatus(entry.statusName))) {
     return {
       eligible: false,
@@ -392,7 +390,6 @@ export function evaluate2026ReleaseEligibility(
     };
   }
 
-  // Fallback when IGDB omits release_dates array but provides first_release_date
   if (input.gameStatus != null && NON_RELEASED_GAME_STATUSES.has(input.gameStatus)) {
     return {
       eligible: false,

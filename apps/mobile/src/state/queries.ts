@@ -27,9 +27,6 @@ import { createMobileApiTransport, getMobileSupabaseClient } from '@/platform';
 import { useAppInternal } from './app-provider';
 import { isNewVote, optimisticRanking } from './optimistic-ranking';
 
-// Best-effort push, mirroring src/app/ranking/page.tsx's `notifyRankingLeader`
-// (same `/api/push/ranking-leader` route and payload shape). The vote is already
-// saved by the time this runs, so a push failure must never surface as a failed vote.
 function notifyRankingLeaderPush(voteMonth: string, previousLeaderId: string | null, leaderId: string | null) {
   const transport = createMobileApiTransport(getMobileSupabaseClient());
   void transport.request(apiRoutes.pushRankingLeader.path, {
@@ -50,7 +47,6 @@ function notifyVotingThreshold(voteMonth: string, gameId: string) {
 
 type VoteVariables = {
   gameId: string;
-  /** Lets the optimistic update show a game that is not in the ranking yet. */
   game?: Game;
   choice: VoteChoice | null;
   reason?: VoteReason | null;
@@ -78,9 +74,6 @@ function libraryKey(context: ReturnType<typeof useAppInternal>, profileId: strin
   return ['library', context.sessionEpoch, context.userId, profileId, shiftMonth(context.selectedMonth, 1), context.isDemo] as const;
 }
 
-// Progress is live by default, even while a historical cycle is selected (parity
-// with the web game detail and Meus Jogos). Only a caller that explicitly passes a
-// `snapshotMonth` (the historical Jogo do Mês) reads the frozen cycle snapshot.
 export function progressQueryKey(context: Pick<ReturnType<typeof useAppInternal>, 'sessionEpoch' | 'userId' | 'isDemo'>, gameId: string, snapshotMonth: string | null = null) {
   return ['progress', context.sessionEpoch, context.userId, snapshotMonth, gameId, context.isDemo] as const;
 }
@@ -363,7 +356,6 @@ export function useDiscovery(source: DiscoverSource, search?: string): UseQueryR
   });
 }
 
-/** Title search through `/api/search` (same endpoint as the web ranking search); demo mode filters demo titles. */
 export function useGameSearch(query: string): UseQueryResult<Game[], Error> {
   const context = useAppInternal();
   const userId = context.userId;

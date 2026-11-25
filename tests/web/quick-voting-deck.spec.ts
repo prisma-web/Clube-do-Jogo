@@ -29,7 +29,6 @@ test('a neutral answer stays answered when the tab regains focus', async ({ page
     window.dispatchEvent(new Event('focus'));
     document.dispatchEvent(new Event('visibilitychange'));
   });
-  // Let the forced ranking refresh land before asserting nothing came back.
   await page.waitForTimeout(500);
   await expect(cardTitle(page)).toHaveText(second);
   await expect(cardTitle(page)).not.toHaveText(neutral);

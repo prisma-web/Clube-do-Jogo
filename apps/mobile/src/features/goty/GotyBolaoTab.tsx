@@ -121,7 +121,6 @@ export function GotyBolaoTab({
     onViewChange('ballot');
     setFilter('all');
     setSearch('');
-    // Espera a lista completa voltar a ser renderizada antes de medir a posição.
     setTimeout(() => scrollToNode(categoryRefs.current.get(categoryId) ?? null), 350);
   }
 
@@ -297,7 +296,6 @@ export function GotyBolaoTab({
   );
 }
 
-/** Barra fixa de progresso do Bolão (equivalente ao painel sticky da web). */
 export function GotyBolaoDock({
   progress,
   isConfirmed,

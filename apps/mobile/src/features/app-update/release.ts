@@ -22,7 +22,6 @@ export interface Update {
   readonly release: Release;
 }
 
-/** Where to look for updates, and what is installed. Exists only on Android production builds. */
 export interface UpdateSource {
   readonly repo: string;
   readonly installed: Semver;
@@ -60,10 +59,6 @@ function parseApkAsset(value: unknown, downloadPrefix: string): ApkAsset | null 
   return { name, url, size };
 }
 
-/**
- * Parses `GET /repos/{repo}/releases/latest`. Null when the payload is not a published `vX.Y.Z`
- * release with an APK downloaded from that repo's releases on github.com.
- */
 export function parseLatestRelease(json: unknown, repo: string): Release | null {
   if (!isRecord(json) || json.draft === true || json.prerelease === true) return null;
   const tag = json.tag_name;
@@ -81,10 +76,6 @@ export function availableUpdate(release: Release, installed: Semver): Update | n
   return compareSemver(release.version, installed) > 0 ? { installed, release } : null;
 }
 
-/**
- * `apkUpdates` is the `extra.apkUpdates` that app.config.ts writes only for the production
- * variant; `installedVersion` is the installed binary's versionName.
- */
 export function resolveUpdateSource({ os, apkUpdates, installedVersion }: {
   os: string;
   apkUpdates: unknown;

@@ -1,14 +1,5 @@
 import type { IGDBCharacterMugshot, IGDBGameResult, IGDBPlatformResult } from './igdb';
 
-/**
- * Catálogo local usado no lugar da IGDB quando IGDB_OFFLINE_CATALOG=1.
- *
- * Existe para as verificações vivas (fixture Supabase + Next local) que não têm
- * o IGDB_CLIENT_ID/SECRET. A build final tem o segredo e nunca liga esta flag.
- * Os jogos casam com o seed da fixture (Outer Wilds, Hollow Knight, Celeste,
- * Hades) e trazem todos os campos que /api/search considera "metadados frescos",
- * senão a rota tenta a IGDB de qualquer jeito.
- */
 export function isOfflineCatalogEnabled(): boolean {
   return process.env.IGDB_OFFLINE_CATALOG === '1';
 }
@@ -34,7 +25,6 @@ function game(input: {
   id: number;
   slug: string;
   title: string;
-  /** Capa real da IGDB quando o jogo existe no seed; sem ela a rota de mídia não sobrescreve a capa gravada. */
   cover?: string;
   year: number;
   hours: number;

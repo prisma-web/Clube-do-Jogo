@@ -134,9 +134,8 @@ test('computeBolaoProgress and computeBolaoLeaderboard score predictions accurat
   const goty = state.categories[0];
   const direction = state.categories[1];
 
-  // Set official winners for first two categories
-  goty.winner_nominee_id = goty.nominees[2].id; // Grand Theft Auto VI
-  direction.winner_nominee_id = direction.nominees[0].id; // Control Resonant
+  goty.winner_nominee_id = goty.nominees[2].id;
+  direction.winner_nominee_id = direction.nominees[0].id;
 
   const votes = [
     { edition_year: 2026, user_id: 'u1', category_id: goty.id, nominee_id: goty.nominees[2].id, updated_at: '2026-11-20T10:00:00Z' },
@@ -156,7 +155,6 @@ test('computeBolaoProgress and computeBolaoLeaderboard score predictions accurat
 
   const board = computeBolaoLeaderboard(state.categories, votes, [], profiles);
   assert.equal(board.length, 2);
-  // Both got 1 correct, but u1 hit Game of the Year so u1 ranks #1
   assert.equal(board[0].user_id, 'u1');
   assert.equal(board[0].correctCount, 1);
   assert.equal(board[0].hitGoty, true);

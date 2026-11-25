@@ -293,7 +293,6 @@ test('check does not count a note that master deleted after the PR left it', () 
   assert.match(result.stderr, /não adiciona nenhuma nota/);
 });
 
-/** `released` are the tags with a published GitHub release; by default, every tag in the repo. */
 function assemble(dir, tag, released = git(dir, 'tag', '--list').split('\n')) {
   const out = join(dir, 'out', 'product-update.json');
   rmSync(join(dir, 'out'), { recursive: true, force: true });
@@ -352,7 +351,6 @@ test('assemble ignores tags that are not ancestors or are not lower than the rel
   git(dir, 'tag', 'not-a-version');
   git(dir, 'tag', 'v2.1.0');
 
-  // v1.5.0 is lower and published, but off to the side: "antes" was never released to v2.0.0's line.
   assert.deepEqual(titles(assemble(dir, 'v2.0.0')), ['antes', 'nova']);
   assert.deepEqual(titles(assemble(dir, 'v2.1.0')), ['mais']);
 });
@@ -505,7 +503,6 @@ test('assemble rejects a tag that is not vX.Y.Z', () => {
   assert.equal(assemble(dir, 'v1.0').status, 1);
 });
 
-/** Runs the script as if on Node `version`, which strips types only behind --experimental-strip-types, if at all. */
 function runOnNode(version, dir, ...args) {
   const preload = pathToFileURL(join(root, 'tests', 'fixtures', 'release-notes', 'pretend-node.mjs')).href;
   return runWith({ NODE_OPTIONS: `--import=${preload}`, PRETEND_NODE_VERSION: version }, dir, ...args);

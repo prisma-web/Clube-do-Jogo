@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# Model-checks model/PendingNotes.tla and compares every run with the outcome
-# recorded in ../SKILL.md. Usage: check.sh [--deep] [--reviewed]
-#   --deep      base config with MaxRevs = 3 (about a minute instead of seconds)
-#   --reviewed  covered code changed since the sync commit and you already
-#               confirmed the model still describes it
-# Exit: 0 as recorded, 1 a run differs from the record, 2 covered code changed
-# since the sync commit (rerun with --reviewed after reading the diff).
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -46,9 +39,6 @@ fi
 
 failures=0
 
-# run <name> <cfg relative to model/> <expect: pass|violation|violation-retry> <workers>
-# violation is NoLostNote; violation-retry is NoLostRetry (a dropped flush trigger).
-# TLC resolves -config against the spec's folder, so it runs from model/.
 run() {
   local name="$1" cfg="$2" expect="$3" workers="$4" out="$CACHE/$1.out" start elapsed got
   start=$(date +%s)
@@ -80,11 +70,9 @@ for variant in drop-on-conflict no-load-wait unserialized-writes use-local-drops
   sed "s/Variant = \"none\"/Variant = \"$variant\"/" "$MODEL/PendingNotes.cfg" >"$CACHE/mutant-$variant.cfg"
   run "mutant-$variant" "../.cache/mutant-$variant.cfg" violation 1
 done
-# The code before the reconnect fix: a trigger that meets an awaiting send is skipped.
 sed 's/Variant = "none"/Variant = "no-rerun"/' "$MODEL/PendingNotes.cfg" >"$CACHE/mutant-no-rerun.cfg"
 run mutant-no-rerun ../.cache/mutant-no-rerun.cfg violation-retry 1
 
-# Coverage record: the ```coverage block in SKILL.md (sync commit + files).
 sync="$(awk '/^```coverage/{on=1; next} on && /^```/{exit} on && $1=="sync"{print $2}' "$SKILL_DIR/SKILL.md")"
 files=()
 while IFS= read -r path; do files+=("$path"); done < <(awk '/^```coverage/{on=1; next} on && /^```/{exit} on && $1!="sync"{print $1}' "$SKILL_DIR/SKILL.md")

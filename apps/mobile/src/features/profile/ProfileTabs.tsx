@@ -22,8 +22,6 @@ const EMPTY_TITLES: Record<Exclude<TabKey, 'platforms'>, { icon: keyof typeof Io
   completed: { icon: 'flag-outline', title: 'Nenhum jogo finalizado ainda.' },
 };
 
-// Shared by the own profile and the public member profile: the four tabs with
-// counts (Favoritos, Biblioteca, Finalizados, Consoles), as in src/components/profile-view.tsx.
 export function ProfileTabs({ favorites, backlog, completed, platforms, onOpenGame, platformsHeader }: {
   favorites: Game[];
   backlog: Game[];

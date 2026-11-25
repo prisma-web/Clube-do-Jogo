@@ -36,7 +36,6 @@ test('associated domain aceita só host https sem porta e cai no domínio de pro
     [undefined, production],
     ['https://staging.example.com', ['webcredentials:staging.example.com']],
     ['http://localhost:3000', production],
-    // The localhost case above never reaches the https rule; the dotted-host rule rejects it first.
     ['http://staging.example.com', production],
     ['https://example.com:8443', production],
     ['not-a-url', production],

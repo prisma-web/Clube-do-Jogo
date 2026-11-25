@@ -1,9 +1,3 @@
-/*
- * ARQUIVO GERADO. Não edite à mão.
- * Fonte: packages/domain/src/theme-palettes.ts (cores) e packages/domain/src/themes.ts (color-scheme).
- * Regenere com: npm run themes:generate
- */
-
 :root,
 :root[data-theme='original'] {
   color-scheme: dark;

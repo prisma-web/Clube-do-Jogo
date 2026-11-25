@@ -1,8 +1,5 @@
 import type { Game, RankingFormula, RankingItem, VoteChoice, VoteParticipant } from './types';
 
-// Ordem canônica da votação: Não, Neutro, Jogaria. Contadores, botões e abas leem
-// daqui porque, quando cada tela mantinha a própria lista, elas divergiram e o
-// número verde acabou em cima do botão vermelho.
 export const voteChoices: readonly VoteChoice[] = ['would_not_play', 'neutral', 'would_play'];
 
 export function isVoteChoice(value: unknown): value is VoteChoice {
@@ -21,12 +18,10 @@ export function countChoices(profiles: Record<VoteChoice, readonly unknown[]>): 
   return byChoice(choice => profiles[choice].length);
 }
 
-/** Everyone who answered, in `voteChoices` order. A neutral answer is participation. */
 export function choiceParticipants(profiles: Record<VoteChoice, VoteParticipant[]>): VoteParticipant[] {
   return voteChoices.flatMap(choice => profiles[choice]);
 }
 
-/** Moves one member into `choice`, or out of every group when `choice` is null. Only a negative answer keeps a reason. */
 export function moveParticipant(
   profiles: Record<VoteChoice, VoteParticipant[]>,
   participant: VoteParticipant,
@@ -71,7 +66,6 @@ export function rankingScore(
     : preferenceRankingScore(counts);
 }
 
-/** Recomputes a ranking row after the current member answers `choice` (null removes the vote). */
 export function applyMyVote(
   item: RankingItem,
   me: VoteParticipant,

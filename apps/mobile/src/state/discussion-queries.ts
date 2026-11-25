@@ -47,9 +47,6 @@ import { refetchNotesAfterWrite } from './notes-refresh';
 
 export { mergePendingIntoList, type NoteConflict, type PendingLocalNote, type PendingNotesQueue } from './notes-queue';
 
-// Best-effort push, mirroring src/components/timeline.tsx (`/api/push/comment` with the
-// same { commentId } payload). The comment is already saved by the time this runs, so a
-// push failure must never surface as a failed comment.
 function notifyCommentPush(commentId: string) {
   const transport = createMobileApiTransport(getMobileSupabaseClient());
   void transport.request(apiRoutes.pushComment.path, {
@@ -318,8 +315,6 @@ function reactionInput(context: DiscussionContext, input: ReactionVariables): Co
   };
 }
 
-// Private notes are personal and stay live while a historical cycle is selected;
-// only an explicit snapshot view (input.historical) is read-only.
 function noteDeleteInput(context: DiscussionContext, input: NoteDeleteVariables): NoteDeleteInput {
   return { userId: requireUser(context.userId), isDemo: context.isDemo, gameId: input.gameId, noteId: input.noteId, expectedUpdatedAt: input.expectedUpdatedAt, historical: input.historical === true };
 }
@@ -507,7 +502,6 @@ export function useSetCommentReaction(): UseMutationResult<void, Error, Reaction
   });
 }
 
-// Notes are live unless the caller explicitly asks for a cycle snapshot.
 function snapshotFor(options?: { snapshotMonth?: string | null }) {
   return options?.snapshotMonth || null;
 }
@@ -663,22 +657,11 @@ export interface NotesPendingQueueState {
   submitUpdate(note: LocalNote, expectedUpdatedAt: string): void;
   resolveUseRemote(noteId: string): void;
   resolveKeepAsNew(noteId: string): void;
-  /**
-   * "Usar minha versão" / "Restaurar minha versão": keeps the local text under the same id. A
-   * `changed` conflict becomes a conditional update over the server version shown to the user; a
-   * `deleted` conflict becomes a create, re-inserting the note the server lost.
-   */
   resolveUseLocal(noteId: string): void;
-  /** "Aceitar exclusão": only for `deleted` conflicts; drops the local copy (a user discard). */
   resolveAcceptDeletion(noteId: string): void;
-  /** "Sincronizar novamente": the same flushAll the online/focus listeners run. */
   retryAll(): void;
 }
 
-// One slot per note id (`notes-queue.ts`), not the single (userId, gameId)
-// draft slot: a note that already got a "send" tap lives here, independent
-// of whatever the composer is being typed into next, so a second note typed
-// before the first confirms cannot overwrite it.
 export function useNotesPendingQueue(gameId: string): NotesPendingQueueState {
   const context = useAppInternal();
   const userId = context.userId;
@@ -692,7 +675,6 @@ export function useNotesPendingQueue(gameId: string): NotesPendingQueueState {
   const [corruptionError, setCorruptionError] = React.useState<Error | null>(null);
   const queueRef = React.useRef(queue);
   const conflictsRef = React.useRef(conflicts);
-  // Sends awaiting the network, plus the triggers that arrived meanwhile (createFlushGate).
   const flushGateRef = React.useRef(createFlushGate());
 
   const applyQueue = React.useCallback((next: PendingNotesQueue) => {
@@ -737,8 +719,6 @@ export function useNotesPendingQueue(gameId: string): NotesPendingQueueState {
   }, [context, context.ready, epoch, key, userId]);
 
   const flushOne = React.useCallback(async (noteId: string): Promise<void> => {
-    // One pass per send. A trigger that arrived while a send awaited (createFlushGate) runs one
-    // more pass right after it settles, in the same tick: a dequeued or conflicted note stops there.
     for (let again = true; again;) {
       if (!context.isSessionCurrent(epoch) || conflictsRef.current.has(noteId)) return;
       const entry = queueRef.current.get(noteId);
@@ -818,8 +798,6 @@ export function useNotesPendingQueue(gameId: string): NotesPendingQueueState {
     const conflict = conflictsRef.current.get(noteId);
     if (!entry || !conflict) return;
     const next: PendingLocalNote = conflict.kind === 'changed'
-      // Overwrite exactly the server version the user compared against: if it changed again in
-      // the meantime, update() raises a fresh 'changed' conflict instead of clobbering it.
       ? { note: { ...entry.note, updatedAt: new Date().toISOString() }, origin: 'update', expectedUpdatedAt: conflict.remote.updatedAt, generation: 0 }
       : { note: entry.note, origin: 'create', generation: 0 };
     applyQueue(enqueueNote(queueRef.current, next));

@@ -1,6 +1,3 @@
-// Exhaustive interleaving checker for the real web notes sync code.
-// Every IndexedDB call and every Supabase request is one atomic step; JS between
-// two awaits runs without interruption, exactly as in the browser.
 import type { LocalNote } from '../../../src/lib/types';
 import type { NoteSyncMetadata } from '../../../src/lib/local-notes';
 import {
@@ -20,12 +17,6 @@ const NOW = '2026-11-23T12:00:00.000Z';
 
 export type Property = 'NoSilentRollback' | 'NoLostLocalEdit' | 'QuietSyncConverges';
 export type WriterKind = 'automatic' | 'user';
-// How the (note, metadata) pair a writer decided on mixes another tab's writes,
-// which is F1/F2's cause (note and metadata live in separate IndexedDB transactions).
-// 'torn-read': another tab wrote the note or its metadata between the writer's two reads.
-// 'torn-write': the stored note was written in the middle of another tab's
-// note-then-metadata pair, and the writer read that tab's metadata with it.
-// 'half-write': the writer read both between the two writes of another tab's pair.
 export type Shape = 'torn-read' | 'torn-write' | 'half-write';
 
 export interface Violation {
@@ -80,7 +71,6 @@ export class World {
   readonly trace: string[] = [];
   private readonly flags: Array<{ actor: string; id: string; property: Property; signature: string; message: string; line: number }> = [];
   private lastVersion = 0;
-  // Every IndexedDB write in order, and how many had happened at each actor's reads.
   private readonly idbWrites: Array<{ actor: string; store: 'note' | 'meta'; id: string }> = [];
   private readonly pairReads = new Map<string, { note?: number; meta?: number }>();
 
@@ -142,8 +132,6 @@ export class World {
     return `${metadata.noteId}{${metadata.state} local=${versionByHash(metadata.localHash)} base=${versionByHash(metadata.baselineHash)}${conflict}}`;
   }
 
-  // A user may only replace what the screen showed: an explicit conflict choice
-  // passes the server version the conflict displayed as `mayReplace`.
   private recordServerWrite(actor: string, kind: WriterKind, mayReplace: number | undefined, op: string, id: string, before: LocalNote | undefined, after: LocalNote) {
     if (kind === 'user') {
       if (mayReplace !== undefined && before && versionOf(after) < versionOf(before) && versionOf(before) !== mayReplace) {
@@ -167,9 +155,6 @@ export class World {
     const [from, to] = [read.note, read.meta].sort((a, b) => a - b);
     const between = writes.find(write => write.index >= from && write.index < to && write.actor !== actor);
     if (between) return { shape: 'torn-read', detail: `leitura rasgada: ${between.actor} gravou ${id} entre as leituras de nota e metadado de ${actor}` };
-    // A tab's write followed by its next write of the other store is one pair, the
-    // two transactions of rememberConfirmedNote or of saveNote + markConfirmed.
-    // Each actor runs one operation, so pairing in order is exact.
     const partner = new Map<number, number>();
     for (const tab of new Set(writes.map(write => write.actor))) {
       const own = writes.filter(write => write.actor === tab);
@@ -198,8 +183,6 @@ export class World {
     this.trace.push(`   ✗ ${property}: ${message}`);
   }
 
-  // Runs after the schedule ends: a half-write is known only once the other tab
-  // writes the second half, which can come after the violation.
   classifyViolations(): Violation[] {
     return this.flags.map(({ actor, id, property, signature, message, line }) => {
       const { shape, detail } = this.shapeOf(actor, id);
@@ -256,8 +239,6 @@ export class World {
     };
   }
 
-  // Mirrors createSupabaseNotesRemote (src/lib/notes-sync.ts) over the game_notes
-  // table: primary key on id, no trigger on updated_at, CAS through .eq('updated_at').
   remote(actor: string, kind: WriterKind, mayReplace?: number): NotesRemoteStore & { deleteIfVersion(id: string, expectedUpdatedAt: string): Promise<number> } {
     return {
       list: async () => {
@@ -312,10 +293,6 @@ export class World {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Actors. Each returns a short outcome label used for non-vacuity checks.
-// ---------------------------------------------------------------------------
-
 export type Actor = { name: string; run(world: World): Promise<string> };
 
 export function sync(name: string): Actor {
@@ -331,8 +308,6 @@ export function sync(name: string): Actor {
   };
 }
 
-// src/components/notes-chat.tsx submit(), editing branch: CAS on the version the
-// tab is showing, then rememberConfirmedNote.
 export function edit(name: string, shown: LocalNote): Actor {
   return {
     name,
@@ -350,7 +325,6 @@ export function edit(name: string, shown: LocalNote): Actor {
   };
 }
 
-// src/components/notes-chat.tsx submit(), new note branch.
 async function createNote(world: World, name: string, id: string) {
   const noteToSave = makeNote(id, world.newVersion());
   const confirmed = await world.remote(name, 'user').insert(noteToSave);
@@ -366,7 +340,6 @@ export function create(name: string, id: string): Actor {
   return { name, run: async world => (await createNote(world, name, id)).outcome };
 }
 
-// src/components/notes-chat.tsx remove(): CAS delete, then rememberConfirmedDeletion.
 export async function removeNote(world: World, name: string, shown: LocalNote) {
   const remote = world.remote(name, 'user');
   const deleted = await remote.deleteIfVersion(shown.id, shown.updatedAt);
@@ -405,8 +378,6 @@ export function resolve(name: string, noteId: string, resolution: NotesConflictR
   };
 }
 
-// Another device of the same user (mobile app, packages/data/src/notes.ts) writing
-// with its own CAS. Its logic is not under verification, so one atomic step.
 export function deviceEdit(noteId: string): Actor {
   return {
     name: 'D',
@@ -438,10 +409,6 @@ export function deviceDelete(noteId: string): Actor {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Exploration.
-// ---------------------------------------------------------------------------
-
 export interface Scenario {
   name: string;
   summary: string;
@@ -461,8 +428,6 @@ export interface ScenarioReport {
   schedules: number;
   outcomes: Set<string>;
   steps: Set<string>;
-  // Keyed by `<signature> [<shape>]`, or the bare signature when the pair the
-  // writer read was not torn.
   counterexamples: Map<string, Counterexample>;
 }
 
@@ -496,8 +461,6 @@ async function runOnce(scenario: Scenario, prefix: number[]) {
     if (result.error) throw new Error(`${scenario.name}: ${scenario.actors[index].name} lançou ${String(result.error)}`);
   }
 
-  // QuietSyncConverges: once the dust settles, one sync with nobody else running
-  // must leave this browser and the server on the same version, or show a conflict.
   world.trace.push('-- sincronização final, sem concorrência --');
   const quiet = await (async () => {
     const pending = syncNotes(ctx, { local: world.local('Q', 'automatic'), remote: world.remote('Q', 'automatic'), now: () => NOW });

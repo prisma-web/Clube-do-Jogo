@@ -22,7 +22,6 @@ async function readCache(storage: NativeStorage): Promise<ProductUpdate | null> 
   }
 }
 
-/** The notes of the installed version's GitHub release, with their Android copy. A cached copy of that same version skips the download. */
 export async function loadInstalledProductUpdate(source: UpdateSource, { storage, fetch }: {
   storage: NativeStorage;
   fetch: FetchProductUpdate;
@@ -36,7 +35,6 @@ export async function loadInstalledProductUpdate(source: UpdateSource, { storage
   return { status: 'found', update: androidProductUpdate(result.update) };
 }
 
-/** React Native's AppState. */
 export interface AppStateEvents {
   addEventListener(type: 'change', listener: (state: string) => void): { remove(): void };
 }
@@ -46,11 +44,6 @@ export interface InstalledProductUpdateStore {
   subscribe(listener: () => void): () => void;
 }
 
-/**
- * Loads the installed version's notes once its first subscriber arrives. A failed load runs again
- * when the app next becomes active; found or missing notes settle it for the rest of the
- * process, which only ever runs one installed version.
- */
 export function createInstalledProductUpdateStore(
   load: () => Promise<ProductUpdateDownload>,
   appState: AppStateEvents,

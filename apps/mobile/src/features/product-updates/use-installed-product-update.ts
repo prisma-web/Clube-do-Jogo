@@ -12,7 +12,6 @@ const store = source
 const noUpdate = () => null;
 const noSubscription = () => () => {};
 
-/** The installed version's notes. Null until loaded, and on development, preview and iOS builds. */
 export function useInstalledProductUpdate(): ProductUpdate | null {
   return useSyncExternalStore(store?.subscribe ?? noSubscription, store?.get ?? noUpdate, store?.get ?? noUpdate);
 }

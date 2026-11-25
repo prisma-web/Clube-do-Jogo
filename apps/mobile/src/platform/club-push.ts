@@ -8,7 +8,6 @@ export type ClubPushInput = {
   gameId: string;
   month: string;
   mode: 'current' | 'next';
-  /** Mês do ciclo encerrado por uma troca `next`; é ele que ganha o push de recompensas. */
   closedMonth?: string | null;
 };
 
@@ -22,11 +21,6 @@ async function post(transport: ClubPushTransport, route: PushPostRoute, body: Ap
   });
 }
 
-/**
- * Paridade com `setClubGame` da web (src/components/app-provider.tsx): avisa o clube do novo
- * jogo e, ao avançar de ciclo, das recompensas do mês encerrado. É best-effort: o ciclo já foi
- * gravado, então nenhuma falha aqui (transporte, sessão, resposta não-2xx) pode chegar a quem chama.
- */
 export async function dispatchClubGamePush(getTransport: () => ClubPushTransport, input: ClubPushInput): Promise<void> {
   let transport: ClubPushTransport;
   try {
