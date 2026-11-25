@@ -1,15 +1,25 @@
+export type GotyTabParam = 'bolao' | 'seu-goty';
+
+export const GOTY_ROUTE = '/(app)/goty-2026' as const;
+
 export type NavIntent =
   | { pathname: '/(app)/jogos/[id]'; params: { id: string } }
-  | { pathname: '/(app)/perfil/[id]'; params: { id: string } };
+  | { pathname: '/(app)/perfil/[id]'; params: { id: string } }
+  | { pathname: typeof GOTY_ROUTE; params?: { tab: GotyTabParam } };
 
 export const DEFAULT_APP_ROUTE = '/(app)/(tabs)/jogo-do-mes' as const;
 export const APP_STACK_ANCHOR = '(tabs)' as const;
 export const AUTHENTICATED_INTENT_NAVIGATION_OPTIONS = { withAnchor: true } as const;
 
+export type PushGameOfMonthSection = 'timeline' | 'progress' | 'notes';
+
 export type PushNavIntent = NavIntent
-  | { pathname: typeof DEFAULT_APP_ROUTE; params?: { section: 'timeline' } }
+  | { pathname: typeof DEFAULT_APP_ROUTE; params?: { section: PushGameOfMonthSection } }
   | { pathname: '/(app)/(tabs)/ranking' }
-  | { pathname: '/(app)/(tabs)/perfil' };
+  | { pathname: '/(app)/(tabs)/perfil' }
+  | { pathname: '/(app)/(tabs)/jogos' }
+  | { pathname: '/(app)/(tabs)/seus-jogos' }
+  | { pathname: '/(app)/configuracoes' };
 
 export type RootNavigationAction =
   | { type: 'none' }
@@ -27,38 +37,66 @@ export interface RootNavigationState {
 
 const TRUSTED_DEEP_LINK_SCHEME = 'clubedojogo:';
 
-const ROUTE_MATCHERS: Array<{ pattern: RegExp; toIntent: (id: string) => NavIntent }> = [
-  { pattern: /^\/jogos\/([^/]+)$/, toIntent: id => ({ pathname: '/(app)/jogos/[id]', params: { id } }) },
-  { pattern: /^\/perfil\/([^/]+)$/, toIntent: id => ({ pathname: '/(app)/perfil/[id]', params: { id } }) },
+export function parseGotyTabParam(value: unknown): GotyTabParam | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw === 'bolao' || raw === 'seu-goty' ? raw : null;
+}
+
+const ROUTE_MATCHERS: Array<{ pattern: RegExp; toIntent: (match: RegExpMatchArray, search: URLSearchParams) => NavIntent }> = [
+  { pattern: /^\/jogos\/([^/]+)$/, toIntent: match => ({ pathname: '/(app)/jogos/[id]', params: { id: decodeURIComponent(match[1]) } }) },
+  { pattern: /^\/perfil\/([^/]+)$/, toIntent: match => ({ pathname: '/(app)/perfil/[id]', params: { id: decodeURIComponent(match[1]) } }) },
+  {
+    pattern: /^\/goty-2026\/?$/,
+    toIntent: (_match, search) => {
+      const tab = parseGotyTabParam(search.get('tab'));
+      return tab ? { pathname: GOTY_ROUTE, params: { tab } } : { pathname: GOTY_ROUTE };
+    },
+  },
 ];
 
 let pendingIntent: NavIntent | null = null;
 
-function extractRoutePath(rawUrl: string): string | null {
-  if (rawUrl.startsWith('/')) return rawUrl;
+function splitQuery(value: string): { path: string; search: string } {
+  const withoutHash = value.split('#')[0];
+  const queryAt = withoutHash.indexOf('?');
+  return queryAt === -1
+    ? { path: withoutHash, search: '' }
+    : { path: withoutHash.slice(0, queryAt), search: withoutHash.slice(queryAt + 1) };
+}
+
+function extractRoute(rawUrl: string): { path: string; search: URLSearchParams } | null {
+  if (rawUrl.startsWith('/')) {
+    const { path, search } = splitQuery(rawUrl);
+    return { path, search: new URLSearchParams(search) };
+  }
   try {
     const parsed = new URL(rawUrl);
     if (parsed.protocol !== TRUSTED_DEEP_LINK_SCHEME) return null;
     const combined = `${parsed.host}${parsed.pathname}`.replace(/^\/+/, '');
-    return combined ? `/${combined}` : null;
+    return combined ? { path: `/${combined}`, search: parsed.searchParams } : null;
   } catch {
     return null;
   }
 }
 
-export function captureNavIntent(rawUrl: string): void {
-  const path = extractRoutePath(rawUrl);
-  if (!path) return;
+export function resolveNavIntent(rawUrl: string): NavIntent | null {
+  const route = extractRoute(rawUrl);
+  if (!route) return null;
   for (const matcher of ROUTE_MATCHERS) {
-    const match = path.match(matcher.pattern);
+    const match = route.path.match(matcher.pattern);
     if (!match) continue;
     try {
-      pendingIntent = matcher.toIntent(decodeURIComponent(match[1]));
+      return matcher.toIntent(match, route.search);
     } catch {
-      return;
+      return null;
     }
-    return;
   }
+  return null;
+}
+
+export function captureNavIntent(rawUrl: string): void {
+  const intent = resolveNavIntent(rawUrl);
+  if (intent) pendingIntent = intent;
 }
 
 export function consumeNavIntent(): NavIntent | null {

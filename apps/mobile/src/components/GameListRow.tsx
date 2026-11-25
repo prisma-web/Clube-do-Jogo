@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { RatingValue } from '@/components/RatingValue';
 import { radii, spacing, themedStyles, typography, useThemeColors } from '@/theme';
 import { gameCoverUrl, type Game } from '@clube-do-jogo/domain';
 
@@ -19,8 +20,17 @@ export function GameListRow({ game, onPress, action, subtitle }: {
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={2}>{game.title}</Text>
         <View style={styles.metaRow}>
-          <Ionicons name="time-outline" size={12} color={colors.zinc500} />
-          <Text style={styles.metaText}>{game.duration_hours} h</Text>
+          <View style={styles.metaItem}>
+            <Ionicons name="time-outline" size={12} color={colors.zinc500} />
+            <Text style={styles.metaText}>{game.duration_hours} h</Text>
+          </View>
+          {game.average_rating != null ? <RatingValue value={game.average_rating / 10} size={12} /> : null}
+          {game.release_year ? (
+            <View style={styles.metaItem}>
+              <Ionicons name="calendar-outline" size={12} color={colors.zinc500} />
+              <Text style={styles.metaText}>{game.release_year}</Text>
+            </View>
+          ) : null}
         </View>
         {subtitle}
       </View>
@@ -67,7 +77,8 @@ const useStyles = themedStyles(colors => ({
   cover: { width: 56, height: 76, borderRadius: radii.sm, backgroundColor: colors.zinc900 },
   info: { flex: 1, gap: 6, minWidth: 0 },
   title: { ...typography.h3, fontSize: 14, color: colors.foreground },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: spacing.md, rowGap: 4 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { ...typography.tiny, color: colors.zinc500, textTransform: 'none' },
   action: { alignItems: 'flex-end', justifyContent: 'center', gap: spacing.xs },
 }));

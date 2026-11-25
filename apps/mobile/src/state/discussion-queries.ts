@@ -314,8 +314,10 @@ function reactionInput(context: DiscussionContext, input: ReactionVariables): Co
   };
 }
 
+// Private notes are personal and stay live while a historical cycle is selected;
+// only an explicit snapshot view (input.historical) is read-only.
 function noteDeleteInput(context: DiscussionContext, input: NoteDeleteVariables): NoteDeleteInput {
-  return { userId: requireUser(context.userId), isDemo: context.isDemo, gameId: input.gameId, noteId: input.noteId, expectedUpdatedAt: input.expectedUpdatedAt, historical: hasHistoricalGuard(context, input.historical) };
+  return { userId: requireUser(context.userId), isDemo: context.isDemo, gameId: input.gameId, noteId: input.noteId, expectedUpdatedAt: input.expectedUpdatedAt, historical: input.historical === true };
 }
 
 function isCommentEventForScope(event: CommentRealtimeEvent, gameId: string, clubMonth: string) {
@@ -501,14 +503,14 @@ export function useSetCommentReaction(): UseMutationResult<void, Error, Reaction
   });
 }
 
-function snapshotFor(context: DiscussionContext, options?: { snapshotMonth?: string | null }) {
-  if (options && options.snapshotMonth !== undefined) return options.snapshotMonth || null;
-  return context.isHistorical ? context.selectedMonth : null;
+// Notes are live unless the caller explicitly asks for a cycle snapshot.
+function snapshotFor(options?: { snapshotMonth?: string | null }) {
+  return options?.snapshotMonth || null;
 }
 
 export function useNotes(gameId: string, options?: { snapshotMonth?: string | null }): UseQueryResult<LocalNote[], Error> {
   const context = useAppInternal();
-  const snapshotMonth = snapshotFor(context, options);
+  const snapshotMonth = snapshotFor(options);
   const key = React.useMemo(() => notesKey(context, gameId, snapshotMonth), [context, gameId, snapshotMonth]);
   const client = getNotesClient(context.isDemo);
   return useQuery<LocalNote[], Error>({
@@ -534,7 +536,7 @@ export function useDeleteNote(): UseMutationResult<void, Error, NoteDeleteVariab
     },
     onMutate: async input => {
       if (!context.isSessionCurrent(epoch)) throw new Error('Sua sessão mudou. Tente novamente.');
-      if (hasHistoricalGuard(context, input.historical)) throw new Error('O histórico é somente leitura.');
+      if (input.historical === true) throw new Error('O histórico é somente leitura.');
       const key = notesKey(context, input.gameId, null);
       await context.queryClient.cancelQueries({ queryKey: key });
       if (!context.isSessionCurrent(epoch)) throw new Error('Sua sessão mudou. Tente novamente.');

@@ -30,12 +30,14 @@ export function PrivateNotes(props: PrivateNotesProps) {
 function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
   const colors = useThemeColors();
   const styles = useStyles();
-  const { isDemo, isHistorical, selectedMonth, userId } = useAppInternal();
-  const readOnly = Boolean(snapshotMonth) || isHistorical;
+  const { isDemo, userId } = useAppInternal();
+  // Read-only only for an explicit cycle snapshot (historical Jogo do Mês);
+  // a game's private notes stay editable while browsing a historical cycle.
+  const readOnly = Boolean(snapshotMonth);
 
-  const notesQuery = useNotes(gameId, { snapshotMonth });
+  const notesQuery = useNotes(gameId, { snapshotMonth: snapshotMonth || null });
   // Same snapshot useNotes resolves (snapshotFor in discussion-queries.ts).
-  const offline = useNotesOfflineCache(gameId, snapshotMonth || (isHistorical ? selectedMonth : null), notesQuery);
+  const offline = useNotesOfflineCache(gameId, snapshotMonth || null, notesQuery);
   const deleteNote = useDeleteNote();
   const draftState = useNoteDraft(gameId);
   const pendingQueue = useNotesPendingQueue(gameId);

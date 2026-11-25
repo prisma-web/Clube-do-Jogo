@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { ProductUpdate } from '@clube-do-jogo/domain';
 import { Sheet } from '@/components/Sheet';
 import { Button } from '@/components/Button';
+import { ProductUpdateVisual } from './ProductUpdateVisual';
 import { radii, spacing, themedStyles, typography, useThemeColors } from '@/theme';
 
 export function ProductUpdateSheet({ update, visible, onClose, onFinish }: {
@@ -32,6 +33,7 @@ export function ProductUpdateSheet({ update, visible, onClose, onFinish }: {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.progress}>{stepIndex + 1} de {update.steps.length}</Text>
+        <ProductUpdateVisual key={stepIndex} step={step} />
         <Text style={styles.eyebrow}>{step.eyebrow}</Text>
         <Text style={styles.title} accessibilityRole="header">{step.title}</Text>
         <Text style={styles.description}>{step.body}</Text>
@@ -50,7 +52,17 @@ export function ProductUpdateSheet({ update, visible, onClose, onFinish }: {
       <View style={styles.footer}>
         <View style={styles.dots} accessibilityLabel={`Passo ${stepIndex + 1} de ${update.steps.length}`}>
           {update.steps.map((item, index) => (
-            <View key={`${item.eyebrow}-${index}`} style={[styles.dot, index <= stepIndex && styles.dotActive]} />
+            <Pressable
+              key={`${item.eyebrow}-${index}`}
+              onPress={() => setStepIndex(index)}
+              accessibilityRole="button"
+              accessibilityLabel={`Ir para o passo ${index + 1}: ${item.eyebrow}`}
+              accessibilityState={{ selected: index === stepIndex }}
+              hitSlop={{ top: 12, bottom: 12 }}
+              style={styles.dotHit}
+            >
+              <View style={[styles.dot, index <= stepIndex && styles.dotActive]} />
+            </Pressable>
           ))}
         </View>
         <View style={styles.actions}>
@@ -88,7 +100,7 @@ const useStyles = themedStyles(colors => ({
   scroll: { flexShrink: 1 },
   body: { padding: spacing.lg, gap: spacing.sm },
   progress: { ...typography.tiny, color: colors.zinc600 },
-  eyebrow: { ...typography.tiny, color: colors.violet300, marginTop: spacing.xs },
+  eyebrow: { ...typography.tiny, color: colors.violet300, marginTop: spacing.sm },
   title: { ...typography.h2, color: colors.foreground, marginTop: spacing.xs },
   description: { ...typography.body, color: colors.zinc400, lineHeight: 20, marginTop: spacing.sm },
   highlights: { gap: spacing.sm, marginTop: spacing.md },
@@ -96,7 +108,8 @@ const useStyles = themedStyles(colors => ({
   highlightText: { ...typography.small, color: colors.zinc300, flex: 1, lineHeight: 17 },
   footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md },
   dots: { flexDirection: 'row', gap: spacing.xs },
-  dot: { flex: 1, height: 3, borderRadius: radii.full, backgroundColor: colors.hairline },
+  dotHit: { flex: 1, justifyContent: 'center', height: 20 },
+  dot: { height: 4, borderRadius: radii.full, backgroundColor: colors.hairline },
   dotActive: { backgroundColor: colors.violet400 },
   actions: { flexDirection: 'row', gap: spacing.sm },
   actionButton: { flex: 1 },

@@ -5,8 +5,6 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import {
-  applyMyVote,
-  compareRankingItems,
   shiftMonth,
   transitionProgress,
 } from '@clube-do-jogo/domain';
@@ -26,6 +24,7 @@ import type {
 } from '@clube-do-jogo/domain';
 import { createMobileApiTransport, getMobileSupabaseClient } from '@/platform';
 import { useAppInternal } from './app-provider';
+import { isNewVote, optimisticRanking } from './optimistic-ranking';
 
 // Best-effort push, mirroring src/app/ranking/page.tsx's `notifyRankingLeader`
 // (same `/api/push/ranking-leader` route and payload shape). The vote is already
@@ -50,6 +49,8 @@ function notifyVotingThreshold(voteMonth: string, gameId: string) {
 
 type VoteVariables = {
   gameId: string;
+  /** Lets the optimistic update show a game that is not in the ranking yet. */
+  game?: Game;
   choice: VoteChoice | null;
   reason?: VoteReason | null;
   reasonText?: string;
@@ -76,8 +77,15 @@ function libraryKey(context: ReturnType<typeof useAppInternal>, profileId: strin
   return ['library', context.sessionEpoch, context.userId, profileId, shiftMonth(context.selectedMonth, 1), context.isDemo] as const;
 }
 
+// Progress is live by default, even while a historical cycle is selected (parity
+// with the web game detail and Meus Jogos). Only a caller that explicitly passes a
+// `snapshotMonth` (the historical Jogo do Mês) reads the frozen cycle snapshot.
+export function progressQueryKey(context: Pick<ReturnType<typeof useAppInternal>, 'sessionEpoch' | 'userId' | 'isDemo'>, gameId: string, snapshotMonth: string | null = null) {
+  return ['progress', context.sessionEpoch, context.userId, snapshotMonth, gameId, context.isDemo] as const;
+}
+
 function progressKey(context: ReturnType<typeof useAppInternal>, gameId: string) {
-  return ['progress', context.sessionEpoch, context.userId, context.selectedMonth, context.isHistorical, gameId, context.isDemo] as const;
+  return progressQueryKey(context, gameId, null);
 }
 
 function profileForVote(profile: Profile | null, input: VoteVariables): VoteParticipant {
@@ -86,13 +94,6 @@ function profileForVote(profile: Profile | null, input: VoteVariables): VotePart
     reason: input.reason || null,
     reasonText: input.reasonText?.trim() || null,
   };
-}
-
-function optimisticRanking(items: RankingItem[] | undefined, input: VoteVariables, profile: Profile | null, formula: 'preference' | 'legacy') {
-  if (!items) return items;
-  return items
-    .map(item => item.game.id === input.gameId ? applyMyVote(item, profileForVote(profile, input), input.choice, formula) : item)
-    .sort(compareRankingItems);
 }
 
 function optimisticProgress(items: GameProgress[] | undefined, userId: string, gameId: string, status: ProgressStatus, profile: Profile | null) {
@@ -174,18 +175,19 @@ export function useLibrary(profileId?: string): UseQueryResult<ProfileWithGames,
   });
 }
 
-export function useProgress(gameId: string): UseQueryResult<GameProgress[], Error> {
+export function useProgress(gameId: string, options?: { snapshotMonth?: string | null }): UseQueryResult<GameProgress[], Error> {
   const context = useAppInternal();
   const userId = context.userId;
+  const snapshotMonth = options?.snapshotMonth || null;
   return useQuery<GameProgress[], Error>({
-    queryKey: progressKey(context, gameId),
+    queryKey: progressQueryKey(context, gameId, snapshotMonth),
     enabled: context.ready && Boolean(userId) && Boolean(gameId),
     queryFn: () => context.dataClient.readProgress({
       userId: requireUser(userId),
       isDemo: context.isDemo,
       gameId,
-      month: context.selectedMonth,
-      historical: context.isHistorical,
+      month: snapshotMonth ?? undefined,
+      historical: Boolean(snapshotMonth),
     }),
   });
 }
@@ -194,7 +196,7 @@ export function useVote(): UseMutationResult<void, Error, VoteVariables> {
   const context = useAppInternal();
   const epoch = context.sessionEpoch;
   const key = rankingKey(context);
-  return useMutation<void, Error, VoteVariables, { previous?: RankingItem[]; queryKey: ReturnType<typeof rankingKey>; previousLeaderId: string | null; nextLeaderId: string | null }>({
+  return useMutation<void, Error, VoteVariables, { previous?: RankingItem[]; queryKey: ReturnType<typeof rankingKey>; previousLeaderId: string | null; nextLeaderId: string | null; newVote: boolean }>({
     mutationFn: input => {
       if (!context.isSessionCurrent(epoch)) throw new Error('Sua sessão mudou. Tente novamente.');
       const userId = requireUser(context.userId);
@@ -204,7 +206,10 @@ export function useVote(): UseMutationResult<void, Error, VoteVariables> {
         isDemo: context.isDemo,
         month: context.selectedMonth,
         historical: context.isHistorical,
-        ...input,
+        gameId: input.gameId,
+        choice: input.choice,
+        reason: input.reason,
+        reasonText: input.reasonText,
       });
     },
     onMutate: async input => {
@@ -214,18 +219,19 @@ export function useVote(): UseMutationResult<void, Error, VoteVariables> {
       await context.queryClient.cancelQueries({ queryKey: key });
       if (!context.isSessionCurrent(epoch)) throw new Error('Sua sessão mudou. Tente novamente.');
       const previous = context.queryClient.getQueryData<RankingItem[]>(key);
-      const next = optimisticRanking(previous, input, context.profile, context.dataClient.rankingFormula);
+      const next = optimisticRanking(previous, input, profileForVote(context.profile, input), context.dataClient.rankingFormula);
       context.queryClient.setQueryData(key, next);
       return {
         previous,
         queryKey: key,
         previousLeaderId: previous?.[0]?.game.id || null,
         nextLeaderId: next?.[0]?.game.id || null,
+        newVote: isNewVote(previous, input),
       };
     },
     onSuccess: (_data, input, mutationContext) => {
       if (!context.isSessionCurrent(epoch) || !mutationContext || context.isDemo) return;
-      if (input.choice) notifyVotingThreshold(shiftMonth(context.selectedMonth, 1), input.gameId);
+      if (mutationContext.newVote) notifyVotingThreshold(shiftMonth(context.selectedMonth, 1), input.gameId);
       const { previousLeaderId, nextLeaderId } = mutationContext;
       if (previousLeaderId === nextLeaderId) return;
       notifyRankingLeaderPush(shiftMonth(context.selectedMonth, 1), previousLeaderId, nextLeaderId);
@@ -248,13 +254,11 @@ export function useSetProgress(): UseMutationResult<void, Error, ProgressVariabl
     mutationFn: input => {
       if (!context.isSessionCurrent(epoch)) throw new Error('Sua sessão mudou. Tente novamente.');
       const userId = requireUser(context.userId);
-      requireLive(context.isHistorical);
-      return context.dataClient.setProgress({ userId, isDemo: context.isDemo, ...input, historical: context.isHistorical });
+      return context.dataClient.setProgress({ userId, isDemo: context.isDemo, ...input, historical: false });
     },
     onMutate: async input => {
       if (!context.isSessionCurrent(epoch)) throw new Error('Sua sessão mudou. Tente novamente.');
       const userId = requireUser(context.userId);
-      requireLive(context.isHistorical);
       const key = progressKey(context, input.gameId);
       await context.queryClient.cancelQueries({ queryKey: key });
       if (!context.isSessionCurrent(epoch)) throw new Error('Sua sessão mudou. Tente novamente.');
@@ -354,6 +358,23 @@ export function useDiscovery(source: DiscoverSource, search?: string): UseQueryR
       source,
       search,
       month,
+    }),
+  });
+}
+
+/** Title search through `/api/search` (same endpoint as the web ranking search); demo mode filters demo titles. */
+export function useGameSearch(query: string): UseQueryResult<Game[], Error> {
+  const context = useAppInternal();
+  const userId = context.userId;
+  const normalized = query.trim();
+  return useQuery<Game[], Error>({
+    queryKey: ['game-search', context.sessionEpoch, userId, normalized, context.isDemo],
+    enabled: context.ready && Boolean(userId) && Boolean(normalized),
+    staleTime: 60_000,
+    queryFn: () => context.dataClient.searchGames({
+      userId: requireUser(userId),
+      isDemo: context.isDemo,
+      query: normalized,
     }),
   });
 }

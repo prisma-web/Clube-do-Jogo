@@ -9,6 +9,29 @@ import { radii, spacing, themedStyles, typography, useThemeColors } from '@/them
 import type { VoteChoice, VoteParticipant } from '@clube-do-jogo/domain';
 import { voteChoiceOptions } from './vote-choice-options';
 
+const reasonPreviewLength = 72;
+
+function OtherReason({ text }: { text: string }) {
+  const styles = useStyles();
+  const [expanded, setExpanded] = useState(false);
+  const long = text.length > reasonPreviewLength;
+  return (
+    <Text style={styles.personReasonText}>
+      {long && !expanded ? `${text.slice(0, reasonPreviewLength).trim()}…` : text}
+      {long ? (
+        <Text
+          onPress={() => setExpanded(value => !value)}
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? 'Ver menos do motivo' : 'Ver mais do motivo'}
+          style={styles.personReasonToggle}
+        >
+          {' '}{expanded ? 'Ver menos' : 'Ver mais'}
+        </Text>
+      ) : null}
+    </Text>
+  );
+}
+
 export function VoteParticipantsSheet({ visible, onClose, profiles, initialChoice }: {
   visible: boolean;
   onClose: () => void;
@@ -69,7 +92,7 @@ export function VoteParticipantsSheet({ visible, onClose, profiles, initialChoic
                     <>
                       <Text style={styles.personReason}>{voteReasonLabel(person.reason)}</Text>
                       {person.reason === 'other' && person.reasonText ? (
-                        <Text style={styles.personReasonText}>{person.reasonText}</Text>
+                        <OtherReason text={person.reasonText} />
                       ) : null}
                     </>
                   ) : null}
@@ -117,5 +140,6 @@ const useStyles = themedStyles(colors => ({
   personName: { ...typography.h3, fontSize: 13, color: colors.foreground },
   personReason: { fontSize: 10, fontWeight: '700', color: colors.red300 },
   personReasonText: { fontSize: 11, color: colors.zinc500, lineHeight: 15 },
+  personReasonToggle: { fontWeight: '800', color: colors.violet300 },
   personArrow: { transform: [{ rotate: '45deg' }] },
 }));

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { ClubGameUndoPreview, ClubGameUndoResult } from '@clube-do-jogo/data';
@@ -23,82 +23,97 @@ export function UndoConfirmSheet({ target, onClose, onUndone }: {
   onClose: () => void;
   onUndone: (result: ClubGameUndoResult) => void;
 }) {
+  const [pending, setPending] = useState(false);
+  if (!target) return null;
+  return (
+    <Sheet visible title="Desfazer decisão de ciclo" onClose={() => { if (!pending) onClose(); }}>
+      <UndoConfirmBody
+        preview={target.preview}
+        onCancel={onClose}
+        onUndone={onUndone}
+        onPendingChange={setPending}
+      />
+    </Sheet>
+  );
+}
+
+/** Conteúdo da confirmação, reaproveitado inline pelo fluxo de decisão do ClubGameChangeSheet. */
+export function UndoConfirmBody({ preview, onCancel, onUndone, onPendingChange }: {
+  preview: ClubGameUndoPreview;
+  onCancel: () => void;
+  onUndone: (result: ClubGameUndoResult) => void;
+  onPendingChange?: (pending: boolean) => void;
+}) {
   const colors = useThemeColors();
   const styles = useStyles();
   const [confirmDeletion, setConfirmDeletion] = useState(false);
   const undoChange = useUndoClubGameChange();
+  const isPending = undoChange.isPending;
+  useEffect(() => { onPendingChange?.(isPending); }, [isPending, onPendingChange]);
 
-  if (!target) return null;
-  const { preview } = target;
   const willDelete = preview.action === 'created';
   const affectedTotal = AFFECTED_LABELS.reduce((sum, item) => sum + preview[item.key], 0);
-  const guardedClose = () => {
-    if (undoChange.isPending) return;
-    onClose();
-  };
 
   return (
-    <Sheet visible title="Desfazer decisão de ciclo" onClose={guardedClose}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={styles.description}>
-          {willDelete
-            ? `O ciclo de ${formatMonth(preview.cycle_month)} será removido junto com tudo o que foi registrado nele.`
-            : `O ciclo de ${formatMonth(preview.cycle_month)} voltará a ter o jogo anterior.`}
-        </Text>
+    <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <Text style={styles.description}>
+        {willDelete
+          ? `O ciclo de ${formatMonth(preview.cycle_month)} será removido junto com tudo o que foi registrado nele.`
+          : `O ciclo de ${formatMonth(preview.cycle_month)} voltará a ter o jogo anterior.`}
+      </Text>
 
-        {affectedTotal > 0 ? (
-          <View style={styles.affectedCard}>
-            <Text style={styles.affectedTitle}>Dados afetados</Text>
-            {AFFECTED_LABELS.filter(item => preview[item.key] > 0).map(item => (
-              <View key={item.key} style={styles.affectedRow}>
-                <Text style={styles.affectedLabel}>{item.label}</Text>
-                <Text style={styles.affectedCount}>{preview[item.key]}</Text>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.description}>Nenhum dado adicional foi registrado neste ciclo ainda.</Text>
-        )}
-
-        {willDelete ? (
-          <Pressable
-            onPress={() => setConfirmDeletion(current => !current)}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: confirmDeletion }}
-            accessibilityLabel="Confirmo que quero apagar permanentemente os dados deste ciclo"
-            testID="admin-undo-confirm-deletion"
-            style={styles.checkboxRow}
-          >
-            <View style={[styles.checkbox, confirmDeletion && styles.checkboxChecked]}>
-              {confirmDeletion ? <Ionicons name="checkmark" size={14} color={colors.background} /> : null}
+      {affectedTotal > 0 ? (
+        <View style={styles.affectedCard}>
+          <Text style={styles.affectedTitle}>Dados afetados</Text>
+          {AFFECTED_LABELS.filter(item => preview[item.key] > 0).map(item => (
+            <View key={item.key} style={styles.affectedRow}>
+              <Text style={styles.affectedLabel}>{item.label}</Text>
+              <Text style={styles.affectedCount}>{preview[item.key]}</Text>
             </View>
-            <Text style={styles.checkboxLabel}>
-              Entendo que os dados listados acima serão apagados permanentemente.
-            </Text>
-          </Pressable>
-        ) : null}
-
-        {undoChange.isError ? (
-          <Text style={styles.error} accessibilityRole="alert">{undoChange.error.message}</Text>
-        ) : null}
-
-        <View style={styles.actions}>
-          <Button label="Cancelar" variant="secondary" disabled={undoChange.isPending} onPress={onClose} style={styles.actionButton} />
-          <Button
-            label="Desfazer"
-            variant="danger"
-            loading={undoChange.isPending}
-            disabled={willDelete && !confirmDeletion}
-            accessibilityLabel="Confirmar desfazer decisão de ciclo"
-            style={styles.actionButton}
-            onPress={() => undoChange.mutate(
-              { preview, forceDelete: willDelete },
-              { onSuccess: onUndone },
-            )}
-          />
+          ))}
         </View>
-      </ScrollView>
-    </Sheet>
+      ) : (
+        <Text style={styles.description}>Nenhum dado adicional foi registrado neste ciclo ainda.</Text>
+      )}
+
+      {willDelete ? (
+        <Pressable
+          onPress={() => setConfirmDeletion(current => !current)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: confirmDeletion }}
+          accessibilityLabel="Confirmo que quero apagar permanentemente os dados deste ciclo"
+          testID="admin-undo-confirm-deletion"
+          style={styles.checkboxRow}
+        >
+          <View style={[styles.checkbox, confirmDeletion && styles.checkboxChecked]}>
+            {confirmDeletion ? <Ionicons name="checkmark" size={14} color={colors.background} /> : null}
+          </View>
+          <Text style={styles.checkboxLabel}>
+            Entendo que os dados listados acima serão apagados permanentemente.
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {undoChange.isError ? (
+        <Text style={styles.error} accessibilityRole="alert">{undoChange.error.message}</Text>
+      ) : null}
+
+      <View style={styles.actions}>
+        <Button label="Cancelar" variant="secondary" disabled={undoChange.isPending} onPress={onCancel} style={styles.actionButton} />
+        <Button
+          label="Desfazer"
+          variant="danger"
+          loading={undoChange.isPending}
+          disabled={willDelete && !confirmDeletion}
+          accessibilityLabel="Confirmar desfazer decisão de ciclo"
+          style={styles.actionButton}
+          onPress={() => undoChange.mutate(
+            { preview, forceDelete: willDelete },
+            { onSuccess: onUndone },
+          )}
+        />
+      </View>
+    </ScrollView>
   );
 }
 

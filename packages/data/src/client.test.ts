@@ -37,9 +37,10 @@ test('demo votes are mutable in memory and preserve the displayed month boundary
   assert.equal(cleared?.choiceCounts.would_not_play, item.choiceCounts.would_not_play);
 });
 
-test('real vote writes delete before insert and shifts the visible month by one', async () => {
+test('real vote writes upsert on the vote key and shift the visible month by one', async () => {
   const calls: Array<[string, unknown?]> = [];
-  let inserted: unknown;
+  let upserted: unknown;
+  let upsertOptions: unknown;
   const makeQuery = () => {
     const query = {
       delete() {
@@ -50,9 +51,14 @@ test('real vote writes delete before insert and shifts the visible month by one'
         calls.push([column, value]);
         return query;
       },
-      insert(values: unknown) {
-        inserted = values;
+      insert() {
         calls.push(['insert']);
+        return Promise.resolve({ data: null, error: null });
+      },
+      upsert(values: unknown, options: unknown) {
+        upserted = values;
+        upsertOptions = options;
+        calls.push(['upsert']);
         return Promise.resolve({ data: null, error: null });
       },
       then(resolve: (value: { data: never[]; error: null }) => unknown) {
@@ -78,16 +84,10 @@ test('real vote writes delete before insert and shifts the visible month by one'
     choice: 'would_not_play',
   });
 
-  assert.deepEqual(calls.slice(0, 5), [
-    ['from', 'votes'],
-    ['delete'],
-    ['user_id', userId],
-    ['game_id', demoGames[1].id],
-    ['vote_month', '2027-01'],
-  ]);
-  assert.deepEqual(calls[5], ['from', 'votes']);
-  assert.deepEqual(calls[6], ['insert']);
-  assert.deepEqual(inserted, {
+  // No delete: a changed vote must keep its row and created_at.
+  assert.deepEqual(calls, [['from', 'votes'], ['upsert']]);
+  assert.deepEqual(upsertOptions, { onConflict: 'user_id,game_id,vote_month' });
+  assert.deepEqual(upserted, {
     user_id: userId,
     game_id: demoGames[1].id,
     vote_month: '2027-01',
@@ -153,7 +153,7 @@ test('historical demo mutations are rejected as read only', async () => {
 });
 
 function tableClient(tables: Record<string, unknown[]>) {
-  const writes: Array<{ table: string; op: string; values?: unknown }> = [];
+  const writes: Array<{ table: string; op: string; values?: unknown; options?: unknown }> = [];
   const supabase = {
     auth: { getUser: async () => ({ data: { user: { id: userId } }, error: null }) },
     from(table: string) {
@@ -169,6 +169,10 @@ function tableClient(tables: Record<string, unknown[]>) {
         },
         insert(values: unknown) {
           writes.push({ table, op: 'insert', values });
+          return Promise.resolve({ data: null, error: null });
+        },
+        upsert(values: unknown, options: unknown) {
+          writes.push({ table, op: 'upsert', values, options });
           return Promise.resolve({ data: null, error: null });
         },
         then(resolve: (value: typeof result) => unknown) {
@@ -269,11 +273,13 @@ test('a neutral vote is stored as a row, not deleted', async () => {
   const { client, writes } = tableClient({});
   await client.setVote({ userId, isDemo: false, month: '2026-11', gameId: liveGame.id, choice: 'neutral', reason: 'other', reasonText: 'sem motivo' });
 
-  const inserted = writes.find(write => write.op === 'insert');
-  assert.deepEqual(inserted, {
+  assert.equal(writes.some(write => write.op === 'delete'), false);
+  const upserted = writes.find(write => write.op === 'upsert');
+  assert.deepEqual(upserted, {
     table: 'votes',
-    op: 'insert',
+    op: 'upsert',
     values: { user_id: userId, game_id: liveGame.id, vote_month: '2026-12', choice: 'neutral', reason: null, reason_text: null },
+    options: { onConflict: 'user_id,game_id,vote_month' },
   });
 });
 
@@ -292,4 +298,51 @@ test('demo neutral answers persist like other demo votes', async () => {
   assert.equal(neutral?.totalPoints, item.totalPoints);
   assert.ok(neutral?.choiceProfiles.neutral.some(person => person.id === userId));
   assert.ok((await client.readLibrary({ userId, profileId: userId, isDemo: true })).votedGameIds.includes(item.game.id));
+});
+
+test('clearing a live vote deletes the row for the shifted vote month', async () => {
+  const { client, writes } = tableClient({});
+  await client.setVote({ userId, isDemo: false, month: '2026-11', gameId: liveGame.id, choice: null });
+  assert.deepEqual(writes.map(write => write.op), ['delete']);
+});
+
+test('searchGames calls /api/search with the trimmed query and keeps valid games', async () => {
+  const requests: string[] = [];
+  const client = createDataClient({
+    api: {
+      async request(path: string) {
+        requests.push(path);
+        return new Response(JSON.stringify([liveGame, liveGame, { id: 3 }, null, neutralOnlyGame]), { status: 200 });
+      },
+    },
+  });
+  const games = await client.searchGames({ userId, isDemo: false, query: '  Hades II ' });
+  assert.deepEqual(requests, ['/api/search?q=Hades+II']);
+  assert.deepEqual(games.map(game => game.id), [liveGame.id, neutralOnlyGame.id]);
+});
+
+test('searchGames returns nothing for a blank query without calling the API', async () => {
+  let called = false;
+  const client = createDataClient({ api: { async request() { called = true; return new Response('[]'); } } });
+  assert.deepEqual(await client.searchGames({ userId, isDemo: false, query: '   ' }), []);
+  assert.equal(called, false);
+});
+
+test('searchGames falls back to demo titles in demo mode', async () => {
+  const client = createDataClient();
+  const target = demoGames[1];
+  const games = await client.searchGames({ userId, isDemo: true, query: target.title.slice(0, 4).toUpperCase() });
+  assert.ok(games.some(game => game.id === target.id));
+  assert.ok(games.every(game => game.title.toLocaleLowerCase('pt-BR').includes(target.title.slice(0, 4).toLocaleLowerCase('pt-BR'))));
+  assert.deepEqual(await client.searchGames({ userId, isDemo: true, query: 'zzzz-nada' }), []);
+});
+
+test('searchGames surfaces API errors as DataError', async () => {
+  const client = createDataClient({
+    api: { async request() { return new Response(JSON.stringify({ error: 'Não autorizado.' }), { status: 401 }); } },
+  });
+  await assert.rejects(
+    client.searchGames({ userId, isDemo: false, query: 'zelda' }),
+    (error: unknown) => error instanceof DataError,
+  );
 });

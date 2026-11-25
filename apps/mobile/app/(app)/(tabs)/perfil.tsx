@@ -5,23 +5,15 @@ import { useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { Avatar } from '@/components/Avatar';
-import { GameListRow } from '@/components/GameListRow';
 import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
 import { ProfileEditSheet } from '@/features/profile/ProfileEditSheet';
 import { PlatformPicker } from '@/features/profile/PlatformPicker';
+import { ProfileTabs } from '@/features/profile/ProfileTabs';
 import { useApp } from '@/state/app-provider';
 import { useProfile, useUpdateProfile } from '@/state/profile-queries';
 import { formatShortDate } from '@/lib/format';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
 import type { Game } from '@clube-do-jogo/domain';
-
-const TABS = [
-  { key: 'favorites', label: 'Favoritos', icon: 'heart-outline' as const },
-  { key: 'backlog', label: 'Jogos', icon: 'library-outline' as const },
-  { key: 'completed', label: 'Finalizados', icon: 'flag-outline' as const },
-  { key: 'platforms', label: 'Consoles', icon: 'game-controller-outline' as const },
-];
-type TabKey = typeof TABS[number]['key'];
 
 export default function ProfileScreen() {
   const colors = useThemeColors();
@@ -32,7 +24,6 @@ export default function ProfileScreen() {
   const updateProfile = useUpdateProfile();
   const [editOpen, setEditOpen] = useState(false);
   const [platformsOpen, setPlatformsOpen] = useState(false);
-  const [tab, setTab] = useState<TabKey>('favorites');
 
   if (profileQuery.isLoading) {
     return (
@@ -60,13 +51,6 @@ export default function ProfileScreen() {
   }
 
   const person = data.profile;
-  const counts: Record<TabKey, number> = {
-    favorites: data.favorites.length,
-    backlog: data.backlog.length,
-    completed: data.completed.length,
-    platforms: data.platforms.length,
-  };
-
   function saveProfile(input: { name: string; bio: string; avatarUrl: string | null }) {
     updateProfile.mutate(
       {
@@ -114,28 +98,13 @@ export default function ProfileScreen() {
         {person.created_at ? <Text style={styles.since}>Desde {formatShortDate(person.created_at)}</Text> : null}
       </View>
 
-      <View style={styles.tabsRow}>
-        {TABS.map(item => {
-          const active = tab === item.key;
-          return (
-            <Pressable
-              key={item.key}
-              onPress={() => setTab(item.key)}
-              accessibilityRole="tab"
-              accessibilityLabel={`${item.label}, ${counts[item.key]}`}
-              accessibilityState={{ selected: active }}
-              style={[styles.tabButton, active && styles.tabButtonActive]}
-            >
-              <Ionicons name={item.icon} size={16} color={active ? colors.violet300 : colors.zinc500} />
-              <Text style={[styles.tabCount, active && styles.tabCountActive]}>{counts[item.key]}</Text>
-              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{item.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {tab === 'platforms' ? (
-        <View style={styles.section}>
+      <ProfileTabs
+        favorites={data.favorites}
+        backlog={data.backlog}
+        completed={data.completed}
+        platforms={data.platforms}
+        onOpenGame={openGame}
+        platformsHeader={
           <Pressable
             onPress={() => setPlatformsOpen(true)}
             accessibilityRole="button"
@@ -145,36 +114,8 @@ export default function ProfileScreen() {
             <Ionicons name="add-circle-outline" size={16} color={colors.violet300} />
             <Text style={styles.managePlatformsLabel}>Adicionar ou remover plataformas</Text>
           </Pressable>
-          {data.platforms.length ? (
-            <View style={styles.platformGrid}>
-              {data.platforms.map(platform => (
-                <View key={platform.igdb_platform_id} style={styles.platformCard}>
-                  <Ionicons name="game-controller-outline" size={18} color={colors.violet300} />
-                  <Text style={styles.platformName} numberOfLines={1}>{platform.name}</Text>
-                  {platform.abbreviation ? <Text style={styles.platformAbbr}>{platform.abbreviation}</Text> : null}
-                </View>
-              ))}
-            </View>
-          ) : (
-            <EmptyState icon="game-controller-outline" title="Nenhum console adicionado" />
-          )}
-        </View>
-      ) : (
-        <View style={styles.section}>
-          {(tab === 'favorites' ? data.favorites : tab === 'backlog' ? data.backlog : data.completed).length ? (
-            <View style={styles.list}>
-              {(tab === 'favorites' ? data.favorites : tab === 'backlog' ? data.backlog : data.completed).map(game => (
-                <GameListRow key={game.id} game={game} onPress={() => openGame(game)} />
-              ))}
-            </View>
-          ) : (
-            <EmptyState
-              icon="game-controller-outline"
-              title={tab === 'favorites' ? 'Nenhum jogo favorito' : tab === 'backlog' ? 'Nenhum jogo adicionado' : 'Nenhum jogo finalizado'}
-            />
-          )}
-        </View>
-      )}
+        }
+      />
 
       <Pressable
         onPress={() => router.push({ pathname: '/(app)/perfil/[id]', params: { id: person.id } })}
@@ -239,21 +180,8 @@ const useStyles = themedStyles(colors => ({
   name: { ...typography.h2, color: colors.foreground, marginTop: spacing.sm, textAlign: 'center' },
   bio: { ...typography.small, color: colors.zinc400, textAlign: 'center', maxWidth: 280 },
   since: { ...typography.tiny, color: colors.zinc600, marginTop: spacing.xs },
-  tabsRow: { flexDirection: 'row', gap: spacing.xs, borderRadius: radii.xl, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surfaceSofter, padding: spacing.xs, marginBottom: spacing.lg },
-  tabButton: { flex: 1, alignItems: 'center', gap: 2, borderRadius: radii.lg, paddingVertical: spacing.sm },
-  tabButtonActive: { backgroundColor: 'rgba(139,92,246,0.12)' },
-  tabCount: { fontSize: 13, fontWeight: '900', color: colors.zinc400 },
-  tabCountActive: { color: colors.violet300 },
-  tabLabel: { fontSize: 9, fontWeight: '800', color: colors.zinc600 },
-  tabLabelActive: { color: colors.violet300 },
-  section: { marginBottom: spacing.lg },
-  list: { gap: spacing.sm },
   managePlatforms: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.md },
   managePlatformsLabel: { ...typography.small, color: colors.violet300, fontWeight: '800' },
-  platformGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  platformCard: { width: '47%', gap: 4, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surfaceSofter, padding: spacing.md },
-  platformName: { ...typography.small, color: colors.foreground, fontWeight: '800' },
-  platformAbbr: { ...typography.tiny, color: colors.zinc500 },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',

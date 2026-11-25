@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { AppState, Image, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Text, View } from 'react-native';
 import type { ClubGameUndoPreview } from '@clube-do-jogo/data';
 import { gameCoverUrl } from '@clube-do-jogo/domain';
 import { formatMonth, formatShortDate } from '@/lib/format';
@@ -13,28 +13,9 @@ import { ClubGameChangeSheet } from './ClubGameChangeSheet';
 import { UndoConfirmSheet } from './UndoConfirmSheet';
 import { usePersistedClubDecision, type RecentDecision } from './use-persisted-club-decision';
 import { canContinueUndoChain } from './club-undo-chain';
+import { useRedoExpired } from './use-redo-expired';
 
 type UndoTarget = { eventId: string; preview: ClubGameUndoPreview };
-
-function useRedoExpired(redoExpiresAt: string | undefined): boolean {
-  const deadline = redoExpiresAt ? new Date(redoExpiresAt).getTime() : NaN;
-  const [clock, setClock] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (!Number.isFinite(deadline)) return undefined;
-    const evaluate = () => setClock(Date.now());
-    const timer = setTimeout(evaluate, Math.max(0, deadline - Date.now()));
-    const subscription = AppState.addEventListener('change', status => {
-      if (status === 'active') evaluate();
-    });
-    return () => {
-      clearTimeout(timer);
-      subscription.remove();
-    };
-  }, [deadline]);
-
-  return !Number.isFinite(deadline) || clock >= deadline;
-}
 
 export function AdminClubPanel() {
   const styles = useStyles();
@@ -112,7 +93,7 @@ export function AdminClubPanel() {
         <ClubGameChangeSheet
           visible
           onClose={() => setChangeSheetOpen(false)}
-          onApplied={result => setRecentDecision({ kind: 'applied', result })}
+          onDecision={setRecentDecision}
         />
       ) : null}
 

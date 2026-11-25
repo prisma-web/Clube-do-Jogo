@@ -233,6 +233,14 @@ export class DemoStore {
     });
   }
 
+  searchGames(query: string): Game[] {
+    const normalized = query.trim().toLocaleLowerCase('pt-BR');
+    if (!normalized) return [];
+    return demoGames
+      .filter(game => game.title.toLocaleLowerCase('pt-BR').includes(normalized))
+      .map(game => ({ ...game }));
+  }
+
   readDiscoveryPage(_userId: string, source: DiscoverSource, filters: DiscoveryFilters, offset: number, limit: number): { items: DiscoverItem[]; hasMore: boolean } {
     let games = [...demoGames];
     const normalized = filters.search?.trim().toLocaleLowerCase('pt-BR') || '';

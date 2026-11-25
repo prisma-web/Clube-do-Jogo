@@ -57,10 +57,54 @@ export interface AdminSetWinnerInput extends GotyScope {
   winnerNomineeId: string | null;
 }
 
-function readDemoStorage(): GotyFullState | null {
-  if (typeof window === 'undefined') return null;
+/**
+ * Armazenamento síncrono opcional para persistir o estado demo do GOTY.
+ * Na web o padrão é `globalThis.localStorage`; no React Native não existe
+ * localStorage, então o estado demo fica só em memória (ou no storage injetado).
+ */
+export interface GotyDemoStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+// `undefined` = detectar automaticamente; `null` = somente memória.
+let configuredDemoStorage: GotyDemoStorage | null | undefined;
+
+/**
+ * Define onde o estado demo do GOTY é persistido.
+ * - `undefined` (padrão): usa `globalThis.localStorage` quando existir.
+ * - `null`: mantém o estado apenas em memória.
+ * - objeto: usa o storage síncrono injetado.
+ */
+export function configureGotyDemoStorage(storage: GotyDemoStorage | null | undefined): void {
+  configuredDemoStorage = storage;
+}
+
+function detectDemoStorage(): GotyDemoStorage | null {
   try {
-    const raw = window.localStorage.getItem(DEMO_STORAGE_KEY);
+    const candidate = (globalThis as { localStorage?: unknown }).localStorage as Partial<GotyDemoStorage> | undefined;
+    if (
+      candidate
+      && typeof candidate.getItem === 'function'
+      && typeof candidate.setItem === 'function'
+    ) {
+      return candidate as GotyDemoStorage;
+    }
+  } catch {
+    // Acessar localStorage pode lançar (ex.: cookies bloqueados no navegador)
+  }
+  return null;
+}
+
+function resolveDemoStorage(): GotyDemoStorage | null {
+  return configuredDemoStorage === undefined ? detectDemoStorage() : configuredDemoStorage;
+}
+
+function readDemoStorage(): GotyFullState | null {
+  const storage = resolveDemoStorage();
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(DEMO_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as GotyFullState;
     if (!parsed || !Array.isArray(parsed.categories) || parsed.categories.length === 0) return null;
@@ -71,9 +115,10 @@ function readDemoStorage(): GotyFullState | null {
 }
 
 function writeDemoStorage(state: GotyFullState): void {
-  if (typeof window === 'undefined') return;
+  const storage = resolveDemoStorage();
+  if (!storage) return;
   try {
-    window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(state));
+    storage.setItem(DEMO_STORAGE_KEY, JSON.stringify(state));
   } catch {
     // Ignora quota/modo privado
   }

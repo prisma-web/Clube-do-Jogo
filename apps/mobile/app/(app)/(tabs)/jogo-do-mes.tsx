@@ -11,6 +11,7 @@ import { MonthPicker } from '@/components/MonthPicker';
 import { StatusPill, useStatusMeta } from '@/components/StatusPill';
 import { RatingSheet } from '@/components/RatingSheet';
 import { RatingValue } from '@/components/RatingValue';
+import { ClubProgressCard } from '@/features/progress/ClubProgressCard';
 import { ProgressConfirmSheet } from '@/components/ProgressConfirmSheet';
 import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
 import { Timeline } from '@/features/timeline/Timeline';
@@ -18,7 +19,7 @@ import { PrivateNotes } from '@/features/notes/PrivateNotes';
 import { useApp } from '@/state/app-provider';
 import { useGameOfMonth, useProgress, useSetProgress } from '@/state/queries';
 import { useSetRating } from '@/state/library-queries';
-import { formatMonth, formatShortDate } from '@/lib/format';
+import { formatMonth } from '@/lib/format';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
 import { gameCoverUrl, type ProgressStatus, type RatingDetails, type RatingMode } from '@clube-do-jogo/domain';
 
@@ -42,7 +43,9 @@ export default function GameOfMonthScreen() {
   const [monthPickerVisible, setMonthPickerVisible] = useState(false);
   const gameQuery = useGameOfMonth();
   const game = gameQuery.data ?? null;
-  const progressQuery = useProgress(game?.id ?? '');
+  // A closed cycle shows the frozen snapshot read-only; elsewhere progress is live.
+  const snapshotMonth = isHistorical ? selectedMonth : null;
+  const progressQuery = useProgress(game?.id ?? '', { snapshotMonth });
   const setProgress = useSetProgress();
   const setRating = useSetRating();
 
@@ -54,11 +57,6 @@ export default function GameOfMonthScreen() {
 
   const progress = progressQuery.data ?? [];
   const mine = progress.find(item => item.user_id === userId) ?? null;
-  const finishedCount = progress.filter(item => item.status === 'finished').length;
-  const ratedProgress = progress.filter(item => item.rating !== null);
-  const clubAverage = ratedProgress.length
-    ? ratedProgress.reduce((total, item) => total + Number(item.rating), 0) / ratedProgress.length
-    : null;
 
   function requestStatus(status: ProgressStatus) {
     if (!game || isHistorical || mine?.status === status) return;
@@ -112,6 +110,10 @@ export default function GameOfMonthScreen() {
             accessibilityLabel={`Ver detalhes de ${game.title}`}
             style={styles.hero}
           >
+            <View style={styles.heroBackdrop} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <Image source={{ uri: gameCoverUrl(game.image_url) }} style={styles.heroBackdropImage} contentFit="cover" blurRadius={18} />
+              <View style={styles.heroShade} />
+            </View>
             <View style={styles.monthChip}>
               <Ionicons name="ribbon" size={13} color={colors.amber300} />
               <Text style={styles.monthChipText}>Jogo de {formatMonth(selectedMonth, { includeYear: false })}</Text>
@@ -197,57 +199,18 @@ export default function GameOfMonthScreen() {
             ) : null}
           </View>
 
-          <View style={styles.card}>
-            <View style={styles.cardHeaderRow}>
-              <Text style={styles.cardTitle}>Progresso do clube</Text>
-              <View style={styles.cardHeaderMeta}>
-                {clubAverage !== null ? <RatingValue value={clubAverage} /> : null}
-                <Text style={styles.finishedCount}>{finishedCount} {finishedCount === 1 ? 'finalizou' : 'finalizaram'}</Text>
-              </View>
-            </View>
-            {progressQuery.isLoading ? (
-              <LoadingState label="Carregando progresso do clube…" />
-            ) : progressQuery.isError ? (
-              <ErrorState message={progressQuery.error.message} onRetry={() => progressQuery.refetch()} />
-            ) : progress.length ? (
-              <View style={{ gap: spacing.sm }}>
-                {progress.map(item => (
-                  <View key={item.user_id} style={styles.memberRow}>
-                    <View style={styles.memberInfo}>
-                      <Text style={styles.memberName} numberOfLines={1}>{item.profile?.name || 'Membro'}</Text>
-                      {item.started_at || item.finished_at ? (
-                        <View style={styles.memberDates}>
-                          {item.started_at ? (
-                            <View style={styles.memberDateChip}>
-                              <Ionicons name="time-outline" size={12} color={colors.sky400} />
-                              <Text style={styles.memberDateText}>{formatShortDate(item.started_at)}</Text>
-                            </View>
-                          ) : null}
-                          {item.finished_at ? (
-                            <View style={styles.memberDateChip}>
-                              <Ionicons name="checkmark-done-outline" size={12} color={colors.emerald400} />
-                              <Text style={styles.memberDateText}>{formatShortDate(item.finished_at)}</Text>
-                            </View>
-                          ) : null}
-                        </View>
-                      ) : null}
-                    </View>
-                    <View style={styles.memberMeta}>
-                      {item.rating !== null ? <RatingValue value={item.rating} size={11} /> : null}
-                      <StatusPill status={item.status} />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.emptyMembers}>Ninguém registrou progresso ainda.</Text>
-            )}
-          </View>
+          <ClubProgressCard
+            style={styles.clubCard}
+            progress={progress}
+            isLoading={progressQuery.isLoading}
+            error={progressQuery.error}
+            onRetry={() => void progressQuery.refetch()}
+          />
           </>
           ) : activeTab === 'timeline' ? (
             <Timeline gameId={game.id} clubMonth={selectedMonth} />
           ) : (
-            <PrivateNotes gameId={game.id} />
+            <PrivateNotes gameId={game.id} snapshotMonth={snapshotMonth ?? undefined} />
           )}
         </View>
       )}
@@ -279,6 +242,7 @@ export default function GameOfMonthScreen() {
 
       <ProgressConfirmSheet
         visible={pendingStatus !== null}
+        game={game}
         currentStatus={mine?.status ?? 'not_started'}
         targetStatus={pendingStatus ?? 'not_started'}
         onClose={() => setPendingStatus(null)}
@@ -290,15 +254,21 @@ export default function GameOfMonthScreen() {
 
 const useStyles = themedStyles(colors => ({
   content: { gap: spacing.lg },
+  clubCard: { marginBottom: 0 },
   tabRow: { flexDirection: 'row', gap: spacing.sm },
   hero: {
     borderRadius: radii.xxxl,
     borderWidth: 1,
     borderColor: colors.hairline,
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: '#09090b',
     padding: spacing.lg,
     alignItems: 'center',
+    overflow: 'hidden',
   },
+  // Parity with the web hero (src/app/jogo-do-mes/page.tsx): blurred, darkened cover behind the content.
+  heroBackdrop: { position: 'absolute', top: -24, left: -24, right: -24, bottom: -24 },
+  heroBackdropImage: { width: '100%', height: '100%', opacity: 0.9 },
+  heroShade: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(8,8,10,0.62)' },
   monthChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -313,7 +283,7 @@ const useStyles = themedStyles(colors => ({
   },
   monthChipText: { fontSize: 10, fontWeight: '800', color: colors.amber300, textTransform: 'uppercase', letterSpacing: 0.5 },
   cover: { width: 150, aspectRatio: 3 / 4, borderRadius: radii.xl, backgroundColor: colors.zinc900, marginBottom: spacing.md },
-  title: { ...typography.h1, color: colors.foreground, textAlign: 'center' },
+  title: { ...typography.h1, color: colors.white, textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 12 },
   metaRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   metaChip: {
     flexDirection: 'row',
@@ -325,13 +295,12 @@ const useStyles = themedStyles(colors => ({
     backgroundColor: colors.surfaceDeep,
   },
   metaText: { fontSize: 11, fontWeight: '700', color: colors.zinc400 },
-  description: { ...typography.small, color: colors.zinc400, textAlign: 'center', marginTop: spacing.md, lineHeight: 18 },
+  description: { ...typography.small, color: 'rgba(255,255,255,0.78)', textAlign: 'center', marginTop: spacing.md, lineHeight: 18 },
   moreLink: { fontSize: 11, fontWeight: '800', color: colors.violet300, marginTop: 4 },
   detailLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.md },
   detailLinkText: { color: colors.violet300, fontWeight: '800', fontSize: 12 },
   card: { borderRadius: radii.xxl, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surfaceSofter, padding: spacing.lg, gap: spacing.md },
   cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardHeaderMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   cardTitle: { ...typography.h3, color: colors.foreground },
   statusRow: { flexDirection: 'row', gap: spacing.sm },
   ratingRow: {
@@ -369,21 +338,5 @@ const useStyles = themedStyles(colors => ({
   statusOptionLabel: { fontSize: 10, fontWeight: '700', color: colors.zinc500, textAlign: 'center' },
   statusOptionLabelActive: { color: colors.violet300 },
   formError: { color: colors.red300, fontSize: 11, fontWeight: '600' },
-  finishedCount: { fontSize: 10, fontWeight: '800', color: colors.zinc600, textTransform: 'uppercase' },
-  memberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceDeep,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  memberInfo: { flex: 1, marginRight: spacing.sm, gap: 4 },
-  memberName: { ...typography.small, color: colors.zinc300 },
-  memberDates: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  memberDateChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  memberDateText: { fontSize: 10, fontWeight: '700', color: colors.zinc500 },
-  memberMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   emptyMembers: { ...typography.small, color: colors.zinc600 },
 }));
