@@ -6,9 +6,9 @@ import { useSharedValue } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { themedStyles, useThemeColors, radii, spacing } from '@/theme';
+import { clampPan, clampZoom, MAX_ZOOM, MIN_ZOOM, ZOOM_STEP, type Point, type Size } from './gallery-zoom';
 
-const MIN_ZOOM = 1;
-const MAX_ZOOM = 3;
+const VIEWPORT_HEIGHT_RATIO = 0.62;
 
 export function ImageGalleryModal({ visible, title, images, activeIndex, onActiveIndexChange, onClose }: {
   visible: boolean;
@@ -23,12 +23,22 @@ export function ImageGalleryModal({ visible, title, images, activeIndex, onActiv
   const window = Dimensions.get('window');
   const insets = useSafeAreaInsets();
   const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
+  const [imageSize, setImageSize] = useState<Size | null>(null);
   const zoomStart = useSharedValue(1);
   const panStart = useSharedValue({ x: 0, y: 0 });
   const swipeStart = useSharedValue(0);
+  const viewport: Size = { width: window.width, height: window.height * VIEWPORT_HEIGHT_RATIO };
 
-
+  // The parent keeps this modal mounted while switching images (remounting the
+  // native <Modal> flickers), so the zoom state is reset per image here instead.
+  const [shownIndex, setShownIndex] = useState(activeIndex);
+  if (shownIndex !== activeIndex) {
+    setShownIndex(activeIndex);
+    setZoom(MIN_ZOOM);
+    setPan({ x: 0, y: 0 });
+    setImageSize(null);
+  }
 
   if (!visible || !images.length) return null;
 
@@ -37,13 +47,21 @@ export function ImageGalleryModal({ visible, title, images, activeIndex, onActiv
     onActiveIndexChange(next);
   };
 
+  const applyZoom = (nextZoom: number) => {
+    const clamped = clampZoom(nextZoom);
+    setZoom(clamped);
+    setPan(current => clampPan(current, clamped, viewport, imageSize));
+  };
+
+  const resetZoom = () => {
+    setZoom(MIN_ZOOM);
+    setPan({ x: 0, y: 0 });
+  };
+
   const pinch = Gesture.Pinch()
     .runOnJS(true)
     .onStart(() => { zoomStart.value = zoom; })
-    .onUpdate(event => {
-      const next = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomStart.value * event.scale));
-      setZoom(next);
-    })
+    .onUpdate(event => { applyZoom(zoomStart.value * event.scale); })
     .onEnd(() => { if (zoom <= MIN_ZOOM) setPan({ x: 0, y: 0 }); });
 
   const pan1 = Gesture.Pan()
@@ -56,7 +74,7 @@ export function ImageGalleryModal({ visible, title, images, activeIndex, onActiv
     })
     .onUpdate(event => {
       if (zoom > MIN_ZOOM) {
-        setPan({ x: panStart.value.x + event.translationX, y: panStart.value.y + event.translationY });
+        setPan(clampPan({ x: panStart.value.x + event.translationX, y: panStart.value.y + event.translationY }, zoom, viewport, imageSize));
       } else {
         swipeStart.value = event.translationX;
       }
@@ -74,11 +92,12 @@ export function ImageGalleryModal({ visible, title, images, activeIndex, onActiv
     <Modal visible={visible} animationType="fade" transparent statusBarTranslucent onRequestClose={onClose}>
       <GestureHandlerRootView style={styles.backdrop} accessible={false}>
         <GestureDetector gesture={composed}>
-          <View style={[styles.viewport, { height: window.height * 0.62 }]}>
+          <View style={[styles.viewport, { height: viewport.height }]}>
             <Image
               source={{ uri: images[activeIndex] }}
               style={[styles.image, { transform: [{ translateX: pan.x }, { translateY: pan.y }, { scale: zoom }] }]}
               contentFit="contain"
+              onLoad={event => setImageSize({ width: event.source.width, height: event.source.height })}
               accessibilityLabel={`Imagem ${activeIndex + 1} de ${images.length} de ${title}`}
             />
           </View>
@@ -101,7 +120,7 @@ export function ImageGalleryModal({ visible, title, images, activeIndex, onActiv
 
         <View style={styles.toolbar}>
           <Pressable
-            onPress={() => setZoom(current => Math.max(MIN_ZOOM, Number((current - 0.5).toFixed(2))))}
+            onPress={() => (zoom - ZOOM_STEP <= MIN_ZOOM ? resetZoom() : applyZoom(zoom - ZOOM_STEP))}
             disabled={zoom <= MIN_ZOOM}
             accessibilityRole="button"
             accessibilityLabel="Reduzir zoom"
@@ -109,9 +128,17 @@ export function ImageGalleryModal({ visible, title, images, activeIndex, onActiv
           >
             <Ionicons name="remove" size={18} color={colors.white} />
           </Pressable>
-          <Text style={styles.zoomLabel}>{Math.round(zoom * 100)}%</Text>
           <Pressable
-            onPress={() => setZoom(current => Math.min(MAX_ZOOM, Number((current + 0.5).toFixed(2))))}
+            onPress={resetZoom}
+            disabled={zoom <= MIN_ZOOM && pan.x === 0 && pan.y === 0}
+            accessibilityRole="button"
+            accessibilityLabel={`Zoom em ${Math.round(zoom * 100)}%. Toque para voltar ao tamanho original`}
+            style={styles.zoomReset}
+          >
+            <Text style={styles.zoomLabel}>{Math.round(zoom * 100)}%</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => applyZoom(zoom + ZOOM_STEP)}
             disabled={zoom >= MAX_ZOOM}
             accessibilityRole="button"
             accessibilityLabel="Ampliar zoom"
@@ -146,6 +173,7 @@ const useStyles = themedStyles(colors => ({
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radii.lg, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   toolButton: { width: 32, height: 32, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.1)' },
   toolButtonDisabled: { opacity: 0.4 },
+  zoomReset: { minHeight: 32, justifyContent: 'center', borderRadius: radii.md, paddingHorizontal: spacing.xs },
   zoomLabel: { color: colors.white, fontSize: 11, fontWeight: '800', minWidth: 42, textAlign: 'center' },
   thumbRow: { maxHeight: 60 },
   thumb: { width: 76, height: 52, borderRadius: radii.sm, opacity: 0.55 },

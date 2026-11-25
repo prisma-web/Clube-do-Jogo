@@ -121,6 +121,13 @@ export function RatingSheet({
         {mode === 'simple' ? (
           <View style={styles.block}>
             <Text style={styles.fieldLabel}>Nota geral</Text>
+            <RatingQuickPick
+              value={simpleValue}
+              scale={scale}
+              disabled={disabled || loading}
+              onChange={setSimpleValue}
+              accessibilityLabel="Nota geral"
+            />
             <RatingStepper
               key={scale}
               value={simpleValue}
@@ -155,6 +162,14 @@ export function RatingSheet({
                       <Ionicons name={isEnabled ? 'checkbox' : 'square-outline'} size={20} color={isEnabled ? colors.violet300 : colors.zinc600} />
                     </Pressable>
                   </View>
+                  <RatingQuickPick
+                    value={values[key]}
+                    scale={scale}
+                    size="compact"
+                    disabled={disabled || loading || !isEnabled}
+                    onChange={value => setCriterionValue(key, value)}
+                    accessibilityLabel={`Nota de ${label}`}
+                  />
                   <RatingStepper
                     key={scale}
                     value={values[key]}
@@ -185,6 +200,52 @@ export function RatingSheet({
         </View>
       ) : null}
     </Sheet>
+  );
+}
+
+/**
+ * Quick star picker on the user's scale (5 or 10). Tapping a star sets that whole
+ * value; tapping the star that is already the exact value drops it by half a
+ * point, so half ratings stay one tap away. The stepper below keeps fine control.
+ */
+function RatingQuickPick({ value, scale, disabled, onChange, accessibilityLabel, size = 'regular' }: {
+  value: number;
+  scale: RatingScale;
+  disabled?: boolean;
+  onChange: (value: number) => void;
+  accessibilityLabel: string;
+  size?: 'regular' | 'compact';
+}) {
+  const colors = useThemeColors();
+  const styles = useStyles();
+  const shown = ratingForScale(value, scale);
+  const stars = Array.from({ length: scale }, (_, index) => index + 1);
+  const iconSize = size === 'compact' ? (scale === 10 ? 18 : 22) : (scale === 10 ? 24 : 32);
+
+  function pick(star: number) {
+    const next = shown === star ? star - 0.5 : star;
+    onChange(ratingFromScale(Math.max(0, next), scale));
+  }
+
+  return (
+    <View style={[styles.quickRow, disabled && styles.quickRowDisabled]} accessibilityRole="adjustable" accessibilityLabel={`${accessibilityLabel}: ${formatRatingValue(shown)} de ${scale}`}>
+      {stars.map(star => {
+        const icon = shown >= star ? 'star' : shown >= star - 0.5 ? 'star-half' : 'star-outline';
+        return (
+          <Pressable
+            key={star}
+            disabled={disabled}
+            onPress={() => pick(star)}
+            accessibilityRole="button"
+            accessibilityLabel={`${accessibilityLabel}: ${star} de ${scale}`}
+            hitSlop={4}
+            style={({ pressed }) => [styles.quickStar, pressed && !disabled && styles.stepButtonPressed]}
+          >
+            <Ionicons name={icon} size={iconSize} color={icon === 'star-outline' ? colors.zinc600 : colors.amber400} />
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
@@ -280,6 +341,9 @@ const useStyles = themedStyles(colors => ({
   criterionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   criterionLabel: { ...typography.small, color: colors.zinc300, fontWeight: '700' },
   criterionLabelDisabled: { color: colors.zinc600 },
+  quickRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  quickRowDisabled: { opacity: 0.4 },
+  quickStar: { alignItems: 'center', justifyContent: 'center', paddingVertical: 2 },
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   stepButton: {
     width: 36,

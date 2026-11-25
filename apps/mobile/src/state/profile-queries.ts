@@ -231,12 +231,14 @@ export function useRemoveUserPlatform(): UseMutationResult<void, Error, { igdbPl
   });
 }
 
-export function useGameMedia(gameId: string): UseQueryResult<Game | null, Error> {
+// `POST /api/games/:id/media` hits IGDB, so callers pass `enabled: false` once the
+// stored game already has enough media (see `needsGameMediaRefresh`).
+export function useGameMedia(gameId: string, options?: { enabled?: boolean }): UseQueryResult<Game | null, Error> {
   const context = useAppInternal();
   const userId = context.userId;
   return useQuery<Game | null, Error>({
     queryKey: ['game-media', context.sessionEpoch, userId, context.isDemo, gameId],
-    enabled: context.ready && Boolean(userId) && Boolean(gameId),
+    enabled: context.ready && Boolean(userId) && Boolean(gameId) && (options?.enabled ?? true),
     staleTime: 300_000,
     queryFn: () => context.dataClient.readGameMedia({ userId: requireUser(userId), isDemo: context.isDemo, gameId }),
   });

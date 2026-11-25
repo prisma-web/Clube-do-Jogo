@@ -11,6 +11,7 @@ import { Sheet } from '@/components/Sheet';
 import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
 import { PlatformPicker } from '@/features/profile/PlatformPicker';
 import { AddGameToLibrarySheet } from '@/components/AddGameToLibrarySheet';
+import { ProgressConfirmSheet } from '@/components/ProgressConfirmSheet';
 import { useBacklog, useFavorite, useLibrary, useSetProgress } from '@/state/queries';
 import { usePersistentState } from '@/hooks/use-persistent-state';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
@@ -67,6 +68,7 @@ export default function YourGamesScreen() {
   const [platformsOpen, setPlatformsOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<LibraryGame | null>(null);
+  const [progressTarget, setProgressTarget] = useState<{ item: LibraryGame; status: ProgressStatus } | null>(null);
 
   const filterValues: Record<'playableOnly' | 'shortOnly' | 'ratedOnly', boolean> = { playableOnly, shortOnly, ratedOnly };
   const filterSetters: Record<'playableOnly' | 'shortOnly' | 'ratedOnly', (value: boolean) => void> = {
@@ -102,9 +104,15 @@ export default function YourGamesScreen() {
     favorite.mutate({ gameId: item.game.id, favorite: !item.favorite });
   }
 
-  function changeStatus(item: LibraryGame, status: ProgressStatus) {
+  function requestStatus(item: LibraryGame, status: ProgressStatus) {
     setActionsTarget(null);
-    setProgress.mutate({ gameId: item.game.id, status });
+    setProgressTarget({ item, status });
+  }
+
+  function confirmStatus() {
+    if (!progressTarget) return;
+    setProgress.mutate({ gameId: progressTarget.item.game.id, status: progressTarget.status });
+    setProgressTarget(null);
   }
 
   function requestRemoveFromLibrary(item: LibraryGame) {
@@ -299,7 +307,7 @@ export default function YourGamesScreen() {
               <Pressable
                 key={status}
                 disabled={(actionsTarget.progress?.status ?? 'not_started') === status}
-                onPress={() => changeStatus(actionsTarget, status)}
+                onPress={() => requestStatus(actionsTarget, status)}
                 accessibilityRole="button"
                 accessibilityLabel={`Marcar como ${statusLabel[status]}`}
                 style={[styles.sheetItem, (actionsTarget.progress?.status ?? 'not_started') === status && styles.sheetItemDisabled]}
@@ -308,15 +316,17 @@ export default function YourGamesScreen() {
                 <Text style={styles.sheetItemLabel}>Marcar como {statusLabel[status]}</Text>
               </Pressable>
             ))}
-            <Pressable
-              onPress={() => requestRemoveFromLibrary(actionsTarget)}
-              accessibilityRole="button"
-              accessibilityLabel="Remover de Meus Jogos"
-              style={[styles.sheetItem, styles.sheetItemDanger]}
-            >
-              <Ionicons name="trash-outline" size={18} color={colors.red300} />
-              <Text style={[styles.sheetItemLabel, styles.sheetItemDangerLabel]}>Remover de Meus Jogos</Text>
-            </Pressable>
+            {actionsTarget.inBacklog ? (
+              <Pressable
+                onPress={() => requestRemoveFromLibrary(actionsTarget)}
+                accessibilityRole="button"
+                accessibilityLabel="Remover de Meus Jogos"
+                style={[styles.sheetItem, styles.sheetItemDanger]}
+              >
+                <Ionicons name="trash-outline" size={18} color={colors.red300} />
+                <Text style={[styles.sheetItemLabel, styles.sheetItemDangerLabel]}>Remover de Meus Jogos</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
       </Sheet>
@@ -344,6 +354,15 @@ export default function YourGamesScreen() {
           </View>
         </View>
       </Sheet>
+
+      <ProgressConfirmSheet
+        visible={progressTarget !== null}
+        game={progressTarget?.item.game ?? null}
+        currentStatus={progressTarget?.item.progress?.status ?? 'not_started'}
+        targetStatus={progressTarget?.status ?? 'not_started'}
+        onClose={() => setProgressTarget(null)}
+        onConfirm={confirmStatus}
+      />
 
       <PlatformPicker visible={platformsOpen} onClose={() => setPlatformsOpen(false)} />
     </Screen>
