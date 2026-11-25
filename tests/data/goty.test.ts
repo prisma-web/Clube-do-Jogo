@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GotyDataClient, resetDemoGotyState } from '@clube-do-jogo/data';
+import { configureGotyDemoStorage, GotyDataClient, resetDemoGotyState } from '@clube-do-jogo/data';
 import { computeBolaoLeaderboard, GOTY_2026_CURATED_CATALOG } from '@clube-do-jogo/domain';
 
 test('GotyDataClient demo mode enforces bolao lock while keeping Seu GOTY independent', async () => {
@@ -54,4 +54,59 @@ test('GotyDataClient demo mode enforces bolao lock while keeping Seu GOTY indepe
     false,
   );
   resetDemoGotyState();
+});
+
+test('GotyDataClient demo mode works without window.localStorage (React Native)', async () => {
+  const globalRef = globalThis as { localStorage?: unknown };
+  const hadLocalStorage = 'localStorage' in globalRef;
+  const previousLocalStorage = globalRef.localStorage;
+  // Simula o ambiente React Native: sem localStorage algum
+  delete globalRef.localStorage;
+  configureGotyDemoStorage(undefined);
+  try {
+    resetDemoGotyState();
+    const client = new GotyDataClient(null);
+    const scope = { userId: 'demo-user', isDemo: true };
+    const initial = await client.readFullState(scope);
+    const category = initial.categories[1];
+    await client.saveBolaoVote({ ...scope, categoryId: category.id, nomineeId: category.nominees[0].id });
+    const after = await client.readFullState(scope);
+    assert.ok(after.bolaoVotes.some(vote => vote.user_id === 'demo-user' && vote.category_id === category.id));
+  } finally {
+    if (hadLocalStorage) globalRef.localStorage = previousLocalStorage;
+    resetDemoGotyState();
+  }
+});
+
+test('GotyDataClient demo mode persists through an injected storage and supports memory-only mode', async () => {
+  const backing = new Map<string, string>();
+  const writes: string[] = [];
+  configureGotyDemoStorage({
+    getItem: key => backing.get(key) ?? null,
+    setItem: (key, value) => {
+      writes.push(key);
+      backing.set(key, value);
+    },
+  });
+  try {
+    resetDemoGotyState();
+    const client = new GotyDataClient(null);
+    const scope = { userId: 'demo-user', isDemo: true };
+    const state = await client.readFullState(scope);
+    await client.savePersonalPick({ ...scope, categoryId: state.personalCategories[0].id, game: GOTY_2026_CURATED_CATALOG[1] });
+    assert.ok(writes.length >= 2);
+    const stored = JSON.parse([...backing.values()][0]) as { personalPicks: Array<{ user_id: string }> };
+    assert.ok(stored.personalPicks.some(pick => pick.user_id === 'demo-user'));
+
+    // Somente memória: nada novo é escrito no storage injetado
+    configureGotyDemoStorage(null);
+    const before = writes.length;
+    await client.clearPersonalPick({ ...scope, categoryId: state.personalCategories[0].id });
+    assert.equal(writes.length, before);
+    const afterClear = await client.readFullState(scope);
+    assert.equal(afterClear.personalPicks.some(pick => pick.user_id === 'demo-user'), false);
+  } finally {
+    configureGotyDemoStorage(undefined);
+    resetDemoGotyState();
+  }
 });

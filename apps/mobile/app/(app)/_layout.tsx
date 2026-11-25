@@ -4,6 +4,7 @@ import { RewardsGate } from '@/features/rewards';
 import { ProductUpdateGate } from '@/features/product-updates';
 import { AppUpdateGate } from '@/features/app-update';
 import { VotingDeckGate } from '@/features/voting/VotingDeckGate';
+import { GotyFloatingBadge, gotyColors } from '@/features/goty';
 import { useNativeTheme } from '@/theme';
 import { APP_STACK_ANCHOR } from '@/lib/nav-intent';
 
@@ -30,7 +31,18 @@ export default function AppGroupLayout() {
         <Stack.Screen name="jogos/[id]" options={{ title: 'Jogo' }} />
         <Stack.Screen name="perfil/[id]" options={{ title: 'Perfil' }} />
         <Stack.Screen name="configuracoes" options={{ title: 'Configurações' }} />
+        <Stack.Screen
+          name="goty-2026"
+          options={{
+            title: 'GOTY 2026',
+            headerStyle: { backgroundColor: gotyColors.stage },
+            headerTintColor: gotyColors.goldBright,
+            headerTitleStyle: { fontWeight: '900', color: gotyColors.textStrong },
+            contentStyle: { backgroundColor: gotyColors.stage },
+          }}
+        />
       </Stack>
+      <GotyFloatingBadge />
       <RewardsGate key={userId ?? 'anonymous'} />
       <VotingDeckGate key={`voting-deck-${userId ?? 'anonymous'}`} />
       <ProductUpdateGate key={`product-update-${userId ?? 'anonymous'}`} />
