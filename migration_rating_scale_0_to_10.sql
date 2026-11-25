@@ -1,7 +1,3 @@
--- Converte as notas legadas de 0-100 para 0-10, preservando registros que
--- já tenham sido gravados na escala nova. Pode ser executada novamente.
--- Execute depois de migration_detailed_ratings.sql.
-
 BEGIN;
 
 UPDATE public.game_progress

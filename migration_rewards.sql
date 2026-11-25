@@ -1,9 +1,3 @@
--- Clube do Jogo: recompensas cosméticas por conclusão do ciclo.
--- Execute depois de migration_admin_cycles_game_data.sql.
-
--- Cada recompensa pertence à instância mensal do clube, não ao jogo global.
--- O catálogo é preenchido programaticamente por migrations junto da versão
--- que contém o cosmético. Não existe escrita de recompensas pela aplicação.
 CREATE TABLE IF NOT EXISTS public.club_rewards (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   club_month TEXT NOT NULL REFERENCES public.club_months(month) ON DELETE CASCADE,
@@ -32,8 +26,6 @@ ON public.club_rewards(club_month);
 CREATE INDEX IF NOT EXISTS user_reward_grants_user_idx
 ON public.user_reward_grants(user_id, granted_at DESC);
 
--- Usa exclusivamente o snapshot capturado na transação de encerramento. Uma
--- finalização alterada depois do encontro não concede nem remove recompensa.
 CREATE OR REPLACE FUNCTION public.sync_cycle_reward_grants()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -102,7 +94,6 @@ REVOKE INSERT, UPDATE, DELETE ON public.user_reward_grants FROM authenticated;
 GRANT SELECT ON public.club_rewards TO authenticated;
 GRANT SELECT ON public.user_reward_grants TO authenticated;
 
--- Inclui concessões no resumo destrutivo já exibido ao desfazer um ciclo.
 CREATE OR REPLACE FUNCTION public.get_club_game_undo_preview(change_event_id UUID)
 RETURNS JSONB
 LANGUAGE sql
@@ -137,8 +128,6 @@ REVOKE ALL ON FUNCTION public.sync_cycle_reward_grants() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.acknowledge_reward_grant(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.acknowledge_reward_grant(UUID) TO authenticated;
 
--- Permite que uma pessoa conectada veja o modal no instante em que o admin
--- encerra o ciclo. O bloco é idempotente e também funciona sem Realtime.
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime')
@@ -153,16 +142,3 @@ BEGIN
 END;
 $$;
 
--- Exemplo para a migration que acompanhará um tema novo:
---
--- INSERT INTO public.club_rewards (
---   club_month, code, kind, name, description, theme_id
--- ) VALUES (
---   '2026-08',
---   '2026-08-theme-exemplo',
---   'theme',
---   'Tema do jogo de agosto',
---   'Concedido a quem finalizou o jogo do clube neste ciclo.',
---   'id-do-tema-em-src-lib-themes'
--- )
--- ON CONFLICT (code) DO NOTHING;

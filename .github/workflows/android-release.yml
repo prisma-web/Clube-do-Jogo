@@ -1,8 +1,5 @@
 name: Android release
 
-# Uma tag vX.Y.Z vira um APK assinado no GitHub Release da tag, que o app de produção
-# oferece como atualização. Configuração única em docs/mobile-release.md.
-
 on:
   push:
     tags:
@@ -28,7 +25,6 @@ jobs:
       APP_VARIANT: production
       EXPO_NO_DOTENV: '1'
       EXPO_NO_TELEMETRY: '1'
-      # O Gradle relê o app.config ao empacotar o JS, então estas variáveis valem para o job todo.
       EXPO_APPLICATION_ID: ${{ vars.EXPO_APPLICATION_ID }}
       EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
@@ -57,14 +53,12 @@ jobs:
           fi
           echo "APP_VERSION=${TAG#v}" >> "$GITHUB_ENV"
 
-      # O histórico inteiro e as tags deixam o assemble achar a tag anterior e as notas adicionadas desde ela.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
 
-      # O checkout traz a tag sem a anotação, e a anotação vira o texto do release no app.
       - name: Fetch the annotated tag
         run: git fetch --force --no-tags origin "+refs/tags/$TAG:refs/tags/$TAG"
 
@@ -73,9 +67,6 @@ jobs:
           node-version: '24'
           cache: npm
 
-      # Antes do build: uma nota inválida falha o release em segundos. Sem nota nova, o arquivo não é gerado.
-      # O ponto de partida é o último release publicado, não a última tag: as notas de uma tag
-      # cujo build falhou entram no próximo release.
       - name: Assemble the release notes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -110,9 +101,6 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        # O lintVital estourou o Metaspace de 512 MB do template e o JVM ficou travado até o
-        # timeout do job. O APK não precisa do lintVital; o resto da memória e o timeout do step
-        # fazem um OOM futuro falhar logo em vez de travar.
         timeout-minutes: 40
         run: >-
           ./gradlew assembleRelease --no-daemon -x lintVitalRelease
@@ -128,7 +116,6 @@ jobs:
             echo "::error::O APK saiu assinado com a keystore de debug."
             exit 1
           fi
-          # Sem pipe para head: com pipefail, o SIGPIPE do aapt2 falharia o step.
           badging="$("$build_tools/aapt2" dump badging "$apk")"
           grep -m1 '^package:' <<<"$badging"
           if [[ "$badging" != *"versionName='$APP_VERSION'"* ]]; then
@@ -143,11 +130,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           assets=("$RUNNER_TEMP/clube-do-jogo-$TAG.apk")
-          # O app e o site leem as novidades deste asset; o nome product-update.json é contrato.
           if [[ -f "$RUNNER_TEMP/product-update.json" ]]; then
             assets+=("$RUNNER_TEMP/product-update.json")
           fi
-          # Rodar de novo o job substitui os assets em vez de falhar no release já criado.
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${assets[@]}" --clobber
           else

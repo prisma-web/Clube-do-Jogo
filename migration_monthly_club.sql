@@ -1,13 +1,9 @@
--- Clube do Jogo: modelo mensal, timeline, progresso e metadados ricos.
--- Execute este arquivo uma vez no SQL Editor do Supabase.
-
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 
 ALTER TABLE public.games ADD COLUMN IF NOT EXISTS screenshot_urls TEXT[] DEFAULT '{}';
 ALTER TABLE public.games ADD COLUMN IF NOT EXISTS trailer_url TEXT;
 
--- Restaura a dimensão mensal caso migration_remove_vote_month.sql tenha sido aplicada.
 ALTER TABLE public.votes ADD COLUMN IF NOT EXISTS vote_month TEXT;
 UPDATE public.votes
 SET vote_month = TO_CHAR((NOW() AT TIME ZONE 'America/Fortaleza') + INTERVAL '1 month', 'YYYY-MM')
@@ -26,8 +22,6 @@ CREATE TABLE IF NOT EXISTS public.club_months (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Foto imutável do ranking no instante em que a votação encerra. O mês de
--- votação é o mês anterior ao mês-alvo (ex.: outubro escolhe novembro).
 CREATE TABLE IF NOT EXISTS public.ranking_snapshots (
   voting_month TEXT NOT NULL CHECK (voting_month ~ '^\d{4}-(0[1-9]|1[0-2])$'),
   target_month TEXT NOT NULL CHECK (target_month ~ '^\d{4}-(0[1-9]|1[0-2])$'),
@@ -86,9 +80,6 @@ CREATE INDEX IF NOT EXISTS progress_month_game_idx ON public.game_progress(club_
 CREATE INDEX IF NOT EXISTS comments_month_game_idx ON public.club_comments(club_month, game_id, created_at);
 CREATE INDEX IF NOT EXISTS reactions_comment_idx ON public.comment_reactions(comment_id);
 
--- Consolida automaticamente todo vencedor cuja votação já encerrou.
--- vote_month é o mês em que o jogo será jogado. Portanto, votos para agosto
--- são feitos durante julho e ficam imutáveis a partir de 1º de agosto.
 CREATE OR REPLACE FUNCTION public.finalize_closed_club_months()
 RETURNS VOID
 LANGUAGE plpgsql
@@ -177,8 +168,6 @@ BEGIN
 END;
 $$;
 
--- Congela primeiro os rankings já encerrados; só depois permite que uma
--- finalização atual altere completed_games.
 CREATE OR REPLACE FUNCTION public.freeze_rankings_before_completion_change()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -267,7 +256,6 @@ CREATE POLICY "Excluir reacao atual propria" ON public.comment_reactions FOR DEL
   auth.uid() = user_id AND club_month = TO_CHAR(NOW() AT TIME ZONE 'America/Fortaleza', 'YYYY-MM')
 );
 
--- Votos só podem mudar enquanto o mês-alvo ainda não começou.
 DROP POLICY IF EXISTS "Permitir inserção de voto próprio" ON public.votes;
 CREATE POLICY "Permitir inserção de voto próprio" ON public.votes FOR INSERT WITH CHECK (
   auth.uid() = user_id AND vote_month > TO_CHAR(NOW() AT TIME ZONE 'America/Fortaleza', 'YYYY-MM')

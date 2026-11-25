@@ -1,5 +1,3 @@
-// scripts/release-notes.mjs loads this file with Node's type stripping, so it keeps no relative imports.
-
 export type ProductUpdateImagePosition = 'top' | 'center' | 'bottom';
 export type ProductUpdateArtwork = 'overview' | 'performance';
 
@@ -34,11 +32,9 @@ interface StepCopy<Image> {
   android?: AndroidCopy;
 }
 
-/** One `updates/notes/<slug>.json`. */
 export type ReleaseNote = StepCopy<ReleaseNoteImage>;
 export type ProductUpdateStep = StepCopy<ProductUpdateImage>;
 
-/** The `product-update.json` asset of a `vX.Y.Z` GitHub release. */
 export interface ProductUpdate {
   id: string;
   version: string;
@@ -160,7 +156,6 @@ function readImageSize(reader: Reader, fields: Fields, path: string) {
   };
 }
 
-/** Validates one `updates/notes/<slug>.json`. Errors are pt-BR sentences for the PR author. */
 export function parseReleaseNote(json: unknown, slug: string): Parsed<ReleaseNote> {
   const reader = new Reader();
   if (!NOTE_SLUG.test(slug)) {
@@ -176,7 +171,6 @@ export function parseReleaseNote(json: unknown, slug: string): Parsed<ReleaseNot
   return reader.result(note as ReleaseNote);
 }
 
-/** Validates a downloaded `product-update.json`. */
 export function parseProductUpdate(json: unknown): Parsed<ProductUpdate> {
   const reader = new Reader();
   const fields = reader.object(json, 'A novidade', ['id', 'version', 'title', 'steps']);
@@ -200,7 +194,6 @@ export function releaseNoteImageUrl(repo: string, tag: string, file: string) {
   return `https://raw.githubusercontent.com/${repo}/${tag}/updates/notes/${file}`;
 }
 
-/** `notes` in the order the release shows them. */
 export function assembleProductUpdate(tag: string, notes: readonly ReleaseNote[], repo: string): ProductUpdate {
   return {
     id: tag,
@@ -221,7 +214,6 @@ export function androidProductUpdate(update: ProductUpdate): ProductUpdate {
   };
 }
 
-/** The `product-update.json` of the release tagged `tag`, or of the latest release. Release downloads have no API rate limit. */
 export function productUpdateUrl(repo: string, tag: string | 'latest') {
   return tag === 'latest'
     ? `https://github.com/${repo}/releases/latest/download/${PRODUCT_UPDATE_ASSET}`
@@ -232,9 +224,7 @@ const PRODUCT_UPDATE_TIMEOUT_MS = 3000;
 
 export type ProductUpdateDownload =
   | { status: 'found'; update: ProductUpdate }
-  /** The release has no notes this client can show: no asset (404), or one that fails the parser or names another release. */
   | { status: 'missing' }
-  /** Network error, timeout or server error. Worth trying again later. */
   | { status: 'failed' };
 
 export type FetchProductUpdate = (url: string, init: { signal: AbortSignal }) => Promise<{
@@ -243,7 +233,6 @@ export type FetchProductUpdate = (url: string, init: { signal: AbortSignal }) =>
   json(): Promise<unknown>;
 }>;
 
-/** Downloads and validates a `product-update.json`, giving up after PRODUCT_UPDATE_TIMEOUT_MS. With `expectedId`, notes of another release count as missing. */
 export async function downloadProductUpdate(url: string, expectedId: string | null, fetchImpl: FetchProductUpdate): Promise<ProductUpdateDownload> {
   let json: unknown;
   try {

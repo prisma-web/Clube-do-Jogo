@@ -1,8 +1,3 @@
-// Runs every scenario over all schedules and compares the result with the
-// findings recorded in SKILL.md. Usage (from the repo root):
-//   npx --yes tsx@4.23.13 .agents/skills/formal-verify-notes-sync-web/check.ts [--trace] [--only <scenario>]
-// Exit: 0 as expected, 1 unexpected result, 2 harness broke, 3 as expected but the
-// covered code changed since sync-commit.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -25,9 +20,6 @@ import {
   violationKey,
 } from './harness';
 
-// A known finding covers a violation only when the signature matches and the pair
-// the sync read was torn in one of the listed shapes (harness.ts, Shape). The same
-// signature without that shape is a new bug.
 const KNOWN_FINDINGS: Record<string, { signature: string; shapes: Shape[]; summary: string }> = {
   F1: {
     signature: 'NoSilentRollback:remote.update:rollback',
@@ -44,8 +36,6 @@ const findingKeys = (id: string) => KNOWN_FINDINGS[id].shapes.map(shape => viola
 
 const v1 = makeNote('n', 1);
 
-// The server had v1, this browser edited it to v2, and the server then moved to v3
-// (both-changed) or lost the note (remote-deleted). v2 exists only in IndexedDB.
 function seedConflict(world: World, kind: 'both-changed' | 'remote-deleted') {
   const base = makeNote('n', 1);
   const local = makeNote('n', 2);
@@ -62,8 +52,6 @@ function seedConflict(world: World, kind: 'both-changed' | 'remote-deleted') {
   });
 }
 
-// A local edit v2 over the synced v1 that has not reached the server: the state F1
-// leaves behind in IndexedDB, or an upload that failed with a network error.
 function seedUnsyncedEdit(world: World) {
   const base = makeNote('n', 1);
   const local = makeNote('n', 2);
@@ -77,8 +65,6 @@ function seedUnsyncedEdit(world: World) {
   });
 }
 
-// One user action and then the quiet sync, with nothing concurrent: a bug here
-// needs no race, so no known finding can cover it.
 function solo(name: string, summary: string, setup: (world: World) => void, actor: Actor, reach: string): Scenario {
   return { name, summary, setup, actors: [actor], reaches: [reach], knownFindings: [] };
 }

@@ -5,7 +5,6 @@ import { themedStyles, useThemeColors, radii, spacing } from '@/theme';
 import { youtubeEmbedUrl } from './youtube';
 import { YoutubePlayer } from './YoutubePlayer';
 
-// Let the request guard reject outside links; a whitelist rejection opens the system browser.
 export function TrailerModal({ visible, url, title, onClose }: {
   visible: boolean;
   url: string | null | undefined;

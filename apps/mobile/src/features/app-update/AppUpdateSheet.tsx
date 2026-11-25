@@ -14,7 +14,6 @@ export function AppUpdateSheet({ flow, onAccept, onDismiss }: {
   onDismiss: () => void;
 }) {
   const styles = useStyles();
-  // Keeps the last content on screen while the modal slides out after a dismiss.
   const [lastShown, setLastShown] = useState<ShownFlow | null>(null);
   if (flow.phase !== 'idle' && flow !== lastShown) setLastShown(flow);
   const shown = flow.phase === 'idle' ? lastShown : flow;

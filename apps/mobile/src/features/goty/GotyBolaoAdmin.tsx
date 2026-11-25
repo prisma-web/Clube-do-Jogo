@@ -26,7 +26,6 @@ export function GotyBolaoAdmin({ state, announcedCount }: { state: GotyFullState
   const [winnerCategory, setWinnerCategory] = useState<GotyCategory | null>(null);
   const [syncedDeadline, setSyncedDeadline] = useState(state.event.voting_closes_at);
 
-  // Mantém o rascunho alinhado quando o prazo muda por outra via (refetch, outro admin).
   if (syncedDeadline !== state.event.voting_closes_at) {
     setSyncedDeadline(state.event.voting_closes_at);
     setDeadlineDraft(formatDeadlineInput(state.event.voting_closes_at));

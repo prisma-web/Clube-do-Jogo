@@ -15,15 +15,12 @@ test('evaluate2026ReleaseEligibility rejects non-standalone DLC, ports, and alte
   const now = Date.UTC(2026, 10, 23);
   const ts2026 = Math.floor(Date.UTC(2026, 4, 10) / 1000);
 
-  // Port (game_type = 11)
   const port = evaluate2026ReleaseEligibility({ gameType: 11, firstReleaseDate: ts2026 }, 2026, now);
   assert.equal(port.eligible, false);
 
-  // Version / Special Edition (version_parent != null)
   const edition = evaluate2026ReleaseEligibility({ gameType: 0, versionParent: 1234, firstReleaseDate: ts2026 }, 2026, now);
   assert.equal(edition.eligible, false);
 
-  // Standalone expansion (game_type = 4)
   const standalone = evaluate2026ReleaseEligibility({ gameType: 4, versionParent: null, firstReleaseDate: ts2026 }, 2026, now);
   assert.equal(standalone.eligible, true);
   assert.equal(standalone.eligibility, 'standalone_expansion_2026');

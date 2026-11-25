@@ -589,7 +589,6 @@ export const GOTY_2026_PERSONAL_CATEGORIES: GotyPersonalCategory[] = [
   },
 ];
 
-// Catálogo complementar de lançamentos comerciais de 2026 para busca offline/demo e enriquecimento local
 export const GOTY_2026_CURATED_CATALOG: readonly GotySearchGameResult[] = [
   {
     id: 'goty-2026-gta-vi',
@@ -1068,7 +1067,7 @@ export function createDemoGotyState(): GotyFullState {
   }));
   const personalCategories = GOTY_2026_PERSONAL_CATEGORIES.map(category => ({ ...category }));
 
-  const demoMembers = demoProfiles.slice(1); // bia, caio, luiza, leo
+  const demoMembers = demoProfiles.slice(1);
   const bolaoVotes: GotyBolaoVote[] = [];
   const bolaoSubmissions: GotyBolaoSubmission[] = [];
 
@@ -1114,7 +1113,6 @@ export function createDemoGotyState(): GotyFullState {
   };
 
   const personalPicks: GotyPersonalPick[] = [
-    // Marina Costa (bia)
     pick('bia', 'meu-goty', 'goty-2026-cairn', 0),
     pick('bia', 'melhor-narrativa', 'goty-2026-control-resonant', 0),
     pick('bia', 'melhor-direcao-de-arte', 'goty-2026-mouse-pi', 0),
@@ -1125,7 +1123,6 @@ export function createDemoGotyState(): GotyFullState {
     pick('bia', 'jogo-que-mais-marcou', 'goty-2026-cairn', 0),
     pick('bia', 'maior-decepcao', 'goty-2026-marathon', 0),
 
-    // Caio Nunes (caio)
     pick('caio', 'meu-goty', 'goty-2026-phantom-blade-zero', 1),
     pick('caio', 'melhor-narrativa', 'goty-2026-resident-evil-requiem', 1),
     pick('caio', 'melhor-direcao-de-arte', 'goty-2026-phantom-blade-zero', 1),
@@ -1136,7 +1133,6 @@ export function createDemoGotyState(): GotyFullState {
     pick('caio', 'jogo-que-mais-marcou', 'goty-2026-resident-evil-requiem', 1),
     pick('caio', 'maior-decepcao', 'goty-2026-marathon', 1),
 
-    // Luiza Alves (luiza)
     pick('luiza', 'meu-goty', 'goty-2026-gta-vi', 2),
     pick('luiza', 'melhor-narrativa', 'goty-2026-blood-of-dawnwalker', 2),
     pick('luiza', 'melhor-direcao-de-arte', 'goty-2026-control-resonant', 2),
@@ -1146,7 +1142,6 @@ export function createDemoGotyState(): GotyFullState {
     pick('luiza', 'melhor-multiplayer', 'goty-2026-big-walk', 2),
     pick('luiza', 'jogo-que-mais-marcou', 'goty-2026-gta-vi', 2),
 
-    // Léo Rocha (leo)
     pick('leo', 'meu-goty', 'goty-2026-gta-vi', 2),
     pick('leo', 'melhor-narrativa', 'goty-2026-007-first-light', 2),
     pick('leo', 'melhor-direcao-de-arte', 'goty-2026-replaced', 2),

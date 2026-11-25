@@ -37,19 +37,12 @@ export function youtubeEmbedUrl(url?: string | null): string | null {
   return `https://www.youtube-nocookie.com/embed/${id}?playsinline=1&rel=0&modestbranding=1&controls=1`;
 }
 
-/**
- * HTTPS origin the player page identifies itself with. YouTube refuses embeds that
- * arrive without an embedder identity (player "Error 153"), and a WebView that loads
- * the embed URL directly sends no Referer. The configured site origin is preferred, so
- * the app identifies itself like the web does; without one, the app id stands in.
- */
 export function youtubeEmbedderOrigin(siteOrigin: string | null | undefined, applicationId: string | null | undefined): string {
   if (siteOrigin) {
     try {
       const parsed = new URL(siteOrigin);
       if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) return parsed.origin;
     } catch {
-      // fall through to the app id
     }
   }
   const id = (applicationId || '').toLowerCase();
@@ -60,11 +53,6 @@ function escapeHtmlAttribute(value: string) {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/**
- * WebView source that plays a trailer the way the web does: an iframe inside a page
- * served from `embedderOrigin`, so YouTube receives that origin as the Referer and
- * as the `origin` player parameter. Returns null when the embed URL is not ours.
- */
 export function youtubePlayerSource(embedUrl: string | null | undefined, embedderOrigin: string, options: { autoplay?: boolean } = {}): { html: string; baseUrl: string } | null {
   if (!embedUrl || !isAllowedYoutubeOrigin(embedUrl)) return null;
   const src = new URL(embedUrl);
@@ -80,10 +68,6 @@ export function youtubePlayerSource(embedUrl: string | null | undefined, embedde
   return { html, baseUrl: `${embedderOrigin}/` };
 }
 
-/**
- * Navigation guard for the player WebView: the hosting page itself (served from
- * `embedderOrigin` or as about:blank) and YouTube's own origins; anything else is refused.
- */
 export function isAllowedPlayerNavigation(url: string, embedderOrigin: string): boolean {
   if (url === 'about:blank' || url === 'about:srcdoc') return true;
   if (url === embedderOrigin || url === `${embedderOrigin}/`) return true;

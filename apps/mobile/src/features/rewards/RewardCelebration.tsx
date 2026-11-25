@@ -80,8 +80,6 @@ export function RewardCelebration({ grant, onClose }: { grant: RewardGrant; onCl
             {grant.reward.eligibility === 'all_members' ? 'Por participar do ciclo de ' : 'Por ter finalizado o jogo de '}{month}: <Text style={styles.subtitleStrong}>{gameTitle}</Text>.
           </Text>
 
-          {/* Always show art: the reward image, or the illustrated fallback when there is no
-              image_url or it fails to load (parity with /reward-unlock.svg on the web). */}
           <View style={styles.art}>
             {grant.reward.image_url && !imageFailed ? (
               <Image

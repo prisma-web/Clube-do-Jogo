@@ -1,7 +1,5 @@
 appId: com.clubedojogo.mobile.dev
 ---
-# Demo sem credenciais: limpa o estado, entra no modo demonstração e vota Não em Cocoon
-# pela Votação rápida, que abre sozinha logo depois do login.
 - launchApp:
     clearState: true
 - extendedWaitUntil:

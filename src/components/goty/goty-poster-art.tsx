@@ -90,7 +90,6 @@ export function GotyPosterArt({
         className,
       )}
     >
-      {/* Brilho dourado sutil de premiação */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_15%,rgba(223,180,81,0.22),transparent_55%)]"

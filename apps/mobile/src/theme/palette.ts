@@ -54,8 +54,6 @@ export interface ThemeColors {
   black: string;
 }
 
-// As cores vêm de packages/domain/src/theme-palettes.ts (fonte única com a web). Esta lista existe
-// só para o TypeScript garantir que cada chave de ThemeColors é um token da paleta compartilhada.
 const themeColorKeys = Object.keys({
   background: true, foreground: true, surface: true, surfaceSoft: true, surfaceSofter: true, surfaceDeep: true,
   card: true, hairline: true, hairlineSoft: true,

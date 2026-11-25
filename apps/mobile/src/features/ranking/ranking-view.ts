@@ -1,13 +1,6 @@
 import { compareRankingItems } from '@clube-do-jogo/domain';
 import type { RankingItem } from '@clube-do-jogo/domain';
 
-/**
- * Mirrors the web's ranking day-boundary and grouping logic (src/app/ranking/page.tsx
- * `friendlyDay`, `filteredRanking`, `rankingGroups`), but groups by calendar day in the
- * club's fixed America/Fortaleza timezone (see apps/mobile/src/features/notes/date-grouping.ts)
- * instead of the device's local timezone, so members in different timezones see the same splits.
- */
-
 export type RankingView = 'ranking' | 'recent';
 
 export interface RankingGroup {

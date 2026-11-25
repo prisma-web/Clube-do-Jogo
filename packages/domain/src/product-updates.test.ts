@@ -216,7 +216,6 @@ test('network errors, server errors and non-JSON bodies are failures worth retry
 });
 
 test('gives up on a server that never answers after 3 seconds', { timeout: 4000 }, async () => {
-  // Stands in for the open socket of a real request, which keeps the process alive; AbortSignal.timeout alone does not.
   const socket = setTimeout(() => {}, 5000);
   const hanging = (_url: string, { signal }: { signal: AbortSignal }) => new Promise<never>((_resolve, reject) => {
     signal.addEventListener('abort', () => {

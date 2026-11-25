@@ -1,15 +1,10 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import { noUnnecessaryCommentsPlugin } from "./eslint/no-unnecessary-comments.mjs";
 
-// --- Workspace boundaries (see "Repository map" in AGENTS.md) ---------------
-//
-// no-restricted-imports only sees the import string, so "leaves this workspace
-// by a relative path" is encoded per directory depth: a file N directories
-// below the workspace root escapes it with N+1 leading "../". One config object
-// per depth; `*` does not cross "/", so each glob matches exactly one depth.
-// Later objects replace the rule options of earlier ones for the same file.
 const SOURCE_EXT = "{ts,tsx,mts,cts,js,jsx,mjs,cjs}";
+const ALL_SOURCE_FILES = `**/*.${SOURCE_EXT}`;
 const MAX_DEPTH = 12;
 
 function escapesRoot(depth, rest = "") {
@@ -58,10 +53,6 @@ const noNodeInPackageSource = {
   message: "Both apps bundle this package, so Node built-ins are allowed only in *.test.ts. Node-only code goes in src/lib or scripts.",
 };
 
-// Table access: `x.from('t')`, `x.from(`t`)`, `supabase.from(anything)`,
-// `client.from(...)`, `x.schema(...).from(...)`. Capitalised receivers
-// (Array.from, Uint8Array.from, Buffer.from, Temporal.Instant.from) and
-// `.storage.from(bucket)` (Storage, not a table) are not matched.
 const TABLE_ACCESS_SELECTOR = [
   "CallExpression[callee.type='MemberExpression'][callee.property.name='from']",
   ":not([callee.object.name=/^[A-Z]/])",
@@ -73,15 +64,11 @@ const TABLE_ACCESS_SELECTOR = [
 const webImportsApps = "The web must not import apps/. Move shared code to packages/domain or packages/data.";
 
 const boundaryConfigs = [
-  // packages/domain: pure TypeScript with no dependencies (its package.json declares none).
   ...perDepth("packages/domain", (depth) => domainImports(depth)),
   ...perDepth("packages/domain", (depth) => domainImports(depth, { tests: true }), "*.test.ts"),
-  // packages/data: only what its package.json declares.
   ...perDepth("packages/data", (depth) => dataImports(depth)),
   ...perDepth("packages/data", (depth) => dataImports(depth, { tests: true }), "*.test.ts"),
 
-  // apps/mobile: shared code comes from the packages by name, never from the
-  // web's src/. (Images under the repo's public/ are shared on purpose.)
   ...perDepth("apps/mobile", (depth) => [
     {
       regex: escapesRoot(depth + 1, "src/"),
@@ -102,7 +89,6 @@ const boundaryConfigs = [
     },
   },
 
-  // Web (src/): never the mobile app; packages by name.
   ...perDepth("src", (depth) => [
     { regex: escapesRoot(depth, "apps/"), message: webImportsApps },
     { regex: "^@clube-do-jogo/mobile(/|$)", message: webImportsApps },
@@ -123,13 +109,69 @@ const boundaryConfigs = [
   },
 ];
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
+const noUnnecessaryCommentsConfigs = [
   {
+    files: [ALL_SOURCE_FILES],
+    plugins: { local: noUnnecessaryCommentsPlugin },
     rules: {
-      // As capas e avatares vêm de hosts definidos pelos usuários/IGDB; não há
-      // uma allowlist segura e estável para o otimizador de imagens do Next.
+      "local/no-unnecessary-comments": "error",
+    },
+  },
+  {
+    files: ["**/*.css"],
+    plugins: { local: noUnnecessaryCommentsPlugin },
+    language: "local/css",
+    rules: {
+      "local/no-unnecessary-comments": "error",
+    },
+  },
+  {
+    files: ["**/*.sql"],
+    plugins: { local: noUnnecessaryCommentsPlugin },
+    language: "local/sql",
+    rules: {
+      "local/no-unnecessary-comments": "error",
+    },
+  },
+  {
+    files: ["**/*.{yml,yaml}"],
+    plugins: { local: noUnnecessaryCommentsPlugin },
+    language: "local/yaml",
+    rules: {
+      "local/no-unnecessary-comments": "error",
+    },
+  },
+  {
+    files: [
+      "**/*.sh",
+      ".agents/skills/verify-clube-do-jogo-mobile/scripts/verify-mobile",
+      ".agents/skills/verify-clube-do-jogo-mobile/scripts/test-verify-mobile",
+      ".agents/skills/verify-clube-do-jogo-web/scripts/verify-clube-do-jogo-web",
+    ],
+    plugins: { local: noUnnecessaryCommentsPlugin },
+    language: "local/shell",
+    rules: {
+      "local/no-unnecessary-comments": "error",
+    },
+  },
+  {
+    files: ["**/*.tla", ".agents/skills/formal-verify-pending-notes-mobile/model/*.cfg"],
+    plugins: { local: noUnnecessaryCommentsPlugin },
+    language: "local/tla",
+    rules: {
+      "local/no-unnecessary-comments": "error",
+    },
+  },
+];
+
+const eslintConfig = defineConfig([
+  {
+    files: [ALL_SOURCE_FILES],
+    extends: [nextVitals, nextTs],
+  },
+  {
+    files: [ALL_SOURCE_FILES],
+    rules: {
       "@next/next/no-img-element": "off",
     },
   },
@@ -146,15 +188,24 @@ const eslintConfig = defineConfig([
     },
   },
   ...boundaryConfigs,
-  // Override default ignores of eslint-config-next.
+  ...noUnnecessaryCommentsConfigs,
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     ".next-dev/**",
     ".next-build/**",
     "out/**",
     "build/**",
+    "coverage/**",
+    "test-results/**",
+    "playwright-report/**",
+    "evidence/**",
+    "state/**",
+    "supabase/.temp/**",
+    ".vercel/**",
+    ".claude/**",
+    ".agents/**/.cache/**",
     "next-env.d.ts",
+    "apps/mobile/expo-env.d.ts",
     "apps/mobile/.expo/**",
     "apps/mobile/dist/**",
     "apps/mobile/android/**",

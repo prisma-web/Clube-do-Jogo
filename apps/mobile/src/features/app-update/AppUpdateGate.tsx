@@ -4,8 +4,6 @@ import { checkForUpdate, downloadApk, openInstaller, updateSource } from './apk-
 import { idleFlow, updateFlowReducer } from './update-flow';
 import { AppUpdateSheet } from './AppUpdateSheet';
 
-// Android may silently drop an activity started from the background, which would leave the
-// installer promise pending. Wait for the app to be in front before opening it.
 function whenActive(): Promise<void> {
   if (AppState.currentState === 'active') return Promise.resolve();
   return new Promise(resolve => {
@@ -17,11 +15,9 @@ function whenActive(): Promise<void> {
   });
 }
 
-/** Offers a newer APK on every open of the Android production app. Any check failure shows nothing. */
 export function AppUpdateGate() {
   const [flow, dispatch] = useReducer(updateFlowReducer, idleFlow);
   const download = useRef<AbortController | null>(null);
-  // Bumped on every dismissal so a check that was already in flight can't reopen the modal.
   const dismissals = useRef(0);
 
   useEffect(() => {

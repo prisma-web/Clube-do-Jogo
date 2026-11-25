@@ -17,12 +17,10 @@ export async function GET(request: Request) {
   try {
     const { supabase, userId } = await createRequestContext();
 
-    // 1. Verificar se o usuário está autenticado
     if (!userId) {
       return json({ error: 'Não autorizado.' }, { status: 401 });
     }
 
-    // 2. Buscar no banco de dados primeiro (cache local)
     const { data: cachedGames, error: dbError } = await supabase
       .from('games')
       .select('*')
@@ -44,15 +42,12 @@ export async function GET(request: Request) {
       game.platforms.length > 0
     );
 
-    // Se encontramos resultados locais suficientes e completos, retornamos do cache
     if (cachedGames && cachedGames.length >= 2 && hasFreshMetadata) {
       return json(gameRowsAsDomain(cachedGames));
     }
 
-    // 3. Buscar na IGDB
     const igdbResults = await searchGamesWithIGDB(query);
 
-    // 4. Persistir o catálogo externo para que qualquer card possa abrir a página do jogo.
     const savedGames = await cacheIGDBGames(supabase, igdbResults);
 
     const finalResults = savedGames.length > 0 ? savedGames : gameRowsAsDomain(cachedGames || []);

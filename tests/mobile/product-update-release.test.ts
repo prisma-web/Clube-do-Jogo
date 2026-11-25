@@ -44,7 +44,6 @@ function memoryStorage(initial: Record<string, string> = {}, { failReads = false
   return { storage, values };
 }
 
-/** GitHub release downloads: `body` answers 200, a number answers that status, an Error is a network failure. */
 function github(answers: Record<string, unknown>) {
   const requested: string[] = [];
   const fetch: FetchProductUpdate = async url => {
@@ -118,7 +117,6 @@ test('the installed notes come with their Android copy, downloaded or cached', a
   assert.deepEqual(await loadInstalledProductUpdate(source, { storage: cached.storage, fetch: github({}).fetch }), { status: 'found', update: expected });
 });
 
-/** A store whose loads answer from `results` in order, plus the app's AppState to move it between background and foreground. */
 function storeWith(...results: (ProductUpdateDownload | Error)[]) {
   let loads = 0;
   let pending: (() => void) | null = null;
@@ -141,7 +139,6 @@ function storeWith(...results: (ProductUpdateDownload | Error)[]) {
     store,
     loads: () => loads,
     listening: () => listeners.size,
-    /** Answers the load in flight and lets the store react. */
     settle: async () => {
       pending?.();
       pending = null;

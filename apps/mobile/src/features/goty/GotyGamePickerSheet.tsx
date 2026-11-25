@@ -26,7 +26,6 @@ export function GotyGamePickerSheet({
   const debouncedQuery = useDebouncedValue(draftQuery.trim(), 260);
   const search = useGotyGameSearch({ query: debouncedQuery, includeAllYears, enabled: open });
 
-  // Cada abertura começa limpa, como o diálogo da web.
   function close() {
     setDraftQuery('');
     setIncludeAllYears(false);

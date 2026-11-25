@@ -4,10 +4,6 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-// O plugin edita por string o android/app/build.gradle gerado. O template não vem em
-// node_modules (o prebuild baixa o tarball), então a fixture é a cópia verbatim do
-// build.gradle que o SDK 57 gera para este projeto.
-
 const require = createRequire(import.meta.url);
 const pluginPath = fileURLToPath(new URL('../../apps/mobile/plugins/withReleaseSigning.js', import.meta.url));
 const templatePath = fileURLToPath(new URL('./fixtures/app-build.sdk57.gradle', import.meta.url));
@@ -61,7 +57,6 @@ test('release assina com a keystore das variáveis quando ANDROID_KEYSTORE_PATH 
   for (const name of ['ANDROID_KEYSTORE_PATH', 'ANDROID_KEYSTORE_PASSWORD', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD']) {
     assert.match(output, new RegExp(`'${name}'`), `${name} não é lido`);
   }
-  // Propriedade Gradle (-P ou gradle.properties) tem precedência sobre a variável de ambiente.
   assert.match(output, /findProperty\(name\) \?: System\.getenv\(name\)/);
 
   const signingConfigs = block(output, '    signingConfigs {');

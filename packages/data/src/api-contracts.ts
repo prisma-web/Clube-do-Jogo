@@ -1,33 +1,17 @@
-// Contrato compartilhado das rotas HTTP da web (src/app/api/**/route.ts).
-//
-// Cada rota com chamador neste repositório tem aqui: caminho (construtor quando há
-// parâmetro ou query string), método, formato da requisição (query ou corpo), formato
-// da resposta de sucesso, status de erro e o corpo de erro. Os handlers e todos os
-// chamadores (web, mobile e este pacote) importam daqui, então mudar o formato no fio
-// passa a ser erro de typecheck nos dois lados.
-//
-// Só tipos e construtores de caminho: nada de `next`, `react-native` ou Node, porque
-// os dois apps importam este módulo. A rota /api/push/worker fica de fora de propósito:
-// quem chama é o cron, não há chamador no repositório.
 import type { DiscoverItem, DiscoverSource, Game, GameMugshot, GotySearchGameResult, ProductUpdate } from '@clube-do-jogo/domain';
 
 export type ApiMethod = 'GET' | 'POST' | 'DELETE';
 
-/** Corpo que toda rota devolve junto de um status de erro. */
 export interface ApiErrorBody {
   error: string;
 }
 
-// ---------- Catálogo ----------
-
-/** Valores chegam como string; vazio equivale a ausente para o handler. */
 export interface DiscoverRequestQuery {
   source?: DiscoverSource;
   q?: string;
   genre?: string;
   platform?: string;
   year?: string;
-  /** Só é lido quando `source` é `ranking`. */
   month?: string;
   offset?: string;
   limit?: string;
@@ -46,7 +30,6 @@ export interface PlatformSearchRequestQuery {
   q: string;
 }
 
-/** Formato de `IGDBPlatformResult` (src/lib/igdb.ts). */
 export interface PlatformSearchResult {
   igdb_platform_id: number;
   name: string;
@@ -57,8 +40,6 @@ export interface PlatformSearchResult {
 export interface GameMugshotsResponse {
   mugshots: GameMugshot[];
 }
-
-// ---------- GOTY 2026 ----------
 
 export interface GotyResolveCoversRequest {
   limit?: number;
@@ -81,13 +62,6 @@ export interface GotySearchGamesResponse {
   only2026: boolean;
 }
 
-// ---------- Push ----------
-
-/**
- * O que o navegador envia (`PushSubscription.toJSON()`). Os campos são opcionais no
- * tipo do navegador; o handler exige `endpoint`, `keys.p256dh` e `keys.auth` em tempo
- * de execução (400) e ignora `expirationTime`.
- */
 export interface PushSubscribeRequest {
   endpoint?: string;
   expirationTime?: number | null;
@@ -98,20 +72,17 @@ export interface PushSubscribeResponse {
   ok: true;
 }
 
-/** Resultado de `dispatchPushNotification` (src/lib/push.ts). */
 export interface PushDispatchResult {
   sent: number;
   configured: boolean;
   native: { queued: number; configured: boolean; error?: string };
 }
 
-/** Sem client admin (service role) configurado: nada foi enviado. */
 export interface PushNotConfigured {
   sent: number;
   configured: false;
 }
 
-/** O evento não muda nada (voto repetido, ciclo trocado, líder igual). */
 export interface PushUnchanged {
   sent: number;
   changed: false;
@@ -168,7 +139,6 @@ export interface NativePushRegisterRequest {
   platform: 'android' | 'ios';
 }
 
-/** Formato de `NativeInstallationRegistration` (src/lib/push-native.ts). */
 export interface NativePushRegisterResponse {
   installation: {
     installationId: string;
@@ -189,12 +159,9 @@ export interface NativePushUnlinkResponse {
   unlinked: boolean;
 }
 
-/** Notas da última release; `null` quando ela não tem notas ou o GitHub falha. A rota não devolve erro. */
 export interface ProductUpdateResponse {
   update: ProductUpdate | null;
 }
-
-// ---------- Tabela de rotas ----------
 
 interface RouteTypes<Query, Body, Response, ErrorStatus extends number> {
   query: Query;
@@ -203,7 +170,6 @@ interface RouteTypes<Query, Body, Response, ErrorStatus extends number> {
   errorStatus: ErrorStatus;
 }
 
-/** Tipos de cada rota. `never` em `query`/`body` quando a rota não lê nada daquele lugar. */
 export interface ApiContracts {
   discover: RouteTypes<DiscoverRequestQuery, never, DiscoverResponse, 401 | 500>;
   searchGames: RouteTypes<SearchGamesRequestQuery, never, Game[], 400 | 401 | 500>;
@@ -228,33 +194,25 @@ export type ApiRequestQuery<K extends ApiRouteKey> = ApiContracts[K]['query'];
 export type ApiRequestBody<K extends ApiRouteKey> = ApiContracts[K]['body'];
 export type ApiResponse<K extends ApiRouteKey> = ApiContracts[K]['response'];
 export type ApiErrorStatus<K extends ApiRouteKey> = ApiContracts[K]['errorStatus'];
-/** Tudo o que o handler pode devolver como JSON: sucesso ou `{ error }`. */
 export type ApiResult<K extends ApiRouteKey> = ApiResponse<K> | ApiErrorBody;
 
 type AllKeys<T> = T extends unknown ? keyof T : never;
 type ValueAt<T, P extends PropertyKey> = T extends unknown ? (P extends keyof T ? T[P] : never) : never;
 
-/**
- * JSON ainda não validado com o formato do contrato: as chaves existem no tipo (ler uma
- * chave fora do contrato é erro), mas os valores são `unknown` até um guard conferir.
- */
 export type Unvalidated<T> = [T] extends [readonly unknown[]]
   ? unknown
   : [T] extends [object]
     ? { [P in AllKeys<T>]?: Unvalidated<NonNullable<ValueAt<T, P>>> }
     : unknown;
 
-/** Corpo da requisição como o handler o recebe, antes da validação. */
 export type ApiUntrustedBody<K extends ApiRouteKey> = Unvalidated<ApiRequestBody<K>>;
 
-/** `URLSearchParams` que só aceita os nomes de parâmetro do contrato da rota. */
 export interface ApiSearchParams<K extends ApiRouteKey> {
   get(name: Extract<keyof ApiRequestQuery<K>, string>): string | null;
 }
 
 function withQuery(path: string, query: object): string {
   const params = new URLSearchParams();
-  // Mantém a ordem de inserção de quem chama e omite só `undefined` (string vazia vai no fio).
   for (const [name, value] of Object.entries(query)) {
     if (value !== undefined) params.append(name, String(value));
   }
@@ -265,7 +223,6 @@ function gamePath(gameId: string, leaf: 'media' | 'mugshots') {
   return `/api/games/${encodeURIComponent(gameId)}/${leaf}`;
 }
 
-/** Método e caminho de cada rota. Use junto dos tipos de `ApiContracts` com a mesma chave. */
 export const apiRoutes = {
   discover: { method: 'GET', path: (query: DiscoverRequestQuery) => withQuery('/api/discover', query) },
   searchGames: { method: 'GET', path: (query: SearchGamesRequestQuery) => withQuery('/api/search', query) },
@@ -283,5 +240,4 @@ export const apiRoutes = {
   pushNativeRegister: { method: 'POST', path: '/api/push/native-installations' },
   pushNativeUnlink: { method: 'DELETE', path: '/api/push/native-installations' },
   productUpdate: { method: 'GET', path: '/api/product-update' },
-  // O `satisfies` garante que esta tabela e `ApiContracts` têm exatamente as mesmas chaves.
 } as const satisfies { [K in ApiRouteKey]: { method: ApiMethod; path: string | ((...args: never[]) => string) } };

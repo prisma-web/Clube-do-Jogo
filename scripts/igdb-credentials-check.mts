@@ -1,5 +1,3 @@
-// O catálogo offline responderia por todas as chamadas e o teste passaria sem
-// tocar na IGDB. Desligar antes de importar o módulo, que lê a flag na carga.
 delete process.env.IGDB_OFFLINE_CATALOG;
 
 const { browseGamesWithIGDB, getGameByIGDBId, getGameMugshotsByIGDBId, searchGamesWithIGDB, searchPlatformsWithIGDB } =

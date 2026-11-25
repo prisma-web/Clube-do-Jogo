@@ -231,8 +231,6 @@ export function useRemoveUserPlatform(): UseMutationResult<void, Error, { igdbPl
   });
 }
 
-// `POST /api/games/:id/media` hits IGDB, so callers pass `enabled: false` once the
-// stored game already has enough media (see `needsGameMediaRefresh`).
 export function useGameMedia(gameId: string, options?: { enabled?: boolean }): UseQueryResult<Game | null, Error> {
   const context = useAppInternal();
   const userId = context.userId;

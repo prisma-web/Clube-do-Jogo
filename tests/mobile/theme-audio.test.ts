@@ -382,7 +382,6 @@ test('troca de modo não toca navigate com os sons do comunicador desligados, me
   assert.deepEqual(controller.getSnapshot(), { ready: true, error: null });
   assert.equal(navigate.seekRequests.length, 0);
 
-  // Turning signals back on later must not replay the cue that was dropped.
   controller.setSignalsEnabled(true);
   navigate.emit({ isLoaded: true, error: null });
   assert.equal(navigate.seekRequests.length, 0);

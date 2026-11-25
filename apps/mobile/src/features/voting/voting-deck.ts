@@ -1,6 +1,5 @@
 import type { RankingItem } from '@clube-do-jogo/domain';
 
-/** Keeps the opening deck focused on the newest additions the member has not answered. */
 export function recentVotingItems(
   items: readonly RankingItem[],
   answeredGameIds: ReadonlySet<string> = new Set(),

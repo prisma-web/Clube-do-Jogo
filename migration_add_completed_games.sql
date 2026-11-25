@@ -1,8 +1,3 @@
--- =============================================================
--- Migracao: Adicionar lista de jogos zerados
--- Execute no SQL Editor do Supabase
--- =============================================================
-
 CREATE TABLE IF NOT EXISTS public.completed_games (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,

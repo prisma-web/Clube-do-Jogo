@@ -16,8 +16,6 @@ import { formatDate, formatShortDate, formatTime, type LocalNote } from '@clube-
 import { shouldShowDateSeparator } from './date-grouping';
 
 const MAX_IMAGE_BYTES = 4_000_000;
-// Mirrors the web's bounded chat panel (src/components/notes-chat.tsx `h-[min(56dvh,560px)]`),
-// scaled to the device viewport instead of a CSS viewport unit.
 const LIST_MAX_HEIGHT = Math.min(Dimensions.get('window').height * 0.56, 560);
 
 type PrivateNotesProps = { gameId: string; snapshotMonth?: string };
@@ -31,12 +29,9 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
   const colors = useThemeColors();
   const styles = useStyles();
   const { isDemo, userId } = useAppInternal();
-  // Read-only only for an explicit cycle snapshot (historical Jogo do Mês);
-  // a game's private notes stay editable while browsing a historical cycle.
   const readOnly = Boolean(snapshotMonth);
 
   const notesQuery = useNotes(gameId, { snapshotMonth: snapshotMonth || null });
-  // Same snapshot useNotes resolves (snapshotFor in discussion-queries.ts).
   const offline = useNotesOfflineCache(gameId, snapshotMonth || null, notesQuery);
   const deleteNote = useDeleteNote();
   const draftState = useNoteDraft(gameId);
@@ -49,7 +44,6 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const listRef = useRef<ScrollView>(null);
 
-  // The server list when it answered; otherwise the last synced copy saved on this device.
   const fromCache = !notesQuery.data && Boolean(offline.cache);
   const confirmedNotes = notesQuery.data ?? offline.cache?.notes ?? [];
   const notes = mergePendingIntoList(confirmedNotes, pendingQueue.queue);
@@ -58,7 +52,6 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
     confirmed: confirmedNotes,
     queue: pendingQueue.queue,
     conflicts: pendingQueue.conflicts,
-    // A paused query (React Query offline) without data is a server that did not answer yet.
     serverError: notesQuery.isError || (!notesQuery.data && notesQuery.fetchStatus === 'paused'),
     fromCache,
     fetching: notesQuery.isFetching,
@@ -222,7 +215,6 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
               <View style={styles.bubbleRow}>
                 <View style={[styles.bubble, pendingIds.has(note.id) && styles.bubblePending]}>
                   {!readOnly && !pendingIds.has(note.id) ? (
-                    // Discoverable alternative to the long press (parity with the web's chevron menu).
                     <Pressable
                       onPress={() => setActionsTarget(note)}
                       accessibilityRole="button"
@@ -359,8 +351,6 @@ function plural(count: number, singular: string, pluralForm: string) {
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
-// Parity with the sync summary in src/components/notes-chat.tsx: synced / pending / conflicts /
-// error, plus a manual "Sincronizar novamente".
 function SyncStatusBar({ summary, cachedAt, syncing, onRetry }: {
   summary: NotesSyncSummary;
   cachedAt?: string;
@@ -437,8 +427,6 @@ function ConflictVersion({ label, note, emptyLabel }: { label: string; note: Loc
   );
 }
 
-// Parity with src/components/notes-chat.tsx: both versions side by side (text, image, time),
-// with use-local/use-remote for changed notes and restore/accept-deletion for deleted ones.
 function ConflictCard({ conflict, disabled, onUseLocal, onUseRemote, onEditRemote, onAcceptDeletion, onKeepAsNew }: {
   conflict: NoteConflict;
   disabled: boolean;

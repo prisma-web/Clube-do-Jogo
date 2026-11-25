@@ -12,8 +12,6 @@ export function Avatar({ uri, crop, name, size = 40 }: {
 }) {
   const styles = useStyles();
   const dimension = { width: size, height: size, borderRadius: radii.full };
-  // Distinct keys make React remount the container when the avatar swaps between initials and
-  // an image. On Android, reusing the initials View for the image left an empty circle.
   if (uri) {
     const normalized = normalizeAvatarCrop(crop);
     return (

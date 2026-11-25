@@ -10,19 +10,12 @@ export function clampZoom(value: number): number {
   return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(value.toFixed(2))));
 }
 
-/** Size of an image rendered with `contentFit="contain"` inside the viewport. */
 export function containedSize(viewport: Size, image: Size | null): Size {
   if (!image || image.width <= 0 || image.height <= 0) return viewport;
   const ratio = Math.min(viewport.width / image.width, viewport.height / image.height);
   return { width: image.width * ratio, height: image.height * ratio };
 }
 
-/**
- * Keeps the zoomed image covering the viewport: pan can only reveal parts of the
- * image that overflow the viewport, never the empty backdrop past its edges.
- * Transform order is translate → scale around the center, so the overflow on each
- * side is (rendered * zoom - viewport) / 2.
- */
 export function clampPan(pan: Point, zoom: number, viewport: Size, image: Size | null): Point {
   if (zoom <= MIN_ZOOM) return { x: 0, y: 0 };
   const rendered = containedSize(viewport, image);

@@ -7,11 +7,6 @@ import { isAllowedPlayerNavigation, youtubeEmbedderOrigin, youtubePlayerSource }
 
 const ORIGIN_WHITELIST = ['*'];
 
-/**
- * YouTube trailer player shared by InlineTrailer and TrailerModal. The embed runs in an
- * iframe on a page served from the club's site origin, like the web's FloatingTrailer,
- * because YouTube rejects embeds with no embedder identity (player "Error 153").
- */
 export function YoutubePlayer({ embedUrl, title, autoplay, style }: {
   embedUrl: string;
   title: string;

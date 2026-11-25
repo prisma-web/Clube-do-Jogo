@@ -1,20 +1,6 @@
 import { View } from 'react-native';
 import { themedStyles } from '@/theme';
 
-/**
- * Nomai-script thread connector for the Fogueira Cósmica theme, the native counterpart of
- * src/components/nomai-thread-connector.tsx. The app has no SVG renderer, so the single
- * continuous strand is composed from bordered views with matching radii:
- *
- *   1. a descent from the root comment that bends a quarter turn into the reply;
- *   2. an open spiral (three arcs of decreasing radius, each missing one side) where the strand ends;
- *   3. a small eye at the centre of the spiral.
- *
- * Both a soft "glow" copy and the crisp strand are drawn, like the web's two layers. `active`
- * lights only this connector (warm lilac), the native take on the web's focused thread path.
- * `continues` draws the rail down to the next reply so sibling replies stay linked to the root.
- */
-
 export const NOMAI_GUTTER = 30;
 
 const IDLE_STRAND = 'rgba(185,174,230,0.42)';
@@ -44,9 +30,7 @@ function Strand({ color, width, styles, glow = false }: {
   const ring = { borderColor: color, borderWidth: width };
   return (
     <View style={[styles.layer, glow && styles.glowLayer]}>
-      {/* Descent with a quarter-turn bend into the reply. */}
       <View style={[styles.descent, { borderLeftColor: color, borderBottomColor: color, borderLeftWidth: width, borderBottomWidth: width }]} />
-      {/* Open spiral: each arc drops one side so the strand reads as one winding line. */}
       <View style={[styles.spiralOuter, ring, { borderLeftColor: 'transparent' }]} />
       <View style={[styles.spiralMiddle, ring, { borderTopColor: 'transparent' }]} />
       <View style={[styles.spiralInner, ring, { borderRightColor: 'transparent' }]} />

@@ -4,12 +4,6 @@ import { radii, spacing, themedStyles, useThemeColors } from '@/theme';
 import { formatMonth } from '@/lib/format';
 import { useApp } from '@/state/app-provider';
 
-/**
- * Mirrors the web MonthSelector trigger (src/components/month-selector.tsx):
- * month and year, plus an amber history icon while a closed cycle is shown.
- * `isHistorical` defaults to the app-wide selection so existing call sites
- * keep working without passing it.
- */
 export function MonthTrigger({ month, onPress, isHistorical }: { month: string; onPress: () => void; isHistorical?: boolean }) {
   const colors = useThemeColors();
   const styles = useStyles();

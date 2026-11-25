@@ -23,7 +23,6 @@ interface AppContextValue {
   profile: Profile | null;
   authLoading: boolean;
   isDemo: boolean;
-  /** Acesso aos dados do Supabase; o modo demo continua em cada tela. */
   dataClient: DataClient;
   role: AppRole;
   isAdmin: boolean;
@@ -464,8 +463,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const ids = rewardGrants
       .filter(grant => grant.reward.kind === 'theme' && isThemeId(grant.reward.theme_id))
       .map(grant => grant.reward.theme_id as ThemeId);
-    // Local demo mode exposes unreleased themes for visual review without
-    // changing reward availability for authenticated members.
     if (isDemo && !ids.includes('crossing')) ids.push('crossing');
     if (isDemo && !ids.includes('cosmic-campfire')) ids.push('cosmic-campfire');
     return Array.from(new Set(ids));

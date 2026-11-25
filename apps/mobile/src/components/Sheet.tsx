@@ -19,8 +19,6 @@ export function Sheet({ visible, title, onClose, children, avoidKeyboard = false
   const playSignal = useUiSignal();
   const wasVisible = useRef(visible);
   useEffect(() => {
-    // Open/close cues on every visibility transition (not on the first render), so a sheet
-    // closed by its own action (e.g. after saving) sounds the same as one dismissed by the user.
     if (wasVisible.current === visible) return;
     wasVisible.current = visible;
     playSignal(visible ? 'open' : 'close');

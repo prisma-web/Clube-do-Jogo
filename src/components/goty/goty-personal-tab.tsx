@@ -122,7 +122,6 @@ export function GotyPersonalTab({
 
   return (
     <div className="space-y-6">
-      {/* Switcher Minhas Escolhas / Mural do Clube */}
       <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
         <div className="grid w-full grid-cols-2 gap-1 rounded-2xl border border-[#dfc06c]/20 bg-[#100f15] p-1 sm:inline-flex sm:w-auto">
           <button
@@ -164,10 +163,8 @@ export function GotyPersonalTab({
         </p>
       </div>
 
-      {/* Sub-aba 1: Minhas Escolhas (Seu GOTY) */}
       {subView === 'mine' && (
         <div className="space-y-5">
-          {/* Destaque principal: Meu GOTY */}
           {mainCategory && (
             <section className="goty-surface relative overflow-hidden rounded-[28px] border border-[#e8c66d]/45 bg-gradient-to-br from-[#1f180b] via-[#111017] to-[#0a0a0f] p-5 shadow-[0_24px_65px_rgba(0,0,0,0.65)] sm:p-6">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
@@ -246,7 +243,6 @@ export function GotyPersonalTab({
             </section>
           )}
 
-          {/* Demais 8 categorias afetivas */}
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             {secondaryCategories.map(category => {
               const pick = myPickByCategory.get(category.id) ?? null;
@@ -344,10 +340,8 @@ export function GotyPersonalTab({
         </div>
       )}
 
-      {/* Sub-aba 2: Mural Comunitário — Os GOTYs do Clube */}
       {subView === 'wall' && (
         <div className="space-y-8">
-          {/* Estatísticas do mural */}
           <section className="goty-surface relative overflow-hidden rounded-3xl border border-[#dfc06c]/30 bg-gradient-to-br from-[#1a150c] via-[#100f15] to-[#0a0a0e] p-5 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -378,7 +372,6 @@ export function GotyPersonalTab({
               </div>
             </div>
 
-            {/* Filtro por categoria no mural */}
             <div className="-mx-4 mt-5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
               <div className="flex w-max items-center gap-1.5">
                 <button
@@ -413,7 +406,6 @@ export function GotyPersonalTab({
             </div>
           </section>
 
-          {/* Mosaico Visual de Capas — Jogos Mais Escolhidos */}
           <section className="space-y-4">
             <div className="flex items-end justify-between gap-3">
               <div>
@@ -467,7 +459,6 @@ export function GotyPersonalTab({
                           className="size-full"
                         />
 
-                        {/* Badge contagem */}
                         <div className="absolute left-2.5 top-2.5 z-20 flex flex-wrap items-center gap-1.5">
                           <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#d4aa47] to-[#f4df9b] px-2.5 py-1 text-[10px] font-black text-[#171105] shadow-lg">
                             {index === 0 && <Crown className="size-3" />}
@@ -480,7 +471,6 @@ export function GotyPersonalTab({
                           )}
                         </div>
 
-                        {/* Pilha de avatares no rodapé da capa */}
                         <div className="absolute bottom-2.5 left-2.5 right-2.5 z-20 flex items-end justify-between gap-2">
                           <div className="flex -space-x-2">
                             {summary.members.slice(0, 4).map(member => (
@@ -522,7 +512,6 @@ export function GotyPersonalTab({
             )}
           </section>
 
-          {/* Escolhas Individuais por Membro */}
           <section className="space-y-4">
             <div>
               <h3 className="text-base font-black tracking-tight text-[#fff9e8] sm:text-lg">
@@ -612,7 +601,6 @@ export function GotyPersonalTab({
         </div>
       )}
 
-      {/* Modal: Seletor de Jogos 2026 */}
       <GotyGamePickerDialog
         open={Boolean(pickerCategory)}
         onOpenChange={open => { if (!open) setPickerCategory(null); }}
@@ -625,7 +613,6 @@ export function GotyPersonalTab({
         }}
       />
 
-      {/* Modal: Quem escolheu este jogo */}
       <Dialog open={Boolean(selectedGameSummary)} onOpenChange={open => { if (!open) setSelectedGameSummary(null); }}>
         <DialogContent
           title={selectedGameSummary?.title || 'Jogo no Mural'}
@@ -697,7 +684,6 @@ export function GotyPersonalTab({
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Vitrine completa dos GOTYs de um membro */}
       <Dialog open={Boolean(selectedMember)} onOpenChange={open => { if (!open) setSelectedMember(null); }}>
         <DialogContent
           title={selectedMember ? `GOTYs 2026 de ${selectedMember.profile.name || 'Membro'}` : 'GOTYs do Membro'}

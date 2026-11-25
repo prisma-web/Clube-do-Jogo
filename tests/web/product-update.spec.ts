@@ -17,7 +17,6 @@ test('shows the latest release notes and remembers a close on the first step', a
 
 test('settings reopens the latest release notes', async ({ page }) => {
   await page.goto('/configuracoes');
-  // The demo club always has unanswered games, so the quick voting deck opens over the page.
   await page.getByRole('button', { name: 'Fechar votação rápida' }).click();
   await page.getByRole('button', { name: new RegExp(update.title) }).click();
   await expect(page.getByRole('dialog', { name: update.title }).getByRole('heading', { name: update.steps[0].title })).toBeVisible();

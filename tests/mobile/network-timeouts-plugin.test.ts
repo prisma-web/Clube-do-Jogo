@@ -4,9 +4,6 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-// O plugin edita por string o MainApplication.kt gerado. A fixture é a cópia verbatim do
-// MainApplication.kt que o prebuild do SDK 57 gera para este projeto.
-
 const require = createRequire(import.meta.url);
 const pluginPath = fileURLToPath(new URL('../../apps/mobile/plugins/withNetworkTimeouts.js', import.meta.url));
 const templatePath = fileURLToPath(new URL('./fixtures/MainApplication.sdk57.kt', import.meta.url));

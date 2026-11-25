@@ -17,7 +17,6 @@ function webRankingFormula(): RankingFormula {
   return process.env.NEXT_PUBLIC_RANKING_FORMULA === 'legacy' ? 'legacy' : 'preference';
 }
 
-/** Único ponto em que a web monta o DataClient; o AppProvider o compartilha via useApp(). */
 export function createWebDataClient(supabase: DataSupabaseClient): DataClient {
   return createDataClient({
     supabase,

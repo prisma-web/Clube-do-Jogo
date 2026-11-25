@@ -2,7 +2,6 @@ import type { UserPlatform } from '@clube-do-jogo/domain';
 
 export type PlatformFamily = 'playstation' | 'xbox' | 'nintendo' | 'pc' | 'other';
 
-// Same classification as the web `PlatformCard` (src/components/platform-card.tsx).
 export function platformFamily(platform: Pick<UserPlatform, 'name' | 'abbreviation'>): PlatformFamily {
   const value = `${platform.name} ${platform.abbreviation || ''}`.toLocaleLowerCase('pt-BR');
   if (/playstation|\bps[1-5]\b/.test(value)) return 'playstation';
@@ -12,7 +11,6 @@ export function platformFamily(platform: Pick<UserPlatform, 'name' | 'abbreviati
   return 'other';
 }
 
-// Accent colors mirror `.platform-card[data-platform-family]` in src/app/globals.css.
 export const PLATFORM_FAMILY_COLORS: Record<PlatformFamily, string> = {
   playstation: '#4d8dff',
   xbox: '#65b94a',

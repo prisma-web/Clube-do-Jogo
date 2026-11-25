@@ -1,16 +1,3 @@
-// Fonte única das cores de tema da web (CSS gerado) e do app (palette.ts do mobile).
-//
-// Como ler cada token:
-// - '#rrggbb' ou 'rgb(r g b / a%)': mesma cor nas duas plataformas. Cada uma formata na
-//   própria notação (o app recebe 'rgba(r,g,b,a)'), então diferença só de notação não existe aqui.
-// - { app, web }: divergência real entre as plataformas, preservada de propósito até alguém
-//   decidir qual valor vale. Não "corrija" uma divergência sem decidir isso com quem cuida do tema.
-// - appOnly(...) / webOnly(...): só uma plataforma define o token. Na web, um token de escala
-//   ausente herda o padrão do Tailwind; no app, todo token de ThemeColors precisa existir.
-//
-// Para mudar uma cor: edite aqui e rode `npm run themes:generate` para atualizar
-// src/app/theme-tokens.generated.css. O teste de domínio falha se o CSS gerado ficar velho.
-
 export type ThemeColorPlatform = 'app' | 'web';
 
 export const themeColorTokens = [
@@ -29,7 +16,6 @@ export const themeColorTokens = [
 
 export type ThemeColorToken = (typeof themeColorTokens)[number];
 
-/** Valor por plataforma; `null` significa que a plataforma não define o token. */
 export interface PlatformThemeColor {
   readonly app: string | null;
   readonly web: string | null;
@@ -46,8 +32,6 @@ function webOnly(web: string): PlatformThemeColor {
   return { app: null, web };
 }
 
-// As chaves são os ids de tema; themes.ts depende deste módulo (e não o contrário) para as prévias,
-// e o teste de domínio garante que as chaves batem com a lista de temas.
 export const themePaletteSource = {
   original: {
     background: '#08080a',
@@ -365,11 +349,9 @@ export interface ThemeRgba {
   readonly r: number;
   readonly g: number;
   readonly b: number;
-  /** 0 a 1. */
   readonly a: number;
 }
 
-/** Aceita '#rgb', '#rrggbb', '#rrggbbaa', 'rgb()/rgba()' (vírgulas ou espaços, alfa em % ou fração) e 'transparent'. */
 export function parseThemeColor(value: string): ThemeRgba {
   const input = value.trim().toLowerCase();
   if (input === 'transparent') return { r: 0, g: 0, b: 0, a: 0 };
@@ -413,7 +395,6 @@ function toHex({ r, g, b }: ThemeRgba): string {
   return `#${[r, g, b].map(channel => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
-/** Formata a cor na notação de cada plataforma: hex quando opaca, rgba() no app e rgb(/ %) na web. */
 export function formatThemeColor(value: string, platform: ThemeColorPlatform): string {
   const color = parseThemeColor(value);
   if (color.a === 1) return toHex(color);
@@ -426,7 +407,6 @@ function platformValue(value: ThemeColorValue, platform: ThemeColorPlatform): st
   return typeof value === 'string' ? value : value[platform];
 }
 
-/** Paleta já formatada para uma plataforma; tokens que a plataforma não define ficam de fora. */
 export function resolveThemePalette(themeId: ThemePaletteId, platform: ThemeColorPlatform): Partial<Record<ThemeColorToken, string>> {
   const resolved: Partial<Record<ThemeColorToken, string>> = {};
   const source: ThemePaletteSource = themePaletteSource[themeId];
@@ -439,7 +419,6 @@ export function resolveThemePalette(themeId: ThemePaletteId, platform: ThemeColo
   return resolved;
 }
 
-/** Cor que as duas plataformas compartilham; falha se o token divergir ou faltar em alguma delas. */
 export function sharedThemeColor(themeId: ThemePaletteId, token: ThemeColorToken): string {
   const source: ThemePaletteSource = themePaletteSource[themeId];
   const value = source[token];
@@ -447,7 +426,6 @@ export function sharedThemeColor(themeId: ThemePaletteId, token: ThemeColorToken
   return formatThemeColor(value, 'web');
 }
 
-/** Nome da custom property da web: escalas viram --color-<família>-<degrau>, o resto vira kebab-case. */
 export function webThemeColorProperty(token: ThemeColorToken): string {
   const scale = /^([a-z]+)(\d+)$/.exec(token);
   if (scale) return `--color-${scale[1]}-${scale[2]}`;

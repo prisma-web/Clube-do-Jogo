@@ -1,15 +1,3 @@
-/*
- * Conector Nomai — duas camadas com a mesma geometria:
- * `.glow` (desfocada, atrás) e `.strand` (traço nítido, à frente).
- *
- * Cores são lidas com fallback, então qualquer ancestral pode retematizar
- * definindo --nomai-thread-idle / --nomai-thread-active / --nomai-glow-idle /
- * --nomai-glow-active / --nomai-halo, sem tocar neste módulo.
- *
- * Posição, largura e altura ficam a cargo de quem integra: aqui só existe
- * `position: absolute`, para não competir com utilitários do consumidor.
- */
-
 .connector {
   position: absolute;
   display: block;
@@ -33,7 +21,6 @@
   transition: fill 180ms cubic-bezier(.22, 1, .36, 1);
 }
 
-/* Camada de brilho: mesma silhueta, desfocada e independente do traço. */
 .glow {
   filter: blur(2.2px);
   transition: opacity 200ms cubic-bezier(.22, 1, .36, 1), filter 200ms cubic-bezier(.22, 1, .36, 1);
@@ -48,7 +35,6 @@
   fill: var(--nomai-glow-idle, rgb(185 174 230 / 16%));
 }
 
-/* Traço principal: fio constante, discreto em repouso. */
 .strand path {
   stroke: var(--nomai-thread-idle, rgb(185 174 230 / 34%));
   stroke-width: 1.35px;
@@ -58,7 +44,6 @@
   fill: var(--nomai-thread-idle, rgb(185 174 230 / 34%));
 }
 
-/* Estado ativo: só este conector acende, em lilás quente. */
 .active .glow {
   filter: blur(2.6px) drop-shadow(0 0 5px var(--nomai-halo, rgb(226 183 240 / 42%)));
   animation: nomai-ember 3.4s cubic-bezier(.42, 0, .58, 1) infinite;

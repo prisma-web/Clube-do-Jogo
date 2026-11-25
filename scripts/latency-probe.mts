@@ -1,4 +1,3 @@
-// Mede onde o tempo do /api/discover é gasto. Só leitura: nenhum write no Supabase.
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
 

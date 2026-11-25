@@ -1,7 +1,3 @@
--- Permite recompensas de participação universal sem alterar a regra padrão:
--- recompensas continuam exigindo conclusão, salvo quando declaradas como
--- destinadas a todos os membros existentes no momento do fechamento do ciclo.
-
 ALTER TABLE public.club_rewards
   ADD COLUMN IF NOT EXISTS eligibility TEXT NOT NULL DEFAULT 'finished';
 

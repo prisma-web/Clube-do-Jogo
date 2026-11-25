@@ -350,7 +350,6 @@ async function waitForProcessInfo(pid, timeoutMs = 5_000) {
   return info;
 }
 
-/** Waits until only processes of the group `pgid` listen on `port`; returns an error message or null. */
 async function waitForPortBind(port, pgid, timeoutMs = 60_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -457,8 +456,6 @@ async function launchManifest(options) {
     await terminateUnpublishedChild(child);
     fail(`Não foi possível estabelecer a identidade do processo ${child.pid} antes do manifesto`);
   }
-  // The after-launch checkout check runs once the run's group owns the port, so
-  // anything the dev command writes before it starts serving is caught here.
   const bindError = await waitForPortBind(port, child.pid);
   if (bindError) {
     await terminateUnpublishedChild(child);
@@ -620,7 +617,6 @@ async function driveRanking(manifest) {
     const updateClose = page.getByRole('dialog').getByRole('button', { name: /Agora não|Fechar novidades/ }).first();
     await updateClose.click({ timeout: 2_000 }).catch(() => undefined);
     await page.getByRole('heading', { name: 'Hades', exact: true }).waitFor({ state: 'visible', timeout: 30_000 });
-    // Demo users start with unvoted games, so the quick voting deck covers the page.
     await page.getByRole('button', { name: 'Fechar votação rápida', exact: true }).click({ timeout: 10_000 }).catch(() => undefined);
     result.actions.push('opened /jogo-do-mes and dismissed optional product update and quick voting deck');
     await page.getByRole('link', { name: 'Ranking', exact: true }).first().click();
@@ -930,9 +926,6 @@ function check() {
   }
   const featureDir = join(skillDir, 'features');
   const featureFiles = readdirSync(featureDir).filter(name => name.endsWith('.md') && name !== 'README.md');
-  // Sanity bound, not a target: catches an empty/near-empty features/ dir or a
-  // runaway generator, not meant to cap the map's own growth. No test pins the
-  // exact number; widen further if features/ legitimately grows past this.
   if (featureFiles.length < 3 || featureFiles.length > 15) fail(`Quantidade de feature maps inválida: ${featureFiles.length}`);
   for (const name of featureFiles) {
     const content = readFileSync(join(featureDir, name), 'utf8');

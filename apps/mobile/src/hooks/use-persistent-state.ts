@@ -27,12 +27,6 @@ export interface PersistentStateOptions<T> {
   storage?: NativeStorage;
   parse?(value: string): T;
   serialize?(value: T): string;
-  /**
-   * Whether the hook composes the key with the current identity (userId/isDemo/sessionEpoch
-   * from AppProvider). Defaults to true. Set to false only when the caller already builds its
-   * own identity-scoped key (e.g. an explicit target user id that differs from the signed-in
-   * account), reusing `identityScope` from `mobile-preferences-core`.
-   */
   scope?: boolean;
 }
 

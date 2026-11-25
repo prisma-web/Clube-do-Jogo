@@ -32,8 +32,6 @@ function requireUser(userId: string | null) {
   return userId;
 }
 
-// Ratings always write the live progress row; the historical Jogo do Mês snapshot
-// stays read-only in its UI (parity with the web).
 function progressKey(context: ReturnType<typeof useAppInternal>, gameId: string) {
   return progressQueryKey(context, gameId, null);
 }

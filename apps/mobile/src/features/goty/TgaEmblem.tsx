@@ -1,18 +1,8 @@
 import { memo } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 
-/**
- * Emblema geométrico inspirado na estatueta alada do The Game Awards.
- *
- * O app não inclui react-native-svg, então a mesma silhueta da web
- * (src/components/goty/tga-emblem.tsx, viewBox 64×64) é montada com
- * formas vetoriais nativas: lâminas são retângulos rotacionados e o
- * pedestal é um trapézio por borda. Tudo escala a partir de `size`.
- */
-
 type Blade = { x1: number; y1: number; x2: number; y2: number; thickness: number };
 
-// Lâminas da asa esquerda no espaço 64×64 (a direita é espelhada).
 const LEFT_BLADES: Blade[] = [
   { x1: 10.5, y1: 13.2, x2: 26.5, y2: 26.6, thickness: 4.6 },
   { x1: 14, y1: 24.4, x2: 26.5, y2: 34.6, thickness: 4.2 },
@@ -61,7 +51,6 @@ export const TgaEmblem = memo(function TgaEmblem({
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      {/* Núcleo central: losango alongado (tronco + ponta superior) */}
       <View
         style={{
           position: 'absolute',
@@ -88,7 +77,6 @@ export const TgaEmblem = memo(function TgaEmblem({
           opacity: 0.55,
         }}
       />
-      {/* Lâminas das asas */}
       {BLADES.map((blade, index) => (
         <View
           key={index}
@@ -104,7 +92,6 @@ export const TgaEmblem = memo(function TgaEmblem({
           }}
         />
       ))}
-      {/* Pedestal: trapézio (topo 11u, base 16u, altura 4u) */}
       <View
         style={{
           position: 'absolute',

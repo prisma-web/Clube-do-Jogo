@@ -1,7 +1,5 @@
 name: Release note
 
-# Todo PR adiciona uma nota em updates/notes/ ou leva a label sem-novidade. Guia em .claude/skills/release-note/SKILL.md.
-
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
@@ -23,7 +21,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # Sem npm ci: o Node 24 remove os tipos do parser em packages/domain ao importar o .ts.
       - uses: actions/setup-node@v7
         with:
           node-version: '24'

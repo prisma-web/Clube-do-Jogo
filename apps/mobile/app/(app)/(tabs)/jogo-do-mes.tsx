@@ -43,7 +43,6 @@ export default function GameOfMonthScreen() {
   const [monthPickerVisible, setMonthPickerVisible] = useState(false);
   const gameQuery = useGameOfMonth();
   const game = gameQuery.data ?? null;
-  // A closed cycle shows the frozen snapshot read-only; elsewhere progress is live.
   const snapshotMonth = isHistorical ? selectedMonth : null;
   const progressQuery = useProgress(game?.id ?? '', { snapshotMonth });
   const setProgress = useSetProgress();
@@ -265,7 +264,6 @@ const useStyles = themedStyles(colors => ({
     alignItems: 'center',
     overflow: 'hidden',
   },
-  // Parity with the web hero (src/app/jogo-do-mes/page.tsx): blurred, darkened cover behind the content.
   heroBackdrop: { position: 'absolute', top: -24, left: -24, right: -24, bottom: -24 },
   heroBackdropImage: { width: '100%', height: '100%', opacity: 0.9 },
   heroShade: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(8,8,10,0.62)' },

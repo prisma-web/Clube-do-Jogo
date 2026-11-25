@@ -12,12 +12,6 @@ import type { RecentDecision } from './use-persisted-club-decision';
 
 type UndoTarget = { eventId: string; preview: ClubGameUndoPreview };
 
-/**
- * Fluxo pós-decisão dentro do próprio sheet (paridade com as fases done/confirm-undo/undone do
- * club-game-admin-dialog da web): desfazer, refazer em até 5 min e continuar voltando pelos
- * ciclos anteriores. Cada transição é entregue a `onDecision`, que persiste a decisão para o
- * DecisionBanner de Configurações › Administração continuar em sincronia.
- */
 export function ClubGameDecisionFlow({ decision, onDecision, onClose, onBusyChange }: {
   decision: RecentDecision;
   onDecision: (decision: RecentDecision) => void;

@@ -54,8 +54,6 @@ export function createMobileApiTransport(client: SupabaseClient | null, apiBaseU
       const token = refreshed.data.session?.access_token;
       if (refreshed.error || !token) throw new ApiError(401, SESSION_EXPIRED);
 
-      // Repetir um POST costuma ser perigoso, mas um 401 é recusa antes de
-      // executar, então a primeira tentativa não deixou efeito para duplicar.
       const retry = await send(token);
       if (retry.status === 401) {
         throw new ApiError(401, 'O servidor recusou o acesso mesmo com a sessão renovada.', 'refused-after-refresh');

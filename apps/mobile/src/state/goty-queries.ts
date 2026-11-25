@@ -37,8 +37,6 @@ import {
 } from '@/features/goty/goty-logic';
 import { useAppInternal } from './app-provider';
 
-// No React Native não há localStorage: o estado demo do GOTY vive só em memória
-// e é reiniciado a cada nova sessão demo (ver useGotyState).
 configureGotyDemoStorage(null);
 
 type AppContext = ReturnType<typeof useAppInternal>;
@@ -93,7 +91,6 @@ async function requestResolveCovers(limit: number): Promise<{ updated?: number; 
   };
 }
 
-/** Estado completo do GOTY 2026 (evento, categorias, palpites, Seu GOTY e perfis). */
 export function useGotyState(): UseQueryResult<GotyFullState, Error> {
   const { ready, userId, isDemo, sessionEpoch, isSessionCurrent } = useAppInternal();
   const key = useMemo(() => gotyQueryKey(sessionEpoch, userId, isDemo), [isDemo, sessionEpoch, userId]);
@@ -119,10 +116,6 @@ export function useGotyState(): UseQueryResult<GotyFullState, Error> {
   });
 }
 
-/**
- * Em produção, preenche em segundo plano (em lotes) as capas ausentes dos indicados
- * via POST /api/goty/resolve-covers — mesma estratégia de goty-experience.tsx.
- */
 export function useGotyAutoResolveCovers(state: GotyFullState | undefined): void {
   const { isDemo, userId, sessionEpoch, isSessionCurrent, queryClient } = useAppInternal();
   const triggeredEpoch = useRef<number | null>(null);
@@ -172,15 +165,12 @@ function useOptimisticGotyMutation<TVariables, TResult>(
     },
     onError: (_error, _variables, snapshot) => {
       if (!snapshot?.previous || !isSessionCurrent(sessionEpoch)) return;
-      // Só desfaz se ninguém mexeu no cache depois deste palpite; caso contrário,
-      // o refetch em onSettled traz a verdade do servidor sem apagar outras edições.
       if (queryClient.getQueryData(key) === snapshot.optimistic) {
         queryClient.setQueryData<GotyFullState>(key, snapshot.previous);
       }
     },
     onSettled: () => {
       if (!isSessionCurrent(sessionEpoch)) return;
-      // Evita refetch intermediário enquanto ainda há outros palpites em voo.
       if (queryClient.isMutating({ mutationKey: GOTY_MUTATION_KEY }) > 1) return;
       void queryClient.invalidateQueries({ queryKey: key });
     },
@@ -231,7 +221,6 @@ export function useSetGotyCategoryWinner() {
 
 export type SyncCoversResult = { demo: true } | { demo: false; updated: number };
 
-/** Sincronização manual (Admin) das capas dos indicados via IGDB. */
 export function useSyncGotyCovers(): UseMutationResult<SyncCoversResult, Error, void> {
   const { isDemo, userId, sessionEpoch, isSessionCurrent, queryClient } = useAppInternal();
   return useMutation<SyncCoversResult, Error, void>({
@@ -254,11 +243,9 @@ export function useSyncGotyCovers(): UseMutationResult<SyncCoversResult, Error, 
 
 export interface GotyGameSearchResult {
   items: GotySearchGameResult[];
-  /** Mensagem quando a API falhou e o catálogo curado foi usado como reserva. */
   fallbackError: string | null;
 }
 
-/** Busca de jogos para o Seu GOTY via GET /api/goty/search-games (catálogo curado no demo/erro). */
 export function useGotyGameSearch(params: {
   query: string;
   includeAllYears: boolean;

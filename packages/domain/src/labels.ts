@@ -2,15 +2,6 @@ import type { GotyCategorySection, GotyEventStatus } from './goty';
 import type { LibraryQuickFilter, LibrarySortMode } from './library';
 import type { AppRole, DiscoverSource, ProgressStatus, RatingCriterion, VoteChoice, VoteReason } from './types';
 
-/**
- * User-facing names of domain concepts, shared by web and mobile.
- *
- * Each table is keyed by its union, so adding a member without a name is a
- * typecheck error. Only names live here: icons, colours, ordering and other
- * presentation stay in each app. Changing a value changes visible text on
- * every platform that reads it; `labels.test.ts` pins the current wording.
- */
-
 export const voteChoiceLabels: Readonly<Record<VoteChoice, string>> = {
   would_play: 'Jogaria',
   neutral: 'Neutro',
@@ -24,7 +15,6 @@ export const voteReasonLabels: Readonly<Record<VoteReason, string>> = {
   other: 'Outro',
 };
 
-/** Shown in place of a reason when a negative vote has none (or an unknown one). */
 export const missingVoteReasonLabel = 'Sem motivo informado';
 
 export function voteReasonLabel(reason?: VoteReason | null): string {
@@ -33,14 +23,12 @@ export function voteReasonLabel(reason?: VoteReason | null): string {
     : missingVoteReasonLabel;
 }
 
-/** A single game's progress (status pill, progress buttons, list group titles). */
 export const progressStatusLabels: Readonly<Record<ProgressStatus, string>> = {
   not_started: 'Não iniciado',
   started: 'Comecei',
   finished: 'Finalizado',
 };
 
-/** Meus Jogos quick filter chips; these name groups of games, so some are plural. */
 export const libraryQuickFilterLabels: Readonly<Record<LibraryQuickFilter, string>> = {
   all: 'Todos',
   started: 'Comecei',
@@ -60,7 +48,6 @@ export const librarySortModeLabels: Readonly<Record<LibrarySortMode, string>> = 
   rating_asc: 'Menor nota',
 };
 
-/** Discover sources a member can pick in Explorar; `friends` and `ranking` are internal feeds with no chip. */
 export type CatalogDiscoverSource = Exclude<DiscoverSource, 'friends' | 'ranking'>;
 
 export const discoverSourceLabels: Readonly<Record<CatalogDiscoverSource, string>> = {
@@ -90,7 +77,6 @@ export const gotyCategorySectionLabels: Readonly<Record<GotyCategorySection, str
   community_esports: 'Comunidade & Esports',
 };
 
-/** Bolão GOTY status, with the one-line explanation shown under it in the admin picker. */
 export const gotyEventStatusLabels: Readonly<Record<GotyEventStatus, { readonly label: string; readonly description: string }>> = {
   open: { label: 'Aberto', description: 'Aceita votos' },
   locked: { label: 'Encerrado', description: 'Bloqueia edição' },

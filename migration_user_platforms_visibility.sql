@@ -1,7 +1,3 @@
--- Permite que membros autenticados vejam os consoles nos perfis de outros membros.
--- Adicionar e remover consoles continuam permitidos apenas para o proprio usuario.
--- Execute uma vez no SQL Editor do Supabase.
-
 DO $$
 DECLARE
   select_policy_name TEXT;

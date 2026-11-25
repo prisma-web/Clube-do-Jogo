@@ -1,6 +1,3 @@
--- Estado interno para evitar avisos repetidos de lideranca e recompensas.
--- Execute depois de migration_push_notifications.sql.
-
 CREATE TABLE IF NOT EXISTS public.push_notification_states (
   state_key TEXT PRIMARY KEY,
   value_uuid UUID,

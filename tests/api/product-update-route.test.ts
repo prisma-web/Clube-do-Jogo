@@ -18,7 +18,6 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-/** GitHub answers every request with `answer`; returns the requests it saw. */
 function github(answer: () => Response | Promise<Response>) {
   const calls: { url: string; init?: RequestInit }[] = [];
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {

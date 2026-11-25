@@ -353,7 +353,7 @@ export function stopCosmicAmbience() {
   active.master.gain.setValueAtTime(Math.max(active.master.gain.value, 0.0001), now);
   active.master.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
   window.setTimeout(() => {
-    active.sources.forEach(source => { try { source.stop(); } catch { /* already stopped */ } });
+    active.sources.forEach(source => { try { source.stop(); } catch {  } });
     void active.context.close();
   }, 340);
 }

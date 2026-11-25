@@ -6,9 +6,6 @@ const json = contractJson<'pushSubscribe'>();
 
 type PushSubscriptionPayload = ApiUntrustedBody<'pushSubscribe'>;
 
-// Hosts dos serviços de push dos navegadores. O endpoint é usado depois pelo
-// client admin (service-role) para enviar notificações, então restringimos os
-// destinos permitidos para evitar SSRF cego contra a rede interna.
 const ALLOWED_PUSH_HOSTS = [
   'android.googleapis.com',
   'fcm.googleapis.com',

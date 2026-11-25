@@ -95,19 +95,16 @@ test('groupRankingByPlacement groups tied items under one header', () => {
 });
 
 test('friendlyRankingDay labels the current Fortaleza day as Hoje', () => {
-  // 01:00 UTC on Sep 10 is 22:00 in America/Fortaleza on Sep 9 (UTC-3).
   const now = new Date('2026-09-10T01:00:00.000Z');
   assert.equal(friendlyRankingDay('2026-09-10T01:00:00.000Z', now), 'Hoje');
 });
 
 test('friendlyRankingDay labels the previous Fortaleza day as Ontem', () => {
-  const now = new Date('2026-09-10T13:00:00.000Z'); // 10:00 in Fortaleza on the 10th
-  assert.equal(friendlyRankingDay('2026-09-09T23:30:00.000Z', now), 'Ontem'); // 20:30 in Fortaleza on the 9th
+  const now = new Date('2026-09-10T13:00:00.000Z');
+  assert.equal(friendlyRankingDay('2026-09-09T23:30:00.000Z', now), 'Ontem');
 });
 
 test('friendlyRankingDay groups by the Fortaleza calendar day, not UTC', () => {
-  // 02:30 UTC on the 10th is 23:30 in America/Fortaleza on the 9th, so it is "Ontem"
-  // relative to 13:00 UTC on the 10th even though both are UTC-calendar-day 10.
   const now = new Date('2026-09-10T13:00:00.000Z');
   assert.equal(friendlyRankingDay('2026-09-10T02:30:00.000Z', now), 'Ontem');
 });

@@ -28,7 +28,6 @@ function ProductUpdatePrompt({ update }: { update: ProductUpdate }) {
     autoOpenEnabled: isProductUpdateAutoOpenEnabled(),
   });
 
-  // Any dismissal counts as seen: closing on the first step must not auto-show it again.
   const dismiss = () => {
     setSeen(true);
     setClosedSignal(reopenSignal);

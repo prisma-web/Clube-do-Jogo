@@ -1,7 +1,3 @@
-// Process and port inspection for Linux (/proc, ss) and macOS (ps, lsof, netstat).
-// Every function returns null or a dead/unknown record when it cannot inspect, so
-// callers fail closed instead of signalling a process they cannot identify.
-
 import { readFileSync, realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
@@ -86,7 +82,6 @@ function darwinProcessInfo(pid) {
   };
 }
 
-/** Identity is boot id plus process start time, so a reused PID never matches. */
 export function processInfo(pid) {
   if (!signalable(pid)) return unknown;
   return darwin ? darwinProcessInfo(pid) : linuxProcessInfo(pid);
@@ -113,8 +108,6 @@ function linuxPortPids(port) {
   return [...new Set(owners.flat())];
 }
 
-// `netstat -anv` reads the kernel socket list, so it also lists sockets owned by
-// other users, which `lsof` without root silently omits.
 function darwinPortPids(port) {
   const result = run('netstat', ['-anv', '-p', 'tcp']);
   if (!result || result.status !== 0) return null;
@@ -126,7 +119,6 @@ function darwinPortPids(port) {
   return [...new Set(owners.map(match => Number(match[1])))];
 }
 
-/** PIDs listening on the TCP port, [] when free, null when an owner cannot be identified. */
 export function portPids(port) {
   return darwin ? darwinPortPids(port) : linuxPortPids(port);
 }

@@ -47,7 +47,6 @@ type Row = Record<string, unknown>;
 type Cycle = NonNullable<RewardGrant['reward']['cycle']>;
 
 const REWARD_SELECT = 'id, reward_id, granted_at, seen_at, reward:club_rewards(id, club_month, code, kind, name, description, theme_id, image_url, eligibility, cycle:club_months(month, game:games(title, image_url)))';
-// The demo months move with today's date, so the reward belongs to the last finished demo cycle.
 const DEMO_REWARD_MONTH = demoMonths[1];
 const DEMO_CURRENT_MONTH_START = `${shiftMonth(DEMO_REWARD_MONTH, 1)}-01T00:00:00.000Z`;
 const DEMO_REWARD_ID = 'demo-ori-reward';

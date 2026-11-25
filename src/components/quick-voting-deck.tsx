@@ -73,7 +73,6 @@ export function QuickVotingDeck() {
 
   function choose(choice: VoteChoice) {
     const gameId = card.game.id;
-    // Hides the card until the ranking refresh reports the stored vote.
     setSessionReviewedIds(current => [...current, gameId]);
     if (isDemo) return;
     void runOptimistic(

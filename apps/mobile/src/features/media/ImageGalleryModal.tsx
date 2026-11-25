@@ -30,8 +30,6 @@ export function ImageGalleryModal({ visible, title, images, activeIndex, onActiv
   const swipeStart = useSharedValue(0);
   const viewport: Size = { width: window.width, height: window.height * VIEWPORT_HEIGHT_RATIO };
 
-  // The parent keeps this modal mounted while switching images (remounting the
-  // native <Modal> flickers), so the zoom state is reset per image here instead.
   const [shownIndex, setShownIndex] = useState(activeIndex);
   if (shownIndex !== activeIndex) {
     setShownIndex(activeIndex);

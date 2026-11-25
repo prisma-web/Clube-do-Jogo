@@ -7,8 +7,6 @@ import { Button } from '@/components/Button';
 import { Avatar } from '@/components/Avatar';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
 
-// Same boundary rule as the web editor's `type="url"` avatar field (src/components/profile-view.tsx):
-// an empty value clears the avatar, anything else must parse as an absolute URL.
 export function parseAvatarUrlInput(raw: string): { value: string | null; error: string | null } {
   const trimmed = raw.trim();
   if (!trimmed) return { value: null, error: null };

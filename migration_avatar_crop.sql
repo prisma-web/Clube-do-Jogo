@@ -1,4 +1,3 @@
--- Execute este script no SQL Editor do Supabase antes de publicar a funcionalidade.
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS avatar_crop jsonb;
 

@@ -26,17 +26,13 @@ test('invalid avatar crop values fall back without producing NaN styles', () => 
   });
 });
 
-// Where a point of the (already object-fit/object-position'ed) image box lands on screen.
 function webPoint(crop: { x: number; y: number; zoom: number }, size: number, px: number, py: number) {
-  // CSS: transform: scale(zoom) with transform-origin: x% y%.
   const ox = (crop.x / 100) * size;
   const oy = (crop.y / 100) * size;
   return [ox + crop.zoom * (px - ox), oy + crop.zoom * (py - oy)];
 }
 
 function nativePoint(transform: ReturnType<typeof avatarNativeTransform>, size: number, px: number, py: number) {
-  // React Native: transforms around the default origin, the box center. The translate is in
-  // points of the parent, then the image is scaled around its center.
   const [tx, ty, s] = transform as [{ translateX: number }, { translateY: number }, { scale: number }];
   const c = size / 2;
   return [c + tx.translateX + s.scale * (px - c), c + ty.translateY + s.scale * (py - c)];
@@ -44,7 +40,7 @@ function nativePoint(transform: ReturnType<typeof avatarNativeTransform>, size: 
 
 test('native avatar transform puts every image point where the web crop does', () => {
   const crops = [
-    { x: 82.43055555555556, y: 10, zoom: 1.8229292608973129 }, // full precision saved by the editor
+    { x: 82.43055555555556, y: 10, zoom: 1.8229292608973129 },
     { x: 38.2, y: 59.4, zoom: 1.05 },
     { x: 0, y: 100, zoom: 2.5 },
     { x: 50, y: 50, zoom: 1 },
@@ -82,8 +78,6 @@ function coverSize(image: Size) {
   return { width: image.width * scale, height: image.height * scale };
 }
 
-// O que o Avatar desenha, na web e no app: cover, object-position x% y% e
-// scale(zoom) com transform-origin x% y% do quadro.
 function rendererRect(image: Size, crop: AvatarCrop): Rect {
   const { width, height } = coverSize(image);
   const origin = { x: (FRAME * crop.x) / 100, y: (FRAME * crop.y) / 100 };
@@ -97,8 +91,6 @@ function rendererRect(image: Size, crop: AvatarCrop): Rect {
   };
 }
 
-// O que o editor desenha: cover centralizado, que fica fixo durante o gesto, e
-// depois translate(offset) scale(zoom) em volta do centro do quadro.
 function editorRect(image: Size, crop: AvatarCrop): Rect {
   const { width, height } = coverSize(image);
   const center = FRAME / 2;
@@ -133,13 +125,9 @@ test('sem tamanho da imagem a prévia trata como quadrada', () => {
 });
 
 test('o deslocamento é o da sobra que o recorte pede', () => {
-  // Quadrada sem zoom não sobra nada.
   assert.deepEqual(avatarPreviewOffset(FRAME, SQUARE, { x: 0, y: 100, zoom: 1 }), { x: 0, y: 0 });
-  // Quadrada com zoom 2 sobra 240px em cada eixo, 120 de cada lado.
   assert.deepEqual(avatarPreviewOffset(FRAME, SQUARE, { x: 0, y: 100, zoom: 2 }), { x: 120, y: -120 });
-  // 3:2 sem zoom: 360px de largura num quadro de 240, sobra 120 só na horizontal.
   assert.deepEqual(avatarPreviewOffset(FRAME, LANDSCAPE, { x: 0, y: 0, zoom: 1 }), { x: 60, y: 0 });
-  // 2:3 sem zoom: a sobra é só vertical.
   assert.deepEqual(avatarPreviewOffset(FRAME, PORTRAIT, { x: 0, y: 100, zoom: 1 }), { x: 0, y: -60 });
 });
 

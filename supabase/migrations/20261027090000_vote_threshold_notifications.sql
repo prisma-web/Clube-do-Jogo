@@ -1,5 +1,3 @@
--- Tracks the one outstanding "three new games" notification per member and cycle.
--- This is additive and does not modify existing votes or delivery records.
 CREATE TABLE IF NOT EXISTS public.vote_threshold_notification_states (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   vote_month TEXT NOT NULL CHECK (vote_month ~ '^\\d{4}-(0[1-9]|1[0-2])$'),

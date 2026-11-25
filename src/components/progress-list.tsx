@@ -51,7 +51,6 @@ export function ProgressList({ game, snapshotMonth }: { game: Game; snapshotMont
   const [pendingStatus, setPendingStatus] = useState<ProgressStatus | null>(null);
   const query = useStaleQuery<GameProgress[]>(`progress:${game.id}:${snapshotMonth || 'latest'}`, async () => {
     if (isDemo) return demoProgress.map(item => ({ ...item, game_id: game.id }));
-    // Com mês, lê o retrato congelado do ciclo; sem mês, todos os membros com o progresso atual.
     return dataClient.readProgress({ userId: user?.id || '', isDemo: false, gameId: game.id, month: snapshotMonth, historical: Boolean(snapshotMonth) });
   });
   const progress = query.data || [];

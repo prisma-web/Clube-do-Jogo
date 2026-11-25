@@ -12,9 +12,6 @@ interface ThemeDefinitionShape {
   readonly availability: ThemeAvailability;
 }
 
-// As prévias apontam para a paleta compartilhada (theme-palettes.ts) só quando a cor é idêntica
-// nas duas plataformas; os literais restantes são cores próprias da prévia ou do theme-color da web
-// e hoje diferem da paleta (por exemplo crossing e cosmic-campfire), então ficam como estão.
 export const themes = [
   { id: 'original', name: 'Clube Neon', colors: [sharedThemeColor('original', 'supportVote'), '#d946ef', sharedThemeColor('original', 'surface')], background: sharedThemeColor('original', 'background'), scheme: 'dark', availability: 'public' },
   { id: 'zelda', name: 'Zelda Deluxe', colors: ['#d3b563', sharedThemeColor('zelda', 'supportVote'), sharedThemeColor('zelda', 'background')], background: sharedThemeColor('zelda', 'background'), scheme: 'dark', availability: 'public' },

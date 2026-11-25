@@ -18,11 +18,6 @@ import { initialPhaseFor, type ClubGameChangePhase as Phase } from './club-game-
 import { ClubGameDecisionFlow } from './ClubGameDecisionFlow';
 import type { RecentDecision } from './use-persisted-club-decision';
 
-/**
- * Escolha → modo → confirmação → decisão aplicada. Depois de aplicar, o sheet fica aberto e
- * segue no mesmo fluxo (desfazer, refazer, continuar voltando). Toda decisão resultante é
- * entregue a `onDecision` para ser persistida.
- */
 export function ClubGameChangeSheet({ visible, initialGame, onClose, onDecision }: {
   visible: boolean;
   initialGame?: Game;

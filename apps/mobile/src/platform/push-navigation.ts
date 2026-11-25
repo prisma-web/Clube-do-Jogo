@@ -41,8 +41,6 @@ export function parsePushDestination(rawUrl: unknown): PushNavIntent | null {
   if (pathname === '/jogos') return { pathname: '/(app)/(tabs)/jogos' };
   if (pathname === '/seus-jogos') return { pathname: '/(app)/(tabs)/seus-jogos' };
   if (pathname === '/configuracoes') return { pathname: '/(app)/configuracoes' };
-  // O app ainda não tem a tela do GOTY. Aceitar o destino (em vez de descartar o toque) leva a
-  // pessoa à home; quando a rota existir, basta apontar este retorno para ela.
   if (pathname === '/goty-2026') return { pathname: DEFAULT_APP_ROUTE };
   return dynamicIntent(pathname);
 }

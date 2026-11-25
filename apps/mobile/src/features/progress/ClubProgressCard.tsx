@@ -9,11 +9,6 @@ import { themedStyles, useThemeColors, radii, spacing, typography } from '@/them
 import type { GameProgress } from '@clube-do-jogo/domain';
 import { summarizeClubProgress } from './club-progress';
 
-/**
- * "Progresso do clube" card shared by the game detail and Jogo do Mês, in parity
- * with src/components/progress-list.tsx: member avatars, start/finish dates,
- * how many finished and how many ratings back the club average.
- */
 export function ClubProgressCard({ progress, isLoading, error, onRetry, style }: {
   style?: StyleProp<ViewStyle>;
   progress: GameProgress[];

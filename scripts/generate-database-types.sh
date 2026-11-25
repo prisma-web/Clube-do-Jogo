@@ -1,36 +1,12 @@
 #!/usr/bin/env bash
-#
-# Gera packages/data/src/database.types.ts a partir do SQL versionado no
-# repositório, aplicado a um Postgres descartável criado por este script.
-#
-# Seguro por construção:
-# - Não aceita URL, host, porta nem credencial. Não lê variáveis PG*, DATABASE_URL
-#   nem SUPABASE_* (todas são removidas do ambiente antes de qualquer comando).
-# - O Postgres é iniciado aqui, num diretório temporário, com
-#   listen_addresses='' (sem TCP): só existe um socket Unix dentro desse diretório.
-# - O psql e o postgres-meta só recebem esse socket; o script aborta se a
-#   conexão montada apontar para qualquer outro lugar.
-# - Tudo o que é criado (cluster, socket, downloads) fica no diretório temporário
-#   e é apagado ao sair, com ou sem erro.
-#
-# Requisitos: bash, node/npm, git, psql (cliente, qualquer versão >= 14) e acesso
-# ao registro npm e ao GitHub para baixar as versões fixadas abaixo.
-#
-# Uso: scripts/generate-database-types.sh [--check]
-#   --check  não grava; compara a saída com o arquivo atual e sai com 1 se diferir.
 
 set -euo pipefail
 
-# Versões fixadas. O postgres-meta é o mesmo que a Supabase CLI 2.111.0 usa
-# em `supabase gen types typescript`.
 EMBEDDED_PG_PACKAGE="@embedded-postgres/linux-x64@17.6.0-beta.15"
 PG_META_REPO="https://github.com/supabase/postgres-meta"
 PG_META_TAG="v0.96.6"
-PG_SOCKET_PORT="55439" # só nomeia o socket Unix; não há escuta TCP.
+PG_SOCKET_PORT="55439"
 
-# Ordem de aplicação. Ver o cabeçalho de database.types.ts para a justificativa.
-# Entradas "seed:<nome>" inserem dados fictícios mínimos exigidos pelas
-# verificações (DO $$ ... RAISE) de migrations que só gravam dados.
 SQL_STEPS=(
   schema.sql
   migration_remove_vote_month.sql
@@ -70,7 +46,6 @@ case "${1:-}" in
   *) echo "Uso: $0 [--check]" >&2; exit 2 ;;
 esac
 
-# Remove qualquer configuração de conexão herdada do ambiente.
 while IFS= read -r name; do unset "$name"; done < <(compgen -e | grep -E '^(PG|DATABASE_URL|SUPABASE_|POSTGRES)' || true)
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -115,10 +90,7 @@ echo "> Iniciando Postgres local (somente socket Unix em $SOCK)"
   -o "-c listen_addresses='' -c unix_socket_directories='$SOCK' -p $PG_SOCKET_PORT" start >/dev/null
 PG_STARTED=1
 
-# O host da URL é localhost (onde nada escuta: não há TCP); o parâmetro host
-# faz o node-postgres usar o socket Unix criado acima.
 DB_URL="postgresql://postgres@localhost:$PG_SOCKET_PORT/postgres?host=$(node -p 'encodeURIComponent(process.argv[1])' "$SOCK")"
-# Defesa extra: a única conexão permitida é o socket criado acima.
 node -e '
   const [url, sock] = process.argv.slice(1); const u = new URL(url);
   if (u.hostname !== "localhost" || u.searchParams.get("host") !== sock) process.exit(1);
@@ -126,8 +98,6 @@ node -e '
 
 PSQL=(psql -X -q -v ON_ERROR_STOP=1 -h "$SOCK" -p "$PG_SOCKET_PORT" -U postgres -d postgres)
 
-# Stub mínimo do que a Supabase provê fora do schema public. Nada aqui cria
-# objetos em public: as extensões vão para o schema extensions, como na Supabase.
 "${PSQL[@]}" <<'SQL'
 CREATE ROLE anon NOLOGIN NOINHERIT;
 CREATE ROLE authenticated NOLOGIN NOINHERIT;
@@ -188,8 +158,6 @@ done
 
 echo "> Gerando tipos (schema public)"
 GENERATED="$WORK/generated.ts"
-# Reproduz getTypeOutput() de src/server/server.ts do postgres-meta sem subir o
-# servidor HTTP (que carrega o profiler nativo do Sentry, ausente em Node novos).
 cat > "$WORK/pgmeta/gen-types.mjs" <<'JS'
 import { PostgresMeta } from './dist/lib/index.js'
 import { apply } from './dist/server/templates/typescript.js'
@@ -222,45 +190,10 @@ JS
 (cd "$WORK/pgmeta" && CDJ_DB_URL="$DB_URL" node gen-types.mjs) > "$GENERATED"
 grep -q 'export type Database' "$GENERATED" || { echo "Saída do postgres-meta inválida" >&2; cat "$GENERATED" >&2; exit 1; }
 
-STEPS_LIST="$(printf ' *   %s\n' "${SQL_STEPS[@]}")"
-RESULT="$WORK/database.types.ts"
-{
-  cat <<EOF
-/**
- * Tipos do banco do Clube do Jogo (schema public), no formato de
- * \`supabase gen types typescript\`.
- *
- * ARQUIVO GERADO. Não edite à mão: rode \`scripts/generate-database-types.sh\`.
- *
- * Origem: derivado SOMENTE do SQL versionado neste repositório, aplicado a um
- * Postgres 17 descartável e local (socket Unix, sem TCP), e lido pelo
- * postgres-meta $PG_META_TAG (o mesmo da Supabase CLI 2.111.0).
- * NÃO foi introspectado do projeto Supabase de produção. Se a produção tiver
- * recebido SQL que não está no repositório, este arquivo não reflete isso.
- *
- * Gerado em: $(date +%Y-%m-%d)
- *
- * Arquivos aplicados, nesta ordem (seed:* são dados fictícios mínimos para que
- * as migrations de recompensa, que só gravam dados, passem nas próprias checagens):
-$STEPS_LIST
- *
- * Antes deles, um stub mínimo da Supabase: roles anon/authenticated/service_role,
- * schema auth (auth.users, auth.uid(), auth.role(), auth.jwt()), extensões
- * uuid-ossp e pgcrypto no schema extensions e a publicação supabase_realtime.
- * O stub não cria nada em public.
- *
- * Para regenerar: scripts/generate-database-types.sh
- * Para conferir sem gravar: scripts/generate-database-types.sh --check
- * (requer node, npm, git e psql; baixa as versões fixadas no script.)
- */
-
-EOF
-  cat "$GENERATED"
-} > "$RESULT"
+RESULT="$GENERATED"
 
 if [[ "$MODE" == "check" ]]; then
-  # Ignora a linha da data ao comparar.
-  if diff <(grep -v '^ \* Gerado em:' "$OUT") <(grep -v '^ \* Gerado em:' "$RESULT") >/dev/null; then
+  if diff "$OUT" "$RESULT" >/dev/null; then
     echo "database.types.ts está atualizado."
   else
     echo "database.types.ts difere do SQL do repositório. Rode $0." >&2

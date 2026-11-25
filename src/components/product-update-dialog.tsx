@@ -67,7 +67,6 @@ export function ProductUpdateDialog({ update }: { update: ProductUpdate }) {
     try {
       window.localStorage.setItem(storageKey, 'true');
     } catch {
-      // Storage unavailable (private mode, quota): the modal still closes.
     }
   }
 

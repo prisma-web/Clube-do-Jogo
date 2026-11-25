@@ -26,6 +26,7 @@
     "perf:auth": "node scripts/perf-auth.mjs",
     "perf:discover": "tsx scripts/latency-probe.mts",
     "test:dependency-gate": "node --test tests/release/*.test.mjs",
+    "test:lint": "node --test tests/lint/*.test.mjs",
     "test:release-notes": "node --test tests/release-notes/*.test.mjs",
     "igdb:check": "tsx scripts/igdb-credentials-check.mts",
     "themes:generate": "tsx scripts/generate-theme-tokens.mts",

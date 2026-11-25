@@ -19,11 +19,6 @@ const KIND_ICONS: Record<GotyNomineeKind, keyof typeof Ionicons.glyphMap> = {
   user_creation: 'people',
 };
 
-/**
- * Pôster do indicado: capa da IGDB quando existir; caso contrário, um cartaz
- * editorial dourado com o título completo (quebra em linhas, nunca recortado
- * no meio da palavra — reduz a fonte se precisar).
- */
 export const GotyPosterArt = memo(function GotyPosterArt({
   title,
   subtitle,

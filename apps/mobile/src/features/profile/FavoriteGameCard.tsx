@@ -6,7 +6,6 @@ import { useRatingScale } from '@/hooks/use-rating-scale';
 import { formatRatingValue } from '@/components/RatingValue';
 import { radii, spacing, themedStyles, useThemeColors } from '@/theme';
 
-// Poster tile mirroring the web `FavoriteGameCard` (src/components/favorite-game-card.tsx).
 export function FavoriteGameCard({ game, onPress }: { game: Game; onPress?: () => void }) {
   const colors = useThemeColors();
   const styles = useStyles();

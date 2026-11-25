@@ -157,8 +157,6 @@ export default function RankingPage() {
     const saved = await runOptimistic(choice ? 'Salvando escolha…' : 'Removendo escolha…', () => rankingQuery.setData(next), () => rankingQuery.setData(previous), request);
     if (saved) {
       notifyRankingLeader(previous[0]?.game.id || null, next[0]?.game.id || null);
-      // Only a new vote can add a game to the pool. A changed vote keeps its
-      // created_at, so the route would still see this user as the first voter.
       if (choice && !item.myChoice) notifyVotingThreshold(item.game.id);
     }
   }

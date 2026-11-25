@@ -1,7 +1,5 @@
 export const AUTH_CALLBACK_URL = 'clubedojogo://auth/callback';
 
-// Expo only substitutes statically analyzable EXPO_PUBLIC_* references. Keep
-// each environment lookup literal so release bundles receive configured values.
 const expoSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const expoSupabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const expoSupabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;

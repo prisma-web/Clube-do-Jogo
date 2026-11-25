@@ -4,8 +4,6 @@ import { radii, spacing, themedStyles, typography, useThemeColors } from '@/them
 import { useThemeScene } from './scene-context';
 import { useCosmicAmbiencePreference } from './cosmic-ambience-preference';
 
-// Mirrors the web's ambience card (src/components/theme-selector.tsx:102-117): an on/off
-// toggle independent of the communicator sound switch, plus an adjustable volume control.
 const VOLUME_STEP = 0.1;
 
 export function CosmicAmbienceSettings() {

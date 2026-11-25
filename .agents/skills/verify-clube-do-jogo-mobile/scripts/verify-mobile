@@ -1,18 +1,13 @@
 #!/usr/bin/env bash
-# Helper da skill verify-clube-do-jogo-mobile. Rode a partir de qualquer pasta do checkout.
-# Subcomandos: launch, doctor, drive, evidence, cleanup, status. Veja SKILL.md.
-# Não sobe processo de longa duração: build e drive terminam dentro do próprio comando.
 set -euo pipefail
 
 ROOT=$(git rev-parse --show-toplevel)
 EVIDENCE_BASE="${VERIFY_MOBILE_EVIDENCE_BASE:-$ROOT/evidence/verify-clube-do-jogo-mobile}"
 case "$EVIDENCE_BASE" in /*) ;; *) EVIDENCE_BASE="$PWD/$EVIDENCE_BASE" ;; esac
 STATE_BASE="$ROOT/state/verify-clube-do-jogo-mobile"
-# O lock é do aparelho, não do checkout: cada thread do T3 tem seu worktree, e todas veem esta pasta.
 LOCK_BASE="${XDG_STATE_HOME:-$HOME/.local/state}/clube-do-jogo/device-locks"
 BUNDLE_ID="com.clubedojogo.mobile.dev"
 
-# A receita do build entra na chave do cache: mudar env, flag ou Xcode força um build novo.
 BUILD_ENV=(CI=1 EXPO_NO_DOTENV=1 APP_VARIANT=development EXPO_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE=false)
 BUILD_SCRIPT='
 set -euo pipefail
@@ -66,7 +61,6 @@ parse() {
   done
 }
 
-# Um id é um nome de pasta simples: sem barra, sem começar por ponto, e nunca a pasta do cache.
 check_run_id() {
   [[ "$RUN_ID" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] && [ "$(printf %s "$RUN_ID" | tr "[:upper:]" "[:lower:]")" != builds ] || die "RUN_ID inválido: $RUN_ID"
 }
@@ -79,7 +73,6 @@ require_run() {
   [ -n "$RUN_ID" ] || RUN_ID=$(latest_run)
   [ -n "$RUN_ID" ] || die "nenhum run; rode launch primeiro"
   check_run_id
-  # A base também não pode ser symlink: realpath dos dois lados passaria pelo mesmo link.
   [ ! -L "$ROOT/state" ] && [ ! -L "$STATE_BASE" ] || die "$STATE_BASE (ou state/) é symlink; recuso"
   STATE="$STATE_BASE/$RUN_ID"
   [ -d "$STATE" ] && [ ! -L "$STATE" ] || die "run $RUN_ID não existe em $STATE_BASE"
@@ -88,7 +81,6 @@ require_run() {
   EVIDENCE=""
   # shellcheck disable=SC1091
   . "$STATE/manifest.env"
-  # Manifesto anterior a EVIDENCE= usa a base padrão.
   EVIDENCE="${EVIDENCE:-$EVIDENCE_BASE/$RUN_ID}"
 }
 
@@ -104,13 +96,11 @@ build_key() {
 
 sha256() { shasum -a 256 "$1" | cut -d' ' -f1; }
 
-# Lock de aparelho: pasta criada com mkdir (atômico) e um arquivo owner com PID, início do processo e run.
 lock_field() { sed -n "s/^$2=//p" "$1/owner" 2>/dev/null | head -1; }
 proc_start() { ps -o lstart= -p "$1" 2>/dev/null | sed 's/^ *//'; }
 lock_alive() {
   local pid start
   pid=$(lock_field "$1" PID)
-  # Sem owner: o dono pode estar entre o mkdir e a escrita. Conta como vivo no primeiro minuto.
   [ -n "$pid" ] || { [ -z "$(find "$1" -maxdepth 0 -mmin +1)" ]; return; }
   start=$(proc_start "$pid")
   [ -n "$start" ] && [ "$start" = "$(lock_field "$1" PROC_START)" ]
@@ -144,7 +134,6 @@ release_lock() {
   return 0
 }
 
-# O wrapper do device_open executa um launcher cujo array `bound` fixa --udid. Lê o UDID de lá.
 bound_udid() {
   local launcher
   launcher=$(sed -n "s/.*'\([^']*agent-device-launcher\.mjs\)'.*/\1/p" "$AGENT_DEVICE" | head -1)
@@ -164,14 +153,11 @@ cmd_launch() {
   [ -d "$ROOT/node_modules" ] || die "rode 'npm ci' na raiz do checkout antes"
   clean_tree || die "checkout sujo; o bundle embarcado precisa corresponder a um commit"
   mkdir -p "$STATE" "$EVIDENCE"
-  # Launch que falha antes do manifesto não deixa estado; a evidência (build.log) fica.
   trap '[ -f "$STATE/manifest.env" ] || rm -rf "$STATE"' EXIT
-  # Pastas que se ignoram sozinhas: nada de evidência ou estado entra no git.
   echo '*' > "$EVIDENCE_BASE/.gitignore"
   echo '*' > "$STATE_BASE/.gitignore"
   local sha key build app
   sha=$(git -C "$ROOT" rev-parse HEAD)
-  # O cache segue a árvore que entra no app e a receita, não o HEAD: um commit só de docs reaproveita o build.
   key=$(build_key)
   build="$STATE_BASE/builds/ios-$key"
   app="$build/ClubedoJogo.app"
@@ -183,7 +169,6 @@ cmd_launch() {
     log "compilando Release iOS (demo, sem Supabase) de $sha; log em $EVIDENCE/build.log"
     (
       cd "$ROOT/apps/mobile"
-      # Allowlist: nada do shell (Supabase, API, tokens) entra no bundle.
       env -i HOME="$HOME" PATH="$PATH" USER="${USER:-}" LANG=en_US.UTF-8 TMPDIR="${TMPDIR:-/tmp}" \
         "${BUILD_ENV[@]}" bash -c "$BUILD_SCRIPT" _ "$STATE_BASE/builds/ios-dd"
     ) > "$EVIDENCE/build.log" 2>&1 || die "build falhou; veja $EVIDENCE/build.log"
@@ -195,8 +180,6 @@ cmd_launch() {
   fi
   clean_tree || die "o checkout mudou durante o build (git status): arquivo gerado fora do .gitignore ou edição concorrente"
 
-  # Defesa em profundidade: o build não recebe EXPO_PUBLIC_SUPABASE_*, então o app cai no demo
-  # (apps/mobile/src/platform/config.ts). Mesmo assim, um bundle com host Supabase não é dirigido.
   if grep -aqE "$SUPABASE_HOST_RE" "$app/main.jsbundle"; then
     die "o bundle contém um host Supabase; recuso dirigir"
   fi
@@ -268,13 +251,10 @@ cmd_drive() {
   mkdir -p "$out"
   log "rodando $FLOW em $UDID; saída em $out"
   set +e
-  # O test abre sessão própria e recusa o aparelho se uma sessão interativa (open/snapshot) estiver aberta.
   "$AGENT_DEVICE" close > /dev/null 2>&1 || true
-  # takeScreenshot grava no diretório corrente: rode dentro da pasta de evidência.
   (cd "$out" && "$AGENT_DEVICE" test "$flow_abs" --maestro --artifacts-dir "$out/artifacts" ${FLOW_ENV[@]+"${FLOW_ENV[@]}"}) > "$out/run.log" 2>&1
   rc=$?
   set -e
-  # O agent-device grava o takeScreenshot sem extensão; o Maestro acrescenta .png. Normalize.
   local f
   for f in "$out"/*; do
     case "$(basename "$f")" in *.*) continue ;; esac

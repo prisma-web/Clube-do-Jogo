@@ -330,10 +330,6 @@ export function createExpoPushTransport(
   };
 }
 
-/**
- * `raw` é o JSON devolvido pela Expo (lido com `response.json()`), tipado como
- * `unknown` aqui. Identidade em tempo de execução; só informa ao tipo da RPC.
- */
 function expoRawJson(value: unknown): Json {
   return value as Json;
 }

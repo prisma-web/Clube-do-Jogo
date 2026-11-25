@@ -203,11 +203,6 @@ export function RatingSheet({
   );
 }
 
-/**
- * Quick star picker on the user's scale (5 or 10). Tapping a star sets that whole
- * value; tapping the star that is already the exact value drops it by half a
- * point, so half ratings stay one tap away. The stepper below keeps fine control.
- */
 function RatingQuickPick({ value, scale, disabled, onChange, accessibilityLabel, size = 'regular' }: {
   value: number;
   scale: RatingScale;

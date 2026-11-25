@@ -9,7 +9,6 @@ const other: VoteParticipant = { id: 'other', name: 'Outra', avatar_url: null, r
 
 function row(index: number, voter: VoteParticipant, choice: 'would_play' | 'neutral' = 'would_play'): RankingItem {
   const item = applyMyVote(unvotedRankingItem(demoGames[index], '2026-11-01T00:00:00.000Z'), voter, choice, 'preference');
-  // applyMyVote treats the voter as the current member; another member's vote is not mine.
   return voter.id === me.id ? item : { ...item, myChoice: null, votedByMe: false };
 }
 

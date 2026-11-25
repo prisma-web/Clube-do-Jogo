@@ -86,14 +86,11 @@ export default function DiscoverScreen() {
     () => new Set((libraryQuery.data?.library ?? []).filter(item => item.inBacklog).map(item => item.game.id)),
     [libraryQuery.data],
   );
-  // Ranking membership for the vote month: the library payload lists every voted
-  // game, and the ranking cache carries optimistic votes made from here.
   const rankingIds = useMemo(() => new Set([
     ...(libraryQuery.data?.rankingGameIds ?? []),
     ...(rankingQuery.data ?? []).map(item => item.game.id),
   ]), [libraryQuery.data, rankingQuery.data]);
   const items = useMemo(() => discoverQuery.data?.pages.flatMap(page => page.items) ?? [], [discoverQuery.data]);
-  // Pad odd lists so the last poster keeps the same width as the others.
   const cells = useMemo<GridCell[]>(() => (items.length % 2 ? [...items, { spacer: true }] : items), [items]);
   const activeFilterCount = [genre, platform, year].filter(value => value !== null && value !== undefined).length;
   const actionsInLibrary = actionsTarget ? libraryIds.has(actionsTarget.game.id) : false;

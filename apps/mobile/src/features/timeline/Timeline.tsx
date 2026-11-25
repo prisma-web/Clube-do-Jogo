@@ -51,8 +51,6 @@ function Discussion({ gameId, clubMonth }: TimelineProps) {
   const [reactionPickerTarget, setReactionPickerTarget] = useState<ReactionPickerTarget | null>(null);
   const [reactionsListTarget, setReactionsListTarget] = useState<ClubComment | null>(null);
   const [reactionNotice, setReactionNotice] = useState('');
-  // Fogueira Cósmica: Nomai connectors link replies to the root; tapping a comment focuses its thread
-  // path (parity with focusedCommentId in src/components/timeline.tsx).
   const nomai = useNativeTheme().id === 'cosmic-campfire';
   const [focusedCommentId, setFocusedCommentId] = useState<string | null>(null);
   const toggleFocus = (id: string) => setFocusedCommentId(current => (current === id ? null : id));
@@ -344,8 +342,6 @@ function CommentCard({
   const authorName = comment.profile?.name || 'Membro';
   return (
     <Pressable
-      // Only themes with thread paths (Fogueira Cósmica) make the card itself focusable; inner
-      // buttons keep their own presses.
       onPress={onFocusThread}
       disabled={!onFocusThread}
       accessible={false}

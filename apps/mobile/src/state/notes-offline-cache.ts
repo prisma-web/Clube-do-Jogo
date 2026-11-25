@@ -2,11 +2,6 @@ import type { LocalNote } from '@clube-do-jogo/domain';
 import { identityScope } from '../hooks/mobile-preferences-core';
 import type { NoteConflictsByNoteId, PendingNotesQueue } from './notes-queue';
 
-// Last list of private notes the server confirmed, kept per account scope (account vs demo +
-// userId, the same scope as mobile-preferences-core) and game, so the notes screen can still show
-// them offline. This is a read cache only: it never feeds the pending queue
-// (pendingNotesKey/useNotesPendingQueue), which remains the only place unsent notes live.
-
 const NOTES_CACHE_PREFIX = '@clube-do-jogo/notes-synced-cache';
 const NOTES_CACHE_VERSION = 1;
 
@@ -38,10 +33,6 @@ export function serializeNotesCache(notes: readonly LocalNote[], savedAt: string
   return JSON.stringify({ version: NOTES_CACHE_VERSION, savedAt, notes });
 }
 
-/**
- * Returns null for a missing or unreadable cache (it is only a convenience copy of server data,
- * so dropping it is always safe) and skips individual rows that do not belong to this user/game.
- */
 export function parseNotesCache(value: string | null, scope: { gameId: string; userId: string }): NotesOfflineCache | null {
   if (!value) return null;
   try {
@@ -63,15 +54,9 @@ export interface NotesSyncSummary {
   conflicts: number;
   failed: number;
   fromCache: boolean;
-  /** The manual "Sincronizar novamente" button is offered whenever something is not confirmed. */
   canRetry: boolean;
 }
 
-/**
- * Status-bar model for PrivateNotes (parity with the summary in src/components/notes-chat.tsx).
- * `confirmed` is what the server (or the offline copy of it) lists; queue entries already listed
- * there are still counted as pending, because their latest local version is not confirmed yet.
- */
 export function summarizeNotesSync(input: {
   confirmed: readonly LocalNote[];
   queue: PendingNotesQueue;

@@ -40,7 +40,6 @@ test('accepts every game-of-month section and the remaining in-app destinations'
   assert.deepEqual(parsePushDestination('/configuracoes'), { pathname: '/(app)/configuracoes' });
   assert.deepEqual(parsePushDestination('/seus-jogos'), { pathname: '/(app)/(tabs)/seus-jogos' });
   assert.deepEqual(parsePushDestination('/jogos'), { pathname: '/(app)/(tabs)/jogos' });
-  // Sem tela de GOTY no app: o toque cai na home em vez de ser descartado.
   assert.deepEqual(parsePushDestination('/goty-2026'), { pathname: '/(app)/(tabs)/jogo-do-mes' });
   for (const rejected of [
     '/jogo-do-mes?section=other', '/jogo-do-mes?section=notes&next=evil', '/jogo-do-mes?section=',

@@ -3,10 +3,6 @@ import test from 'node:test';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { DataError, createDataClient } from './index';
 
-// Estas operações substituem chamadas diretas que a web fazia ao Supabase.
-// O modo demo local não passa por elas, então os testes conferem a consulta
-// montada: tabela, métodos encadeados, argumentos e o resultado devolvido.
-
 type Step = [string, ...unknown[]];
 type Call = { table: string; chain: Step[] };
 type Result = { data?: unknown; error?: unknown };
@@ -327,7 +323,6 @@ test('readNoteSnapshots reads the frozen notes of one cycle and maps them to loc
   assert.deepEqual(notes, [{ id: 'n1', userId: 'u1', gameId: 'g1', body: 'Chefe difícil', imageDataUrl: undefined, createdAt: '2026-10-02', updatedAt: '2026-10-03' }]);
 });
 
-// Métodos já existentes que a web passou a usar: a consulta é a mesma que ela fazia.
 test('readCycles and readProgress build the queries the web used to build itself', async () => {
   const { client, calls } = recorder({
     profiles: { data: [{ id: 'u1', name: 'Ana', avatar_url: null }, { id: 'u2', name: 'Bia', avatar_url: null }] },

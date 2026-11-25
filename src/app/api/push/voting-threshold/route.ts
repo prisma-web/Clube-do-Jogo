@@ -41,8 +41,6 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   if (!admin) return json({ sent: 0, configured: false });
 
-  // Only a game's first vote can add it to the voting pool. Calls for ordinary
-  // vote changes are intentionally harmless and do not create a notification.
   const { data: votes, error: votesError } = await admin.from('votes')
     .select('user_id, created_at')
     .eq('vote_month', body.voteMonth)

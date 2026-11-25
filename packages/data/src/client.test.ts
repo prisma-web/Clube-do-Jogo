@@ -84,7 +84,6 @@ test('real vote writes upsert on the vote key and shift the visible month by one
     choice: 'would_not_play',
   });
 
-  // No delete: a changed vote must keep its row and created_at.
   assert.deepEqual(calls, [['from', 'votes'], ['upsert']]);
   assert.deepEqual(upsertOptions, { onConflict: 'user_id,game_id,vote_month' });
   assert.deepEqual(upserted, {

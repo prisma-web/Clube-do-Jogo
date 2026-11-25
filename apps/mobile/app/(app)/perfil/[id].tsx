@@ -60,7 +60,6 @@ export default function MemberProfileScreen() {
     try {
       await Share.share({ message: url, url });
     } catch {
-      // usuário cancelou o compartilhamento
     }
   }
 

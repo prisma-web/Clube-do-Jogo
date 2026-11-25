@@ -30,8 +30,6 @@ export function PreferencesPanel({
   const { audio } = useThemeScene();
   const toggleAudio = (value: boolean) => {
     onAudioEnabled(value);
-    // Parity with src/components/theme-selector.tsx: confirm with the "enable" cue. The session
-    // only starts after this toggle re-renders, so queue it until the players are ready.
     if (value) audio.queueSignal('enable');
   };
   const productUpdate = useInstalledProductUpdate();
