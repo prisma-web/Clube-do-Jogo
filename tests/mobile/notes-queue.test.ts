@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   clearConflict,
   createConflicts,
+  createPendingNotesStore,
   createQueue,
   dequeue,
   enqueue,
@@ -146,4 +147,62 @@ test('mergePendingIntoList appends unconfirmed notes without duplicating a note 
 
   assert.equal(merged.length, 2);
   assert.deepEqual(merged.map(note => note.id).sort(), ['note-a', 'note-b']);
+});
+
+function memoryStorage(initial: string | null = null) {
+  const state = { stored: initial, reads: 0 };
+  return {
+    state,
+    read: async () => { state.reads += 1; return state.stored; },
+    write: (queue: Parameters<typeof serializeQueue>[0]) => { state.stored = queue.size ? serializeQueue(queue) : null; },
+  };
+}
+
+function storedIds(stored: string | null) {
+  return Array.from(parseQueue(stored).queue.keys()).sort();
+}
+
+test('duas telas do mesmo jogo gravam a mesma fila, e a resposta atrasada de uma não apaga o envio da outra', async () => {
+  const storage = memoryStorage();
+  const store = createPendingNotesStore(storage);
+  await store.load();
+  await store.load();
+
+  store.setQueue(enqueue(store.getSnapshot().queue, pending('note-a', 'enviada na aba Jogo do mês')));
+  store.setQueue(enqueue(store.getSnapshot().queue, pending('note-b', 'enviada no detalhe do jogo')));
+  store.setQueue(markAttempt(store.getSnapshot().queue, 'note-a', 'sem conexão'));
+
+  assert.deepEqual(storedIds(storage.state.stored), ['note-a', 'note-b']);
+  assert.equal(storage.state.reads, 1, 'a fila é lida do aparelho uma vez só');
+});
+
+test('uma tela que monta depois não recarrega a fila por cima do que já está na memória', async () => {
+  const storage = memoryStorage(serializeQueue(enqueue(createQueue(), pending('note-a', 'salva antes'))));
+  const store = createPendingNotesStore(storage);
+  await store.load();
+  store.setQueue(enqueue(store.getSnapshot().queue, pending('note-b', 'ainda não gravada')));
+  storage.state.stored = null;
+
+  await store.load();
+
+  assert.deepEqual(Array.from(store.getSnapshot().queue.keys()).sort(), ['note-a', 'note-b']);
+});
+
+test('quem assina o store vê a fila e os conflitos mudarem', async () => {
+  const store = createPendingNotesStore(memoryStorage());
+  await store.load();
+  let notified = 0;
+  const unsubscribe = store.subscribe(() => { notified += 1; });
+  store.setQueue(enqueue(store.getSnapshot().queue, pending('note-a', 'texto')));
+  store.setConflicts(markConflict(store.getSnapshot().conflicts, 'note-a', { kind: 'deleted', local: pending('note-a', 'texto').note }));
+  unsubscribe();
+  store.setQueue(createQueue());
+  assert.equal(notified, 2);
+  assert.equal(store.getSnapshot().conflicts.get('note-a')?.kind, 'deleted');
+});
+
+test('fila corrompida no aparelho rejeita a carga e deixa a fila vazia', async () => {
+  const store = createPendingNotesStore(memoryStorage('{"não é": "lista"}'));
+  await assert.rejects(store.load(), /corrompida/);
+  assert.equal(store.getSnapshot().queue.size, 0);
 });
