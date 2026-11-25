@@ -208,7 +208,7 @@ export const themePaletteSource = {
     violet300: '#2f8176',
     violet400: '#27998c',
     violet500: '#45ab9e',
-    violet600: '#3d998d',
+    violet600: '#2f8176',
     violet700: webOnly('#2e746b'),
     violet950: webOnly('#164a45'),
     fuchsia600: '#75b94e',

@@ -1078,9 +1078,9 @@ body,
 }
 :root[data-theme='crossing'] button.bg-violet-600:not(:disabled),
 :root[data-theme='crossing'] .game-action-vote[data-active='true'] {
-  background: repeating-linear-gradient(135deg, #45aa9d 0 10px, #58bbad 10px 20px) !important;
+  background: repeating-linear-gradient(135deg, #2a796f 0 10px, #2f8176 10px 20px) !important;
   color: #fff !important;
-  box-shadow: inset 0 0 0 2px #83d1c5 !important;
+  box-shadow: inset 0 0 0 2px #4c9a8f !important;
 }
 :root[data-theme='crossing'] .game-action-completed[data-active='true'],
 :root[data-theme='crossing'] .progress-status-option[data-selected='true'] {
@@ -2096,7 +2096,7 @@ iframe {
 }
 :root[data-theme='crossing'] .reward-card { border: 0 !important; background: #f3ecd2 !important; box-shadow: none !important; }
 :root[data-theme='crossing'] .reward-check { background: #72b65f; color: #fff; }
-:root[data-theme='crossing'] .reward-primary { border: 3px solid #fff8dc; background: repeating-linear-gradient(135deg, #43b8aa 0 10px, #51c1b4 10px 20px) !important; color: #fff !important; box-shadow: 0 5px 0 rgb(73 132 95 / 10%); }
+:root[data-theme='crossing'] .reward-primary { border: 3px solid #fff8dc; background: repeating-linear-gradient(135deg, #2a796f 0 10px, #2f8176 10px 20px) !important; color: #fff !important; box-shadow: 0 5px 0 rgb(73 132 95 / 10%); }
 :root[data-theme='crossing'] .reward-secondary,
 :root[data-theme='crossing'] .reward-close { background: #f1ead0 !important; color: #4d685c; }
 
