@@ -1,0 +1,62 @@
+{
+  "original-desktop": {
+    "color": "lab(76.7419 18.3911 -37.0706)",
+    "bg": "rgb(19.4 19.4 22.2)",
+    "contrast": 1.258
+  },
+  "original-mobile": {
+    "color": "lab(62.8239 34.9159 -60.0512)",
+    "bg": "rgb(10.8 10.8 13.8)",
+    "contrast": 1.42
+  },
+  "zelda-desktop": {
+    "color": "rgb(234, 213, 142)",
+    "bg": "rgb(21.0 23.0 18.0)",
+    "contrast": 12.386
+  },
+  "zelda-mobile": {
+    "color": "rgb(215, 187, 111)",
+    "bg": "rgb(9.0 11.0 9.0)",
+    "contrast": 10.559
+  },
+  "nier-desktop": {
+    "color": "rgb(95, 81, 76)",
+    "bg": "rgb(211.0 205.0 182.0)",
+    "contrast": 4.761
+  },
+  "nier-mobile": {
+    "color": "rgb(75, 65, 61)",
+    "bg": "rgb(215.5 209.5 187.5)",
+    "contrast": 6.498
+  },
+  "crossing-desktop": {
+    "color": "rgb(47, 129, 118)",
+    "bg": "rgb(246.0 237.0 207.0)",
+    "contrast": 3.965
+  },
+  "crossing-mobile": {
+    "color": "rgb(47, 129, 118)",
+    "bg": "rgb(254.2 248.8 224.6)",
+    "contrast": 4.384
+  },
+  "ori-desktop": {
+    "color": "rgb(191, 248, 255)",
+    "bg": "rgb(7.5 30.5 47.2)",
+    "contrast": 14.567
+  },
+  "ori-mobile": {
+    "color": "rgb(115, 225, 242)",
+    "bg": "rgb(3.0 10.0 22.0)",
+    "contrast": 13.015
+  },
+  "cosmic-campfire-desktop": {
+    "color": "rgb(245, 196, 141)",
+    "bg": "rgb(15.1 19.2 21.9)",
+    "contrast": 11.685
+  },
+  "cosmic-campfire-mobile": {
+    "color": "rgb(239, 161, 90)",
+    "bg": "rgb(2.9 6.7 9.7)",
+    "contrast": 9.564
+  }
+}
