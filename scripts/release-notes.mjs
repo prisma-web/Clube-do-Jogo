@@ -6,10 +6,17 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 
-// Antes do Node 22.18, a remoção de tipos fica atrás de uma flag.
-if (!process.features.typescript) {
+// Do Node 22.6 ao 22.17, a remoção de tipos fica atrás de uma flag. Antes do 22.10, process.features.typescript nem existe,
+// então o processo relançado se reconhece pela variável de ambiente e não relança de novo.
+const RELAUNCHED = 'RELEASE_NOTES_STRIP_TYPES';
+if (!process.features.typescript && !process.env[RELAUNCHED]) {
+  const [major, minor] = process.versions.node.split('.').map(Number);
+  if (major < 22 || (major === 22 && minor < 6)) {
+    console.error(`release-notes.mjs precisa de Node ≥ 22.6; este é o ${process.versions.node}.`);
+    process.exit(1);
+  }
   const flags = ['--experimental-strip-types', '--disable-warning=ExperimentalWarning'];
-  const { status } = spawnSync(process.execPath, [...flags, ...process.argv.slice(1)], { stdio: 'inherit' });
+  const { status } = spawnSync(process.execPath, [...flags, ...process.argv.slice(1)], { stdio: 'inherit', env: { ...process.env, [RELAUNCHED]: '1' } });
   process.exit(status ?? 1);
 }
 

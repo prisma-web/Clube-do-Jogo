@@ -228,7 +228,7 @@ export function productUpdateUrl(repo: string, tag: string | 'latest') {
     : `https://github.com/${repo}/releases/download/${tag}/${PRODUCT_UPDATE_ASSET}`;
 }
 
-export const PRODUCT_UPDATE_TIMEOUT_MS = 3000;
+const PRODUCT_UPDATE_TIMEOUT_MS = 3000;
 
 export type ProductUpdateDownload =
   | { status: 'found'; update: ProductUpdate }

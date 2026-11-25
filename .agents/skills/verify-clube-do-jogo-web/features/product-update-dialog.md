@@ -25,7 +25,7 @@ Preconditions: run demo saudável pelo `doctor`, contexto de browser novo (sem `
 ## Gotchas
 
 - O `launch` força `NEXT_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE=false`, então o diálogo nunca abre sozinho num run do helper; a abertura automática fica `not-run` e a prova usa `?novidades=atual`. Só o valor exato `'false'` desliga a abertura automática.
-- O conteúdo vem do GitHub pelo servidor do Next. Para dirigir o diálogo sem um release com notas, rode o dev server com `NODE_OPTIONS="--import $PWD/tests/web/fixtures/github-release-stub.mjs"`, que responde com `tests/web/fixtures/product-update.json`; é o que `npm run test:web` faz.
+- O navegador pede `/api/product-update` depois de montar a página, e essa rota baixa o arquivo do GitHub. Para dirigir o diálogo sem um release com notas, rode o dev server com `NODE_OPTIONS="--import $PWD/tests/web/fixtures/github-release-stub.mjs"`, que responde com `tests/web/fixtures/product-update.json`; é o que `npm run test:web` faz. Para ver o caso sem notas, bloqueie `/api/product-update` no navegador (`page.route`).
 - A chave de storage é por `update.id`; um id novo reabre o diálogo mesmo para quem viu a versão anterior. É o esperado.
 - Não confunda com `reward-celebration` (tema concedido no login), que pode aparecer na mesma sessão.
 - Fechar: botão `Fechar novidades`. `Agora não` é da `reward-celebration`, não deste diálogo.

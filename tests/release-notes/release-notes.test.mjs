@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, test } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const script = join(root, 'scripts', 'release-notes.mjs');
@@ -44,10 +44,15 @@ function commit(dir, files, message) {
 }
 
 function run(dir, ...args) {
+  return runWith({}, dir, ...args);
+}
+
+function runWith(env, dir, ...args) {
   const result = spawnSync(process.execPath, [script, ...args], {
     cwd: dir,
     encoding: 'utf8',
-    env: { ...process.env, GITHUB_REPOSITORY: 'prisma-web/Clube-do-Jogo' },
+    env: { ...process.env, GITHUB_REPOSITORY: 'prisma-web/Clube-do-Jogo', ...env },
+    timeout: 30_000,
   });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
@@ -276,6 +281,18 @@ test('check only looks at what the PR changed since it left master', () => {
   assert.equal(run(dir, 'check', base, head).status, 1);
 });
 
+test('check does not count a note that master deleted after the PR left it', () => {
+  const dir = createRepo();
+  commit(dir, { 'updates/notes/antiga.json': note('antiga') }, 'note');
+  branchFromMaster(dir);
+  const head = commit(dir, { 'src/a.ts': 'x' }, 'pr without note');
+  git(dir, 'checkout', '-q', 'master');
+  const base = commit(dir, { 'updates/notes/antiga.json': null }, 'master deletes note');
+  const result = run(dir, 'check', base, head);
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stderr, /não adiciona nenhuma nota/);
+});
+
 /** `released` are the tags with a published GitHub release; by default, every tag in the repo. */
 function assemble(dir, tag, released = git(dir, 'tag', '--list').split('\n')) {
   const out = join(dir, 'out', 'product-update.json');
@@ -362,6 +379,30 @@ test('assemble starts from the last published release, so a tag whose build fail
   assert.deepEqual(titles(assemble(dir, 'v1.3.1', ['v1.2.0'])), ['treze', 'hotfix']);
   assert.deepEqual(titles(assemble(dir, 'v1.3.1', ['v1.2.0', 'v1.3.0'])), ['hotfix']);
   assert.deepEqual(titles(assemble(dir, 'v1.3.1', [])), ['doze', 'treze', 'hotfix']);
+});
+
+test('assemble skips published releases whose tag is not vX.Y.Z', () => {
+  const dir = createRepo();
+  commit(dir, { 'updates/notes/um.json': note('um') }, 'one');
+  git(dir, 'tag', 'v1.0.0');
+  git(dir, 'tag', 'v1.1.0-rc1');
+  git(dir, 'tag', 'v2');
+  commit(dir, { 'updates/notes/dois.json': note('dois') }, 'two');
+  git(dir, 'tag', 'v1.1.0');
+  const result = assemble(dir, 'v1.1.0', ['v1.0.0', 'v1.1.0-rc1', 'v2']);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(titles(result), ['dois']);
+});
+
+test('assemble announces a note that was reverted and added again once', () => {
+  const dir = createRepo();
+  git(dir, 'tag', 'v1.0.0');
+  commit(dir, { 'updates/notes/volta.json': note('volta') }, 'add');
+  commit(dir, { 'updates/notes/outra.json': note('outra') }, 'other');
+  commit(dir, { 'updates/notes/volta.json': null }, 'revert');
+  commit(dir, { 'updates/notes/volta.json': note('volta') }, 'reapply');
+  git(dir, 'tag', 'v1.1.0');
+  assert.deepEqual(titles(assemble(dir, 'v1.1.0')), ['volta', 'outra']);
 });
 
 test('assemble needs the list of published releases', () => {
@@ -462,4 +503,26 @@ test('assemble rejects a tag that is not vX.Y.Z', () => {
   const dir = createRepo();
   git(dir, 'tag', 'v1.0');
   assert.equal(assemble(dir, 'v1.0').status, 1);
+});
+
+/** Runs the script as if on Node `version`, which strips types only behind --experimental-strip-types, if at all. */
+function runOnNode(version, dir, ...args) {
+  const preload = pathToFileURL(join(root, 'tests', 'fixtures', 'release-notes', 'pretend-node.mjs')).href;
+  return runWith({ NODE_OPTIONS: `--import=${preload}`, PRETEND_NODE_VERSION: version }, dir, ...args);
+}
+
+test('the script asks for Node 22.6 or later on an older Node', () => {
+  const dir = createRepo();
+  for (const version of ['20.19.0', '22.5.1']) {
+    const result = runOnNode(version, dir, 'check', 'HEAD', 'HEAD', '--opt-out');
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, new RegExp(`precisa de Node ≥ 22\\.6.*${version.replaceAll('.', '\\.')}`));
+  }
+});
+
+test('the script relaunches itself once with type stripping on Node 22.6 to 22.9', () => {
+  const dir = createRepo();
+  const result = runOnNode('22.8.0', dir, 'check', 'HEAD', 'HEAD', '--opt-out');
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /sem-novidade/);
 });

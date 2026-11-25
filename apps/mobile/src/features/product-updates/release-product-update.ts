@@ -1,4 +1,5 @@
 import {
+  androidProductUpdate,
   downloadProductUpdate,
   parseProductUpdate,
   productUpdateUrl,
@@ -21,17 +22,23 @@ async function readCache(storage: NativeStorage): Promise<ProductUpdate | null> 
   }
 }
 
-/** The notes of the installed version's GitHub release. A cached copy of that same version skips the download. */
+/** The notes of the installed version's GitHub release, with their Android copy. A cached copy of that same version skips the download. */
 export async function loadInstalledProductUpdate(source: UpdateSource, { storage, fetch }: {
   storage: NativeStorage;
   fetch: FetchProductUpdate;
 }): Promise<ProductUpdateDownload> {
   const tag = `v${formatSemver(source.installed)}`;
   const cached = await readCache(storage);
-  if (cached?.id === tag) return { status: 'found', update: cached };
+  if (cached?.id === tag) return { status: 'found', update: androidProductUpdate(cached) };
   const result = await downloadProductUpdate(productUpdateUrl(source.repo, tag), tag, fetch);
-  if (result.status === 'found') await storage.setItem(PRODUCT_UPDATE_CACHE_KEY, JSON.stringify(result.update)).catch(() => {});
-  return result;
+  if (result.status !== 'found') return result;
+  await storage.setItem(PRODUCT_UPDATE_CACHE_KEY, JSON.stringify(result.update)).catch(() => {});
+  return { status: 'found', update: androidProductUpdate(result.update) };
+}
+
+/** React Native's AppState. */
+export interface AppStateEvents {
+  addEventListener(type: 'change', listener: (state: string) => void): { remove(): void };
 }
 
 export interface InstalledProductUpdateStore {
@@ -41,16 +48,16 @@ export interface InstalledProductUpdateStore {
 
 /**
  * Loads the installed version's notes once its first subscriber arrives. A failed load runs again
- * on the next return to the foreground; found or missing notes settle it for the rest of the
+ * when the app next becomes active; found or missing notes settle it for the rest of the
  * process, which only ever runs one installed version.
  */
 export function createInstalledProductUpdateStore(
   load: () => Promise<ProductUpdateDownload>,
-  onForeground: (callback: () => void) => () => void,
+  appState: AppStateEvents,
 ): InstalledProductUpdateStore {
   let phase: 'idle' | 'loading' | 'settled' = 'idle';
   let update: ProductUpdate | null = null;
-  let stopForeground: (() => void) | null = null;
+  let foreground: { remove(): void } | null = null;
   const listeners = new Set<() => void>();
 
   const refresh = () => {
@@ -73,13 +80,15 @@ export function createInstalledProductUpdateStore(
     get: () => update,
     subscribe(listener) {
       listeners.add(listener);
-      stopForeground ??= onForeground(refresh);
+      foreground ??= appState.addEventListener('change', state => {
+        if (state === 'active') refresh();
+      });
       refresh();
       return () => {
         listeners.delete(listener);
         if (listeners.size > 0) return;
-        stopForeground?.();
-        stopForeground = null;
+        foreground?.remove();
+        foreground = null;
       };
     },
   };

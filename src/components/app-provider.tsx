@@ -1,6 +1,7 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
+import { fetchLatestProductUpdate } from '@/lib/product-update-release';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
@@ -106,7 +107,7 @@ function getOperationError(result: unknown): Error | null {
   return new Error(String(error));
 }
 
-export function AppProvider({ children, productUpdate }: { children: React.ReactNode; productUpdate: ProductUpdate | null }) {
+export function AppProvider({ children }: { children: React.ReactNode }) {
   const isDemo = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<AppContextValue['user']>(isDemo ? { id: 'demo-user', email: 'artur@clubedojogo.com' } : null);
@@ -122,6 +123,7 @@ export function AppProvider({ children, productUpdate }: { children: React.React
   const [operations, setOperations] = useState<{ id: string; label: string }[]>([]);
   const [toasts, setToasts] = useState<{ id: string; message: string }[]>([]);
   const [notices, setNotices] = useState<{ id: string; message: string }[]>([]);
+  const [productUpdate, setProductUpdate] = useState<ProductUpdate | null>(null);
   const demoClubUndos = useRef(new Map<string, { beforeCycles: ClubCycle[]; beforeMonth: string; afterCycles: ClubCycle[]; afterMonth: string; previousEventId?: string; revertedAt?: number }>());
   const demoLatestClubEvent = useRef<string | undefined>(undefined);
 
@@ -229,6 +231,10 @@ export function AppProvider({ children, productUpdate }: { children: React.React
     if (stored && /^\d{4}-\d{2}$/.test(stored)) {
       queueMicrotask(() => setSelectedMonthState(stored));
     }
+  }, []);
+
+  useEffect(() => {
+    void fetchLatestProductUpdate().then(setProductUpdate);
   }, []);
 
   useEffect(() => {

@@ -6,7 +6,6 @@ import {
   downloadProductUpdate,
   parseProductUpdate,
   parseReleaseNote,
-  PRODUCT_UPDATE_TIMEOUT_MS,
   productUpdateStorageKey,
   productUpdateUrl,
   type ProductUpdate,
@@ -216,9 +215,9 @@ test('network errors, server errors and non-JSON bodies are failures worth retry
   assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', respond('<html>captive portal</html>')), { status: 'failed' });
 });
 
-test(`gives up on a server that never answers after ${PRODUCT_UPDATE_TIMEOUT_MS} ms`, { timeout: PRODUCT_UPDATE_TIMEOUT_MS + 1000 }, async () => {
+test('gives up on a server that never answers after 3 seconds', { timeout: 4000 }, async () => {
   // Stands in for the open socket of a real request, which keeps the process alive; AbortSignal.timeout alone does not.
-  const socket = setTimeout(() => {}, PRODUCT_UPDATE_TIMEOUT_MS + 2000);
+  const socket = setTimeout(() => {}, 5000);
   const hanging = (_url: string, { signal }: { signal: AbortSignal }) => new Promise<never>((_resolve, reject) => {
     signal.addEventListener('abort', () => {
       clearTimeout(socket);
@@ -228,5 +227,5 @@ test(`gives up on a server that never answers after ${PRODUCT_UPDATE_TIMEOUT_MS}
   const started = performance.now();
   assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', hanging), { status: 'failed' });
   const elapsed = performance.now() - started;
-  assert.ok(elapsed >= PRODUCT_UPDATE_TIMEOUT_MS - 50 && elapsed < PRODUCT_UPDATE_TIMEOUT_MS + 1000, `gave up after ${elapsed} ms`);
+  assert.ok(elapsed >= 2950 && elapsed < 3500, `gave up after ${elapsed} ms`);
 });

@@ -108,35 +108,50 @@ test('a cache write failure still shows the downloaded notes', async () => {
   assert.deepEqual(await loadInstalledProductUpdate(source, { storage, fetch: github(published).fetch }), { status: 'found', update: productUpdate() });
 });
 
-/** A store whose loads answer from `results` in order, plus a switch to bring the app back to the foreground. */
+test('the installed notes come with their Android copy, downloaded or cached', async () => {
+  const android = { body: 'No Android, os empates aparecem no ranking.', highlights: ['Toque para ver a posição'] };
+  const withAndroid: ProductUpdate = { ...productUpdate(), steps: [{ ...productUpdate().steps[0], android }] };
+  const expected: ProductUpdate = { ...productUpdate(), steps: [{ ...productUpdate().steps[0], ...android }] };
+  const downloaded = memoryStorage();
+  assert.deepEqual(await loadInstalledProductUpdate(source, { storage: downloaded.storage, fetch: github({ [assetUrl]: withAndroid }).fetch }), { status: 'found', update: expected });
+  const cached = memoryStorage({ [PRODUCT_UPDATE_CACHE_KEY]: downloaded.values.get(PRODUCT_UPDATE_CACHE_KEY) ?? '' });
+  assert.deepEqual(await loadInstalledProductUpdate(source, { storage: cached.storage, fetch: github({}).fetch }), { status: 'found', update: expected });
+});
+
+/** A store whose loads answer from `results` in order, plus the app's AppState to move it between background and foreground. */
 function storeWith(...results: (ProductUpdateDownload | Error)[]) {
   let loads = 0;
   let pending: (() => void) | null = null;
-  const foreground = new Set<() => void>();
-  const store = createInstalledProductUpdateStore(
-    () => {
-      const result = results[Math.min(loads, results.length - 1)];
-      loads += 1;
-      return new Promise((resolve, reject) => {
-        pending = () => (result instanceof Error ? reject(result) : resolve(result));
-      });
+  const listeners = new Set<(state: string) => void>();
+  const appState = {
+    addEventListener(_type: 'change', listener: (state: string) => void) {
+      listeners.add(listener);
+      return { remove: () => listeners.delete(listener) };
     },
-    callback => {
-      foreground.add(callback);
-      return () => foreground.delete(callback);
-    },
-  );
+  };
+  const store = createInstalledProductUpdateStore(() => {
+    const result = results[Math.min(loads, results.length - 1)];
+    loads += 1;
+    return new Promise((resolve, reject) => {
+      pending = () => (result instanceof Error ? reject(result) : resolve(result));
+    });
+  }, appState);
+  const moveTo = (state: string) => listeners.forEach(listener => listener(state));
   return {
     store,
     loads: () => loads,
-    listening: () => foreground.size,
+    listening: () => listeners.size,
     /** Answers the load in flight and lets the store react. */
     settle: async () => {
       pending?.();
       pending = null;
       await new Promise(resolve => setImmediate(resolve));
     },
-    returnToForeground: () => foreground.forEach(callback => callback()),
+    moveTo,
+    returnToForeground: () => {
+      moveTo('background');
+      moveTo('active');
+    },
   };
 }
 
@@ -172,6 +187,16 @@ test('a failed load retries on the next return to the foreground, one load at a 
   assert.equal(app.loads(), 3);
   await app.settle();
   assert.deepEqual(app.store.get(), productUpdate());
+});
+
+test('a failed load waits for the app to become active again, not just for any app state change', async () => {
+  const app = storeWith(failed, found);
+  app.store.subscribe(() => {});
+  await app.settle();
+  for (const state of ['inactive', 'background', 'unknown']) app.moveTo(state);
+  assert.equal(app.loads(), 1);
+  app.moveTo('active');
+  assert.equal(app.loads(), 2);
 });
 
 test('a version without notes is not downloaded again in the same run, nor are found notes', async () => {

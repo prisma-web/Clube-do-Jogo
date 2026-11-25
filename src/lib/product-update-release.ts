@@ -1,12 +1,13 @@
-import { downloadProductUpdate, productUpdateUrl, RELEASES_REPO, type ProductUpdate } from '@clube-do-jogo/domain';
+import { parseProductUpdate, type ProductUpdate } from '@clube-do-jogo/domain';
 
-// New notes reach the site within an hour. Next only caches successful responses, so a failure is retried on the next render.
-// Next drops the timeout signal when it refreshes a stale entry in the background, which never holds up a page.
-const REVALIDATE_SECONDS = 3600;
-
-/** The notes of the latest GitHub release, or null on any failure. Server only. */
-export async function loadLatestProductUpdate(fetchImpl: typeof fetch = fetch): Promise<ProductUpdate | null> {
-  const result = await downloadProductUpdate(productUpdateUrl(RELEASES_REPO, 'latest'), null, (url, init) =>
-    fetchImpl(url, { ...init, next: { revalidate: REVALIDATE_SECONDS } }));
-  return result.status === 'found' ? result.update : null;
+/** The latest release's notes from /api/product-update, or null when it has none or the request fails. */
+export async function fetchLatestProductUpdate(): Promise<ProductUpdate | null> {
+  try {
+    const response = await fetch('/api/product-update');
+    if (!response.ok) return null;
+    const parsed = parseProductUpdate(((await response.json()) as { update?: unknown }).update);
+    return parsed.ok ? parsed.value : null;
+  } catch {
+    return null;
+  }
 }
