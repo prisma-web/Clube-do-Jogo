@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { useSharedValue } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { DEFAULT_AVATAR_CROP, normalizeAvatarCrop, type AvatarCrop } from '@clube-do-jogo/domain';
+import { DEFAULT_AVATAR_CROP, avatarNativeTransform, normalizeAvatarCrop, type AvatarCrop } from '@clube-do-jogo/domain';
 import { Sheet } from '@/components/Sheet';
 import { Button } from '@/components/Button';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
@@ -12,6 +12,9 @@ import { themedStyles, useThemeColors, radii, spacing, typography } from '@/them
 export const DEFAULT_AVATAR_SELECTION_CROP: AvatarCrop = { ...DEFAULT_AVATAR_CROP, zoom: 1.1 };
 
 const PREVIEW_SIZE = 240;
+const PREVIEW_BORDER = 2;
+// The image fills the padding box, inside the ring's border.
+const PREVIEW_IMAGE_SIZE = PREVIEW_SIZE - PREVIEW_BORDER * 2;
 
 export function AvatarCropEditor({ visible, imageUrl, name, crop: initialCrop, saving, onClose, onSave }: {
   visible: boolean;
@@ -58,7 +61,7 @@ export function AvatarCropEditor({ visible, imageUrl, name, crop: initialCrop, s
           <View style={styles.previewWrap} accessible={false}>
             <Image
               source={{ uri: imageUrl }}
-              style={[StyleSheet.absoluteFill, { transform: [{ scale: crop.zoom }], transformOrigin: `${crop.x}% ${crop.y}%` }]}
+              style={[StyleSheet.absoluteFill, { transform: avatarNativeTransform(crop, PREVIEW_IMAGE_SIZE) }]}
               contentFit="cover"
               contentPosition={{ top: `${crop.y}%`, left: `${crop.x}%` }}
               accessibilityLabel={name}
@@ -127,7 +130,7 @@ const useStyles = themedStyles(colors => ({
     borderRadius: PREVIEW_SIZE / 2,
     overflow: 'hidden',
     backgroundColor: colors.zinc900,
-    borderWidth: 2,
+    borderWidth: PREVIEW_BORDER,
     borderColor: 'rgba(139,92,246,0.35)',
   },
   previewRing: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: PREVIEW_SIZE / 2, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
