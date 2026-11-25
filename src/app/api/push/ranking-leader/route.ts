@@ -1,7 +1,7 @@
 import { rpcArgsAcceptingNull, type ApiUntrustedBody } from '@clube-do-jogo/data';
 import { contractJson } from '@/lib/api-route';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
+import { createRequestContext } from '@/lib/supabase/server';
 import { dispatchPushNotification, isPushConfigured } from '@/lib/push';
 import { ACTIVE_RANKING_FORMULA, compareRankingItems, rankingScore } from '@/lib/ranking';
 import { byChoice } from '@clube-do-jogo/domain';
@@ -11,9 +11,8 @@ const json = contractJson<'pushRankingLeader'>();
 type RequestBody = ApiUntrustedBody<'pushRankingLeader'>;
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return json({ error: 'Nao autorizado.' }, { status: 401 });
+  const { userId } = await createRequestContext({ checkRevocation: true });
+  if (!userId) return json({ error: 'Nao autorizado.' }, { status: 401 });
 
   let body: RequestBody;
   try {

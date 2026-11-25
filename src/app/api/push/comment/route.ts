@@ -1,7 +1,7 @@
 import type { ApiUntrustedBody } from '@clube-do-jogo/data';
 import { contractJson } from '@/lib/api-route';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
+import { createRequestContext } from '@/lib/supabase/server';
 import { dispatchPushNotification } from '@/lib/push';
 
 const json = contractJson<'pushComment'>();
@@ -9,9 +9,8 @@ const json = contractJson<'pushComment'>();
 type CommentRequest = ApiUntrustedBody<'pushComment'>;
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return json({ error: 'Nao autorizado.' }, { status: 401 });
+  const { supabase, userId } = await createRequestContext({ checkRevocation: true });
+  if (!userId) return json({ error: 'Nao autorizado.' }, { status: 401 });
 
   let body: CommentRequest;
   try {
@@ -22,7 +21,7 @@ export async function POST(request: Request) {
   const commentId = typeof body.commentId === 'string' ? body.commentId : '';
   if (!commentId) return json({ error: 'Comentario invalido.' }, { status: 400 });
 
-  const { data: comment } = await supabase.from('club_comments').select('id, user_id, game_id, club_month, body').eq('id', commentId).eq('user_id', user.id).maybeSingle();
+  const { data: comment } = await supabase.from('club_comments').select('id, user_id, game_id, club_month, body').eq('id', commentId).eq('user_id', userId).maybeSingle();
   if (!comment) return json({ error: 'Comentario nao encontrado.' }, { status: 404 });
 
   const admin = createAdminClient();
@@ -30,7 +29,7 @@ export async function POST(request: Request) {
 
   const [{ data: game }, { data: author }] = await Promise.all([
     admin.from('games').select('title').eq('id', comment.game_id).maybeSingle(),
-    admin.from('profiles').select('name').eq('id', user.id).maybeSingle(),
+    admin.from('profiles').select('name').eq('id', userId).maybeSingle(),
   ]);
 
   const gameTitle = game?.title || 'o jogo do mes';
@@ -41,6 +40,6 @@ export async function POST(request: Request) {
     body: preview ? `${authorName}: ${preview}${comment.body.length > preview.length ? '...' : ''}` : `${authorName} comentou na timeline.`,
     url: '/jogo-do-mes?section=timeline',
     tag: `comment:${comment.game_id}:${comment.club_month}`,
-  }, undefined, user.id);
+  }, undefined, userId);
   return json(result);
 }

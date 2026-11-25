@@ -47,3 +47,50 @@ export function avatarImageStyle(crop?: Partial<AvatarCrop> | null) {
     transformOrigin: `${next.x}% ${next.y}%`,
   };
 }
+
+export type AvatarImageSize = { width: number; height: number };
+type Offset = { x: number; y: number };
+
+// Tamanho da imagem em cover num quadro quadrado. O eixo que cobre fica com o
+// tamanho exato do quadro, para a sobra dele dar zero sem erro de arredondamento.
+function coverSize(frame: number, image: AvatarImageSize | null | undefined) {
+  if (!image || !(image.width > 0) || !(image.height > 0)) return { width: frame, height: frame };
+  const ratio = image.width / image.height;
+  return ratio >= 1 ? { width: frame * ratio, height: frame } : { width: frame, height: frame / ratio };
+}
+
+// Quanto a imagem passa do quadro em cada eixo, já com o zoom.
+function overflow(frame: number, image: AvatarImageSize | null | undefined, zoom: number): Offset {
+  const cover = coverSize(frame, image);
+  return { x: cover.width * zoom - frame, y: cover.height * zoom - frame };
+}
+
+const round = (value: number) => Math.round(value * 1e6) / 1e6 + 0;
+
+/**
+ * Deslocamento, em pixels de tela, para a prévia do editor bater com o Avatar.
+ *
+ * O Avatar desenha com cover, object-position x% y% e scale(zoom) em volta de
+ * x% y%, o que põe a borda da imagem em x% da sobra. O editor não pode mexer no
+ * contentPosition durante o gesto (o expo-image remonta a imagem a cada quadro e
+ * o círculo fica vazio), então centraliza a imagem, aplica scale(zoom) em volta
+ * do centro e soma este deslocamento num translate anterior ao scale.
+ * Sem o tamanho natural da imagem, trata como quadrada.
+ */
+export function avatarPreviewOffset(frame: number, image: AvatarImageSize | null | undefined, crop: Partial<AvatarCrop> | null | undefined): Offset {
+  const next = normalizeAvatarCrop(crop);
+  const room = overflow(frame, image, next.zoom);
+  return { x: round((room.x * (50 - next.x)) / 100), y: round((room.y * (50 - next.y)) / 100) };
+}
+
+/**
+ * Recorte depois de arrastar o dedo `translation` pixels a partir de `start`. A
+ * imagem acompanha o dedo, e num eixo em que ela não passa do quadro o recorte
+ * daquele eixo não muda.
+ */
+export function avatarCropAfterPan(start: Partial<AvatarCrop>, translation: Offset, frame: number, image: AvatarImageSize | null | undefined): AvatarCrop {
+  const next = normalizeAvatarCrop(start);
+  const room = overflow(frame, image, next.zoom);
+  const move = (value: number, delta: number, space: number) => (space > 1e-6 ? value - (delta / space) * 100 : value);
+  return normalizeAvatarCrop({ ...next, x: move(next.x, translation.x, room.x), y: move(next.y, translation.y, room.y) });
+}

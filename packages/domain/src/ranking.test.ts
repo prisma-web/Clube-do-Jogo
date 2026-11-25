@@ -92,7 +92,7 @@ test('neutral answers are worth zero in both formulas', () => {
 });
 
 test('neutral is a stored vote choice and unknown choices are not', () => {
-  assert.deepEqual(voteChoices, ['would_play', 'neutral', 'would_not_play']);
+  assert.deepEqual(voteChoices, ['would_not_play', 'neutral', 'would_play']);
   assert.equal(isVoteChoice('neutral'), true);
   assert.equal(isVoteChoice('would_play'), true);
   assert.equal(isVoteChoice('unavailable'), false);

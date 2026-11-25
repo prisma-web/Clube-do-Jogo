@@ -1,7 +1,7 @@
 import type { ApiSearchParams } from '@clube-do-jogo/data';
 import { contractJson } from '@/lib/api-route';
 import { GOTY_2026_CURATED_CATALOG, type GotySearchGameResult } from '@clube-do-jogo/domain';
-import { createClient } from '@/lib/supabase/server';
+import { createRequestContext } from '@/lib/supabase/server';
 import { searchGoty2026GamesWithIGDB } from '@/lib/igdb';
 import { cacheIGDBGames } from '@/lib/game-cache';
 import type { Game } from '@/lib/types';
@@ -41,9 +41,8 @@ export async function GET(request: Request) {
   const limit = Math.max(1, Math.min(30, Number(searchParams.get('limit')) || 18));
 
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const { supabase, userId } = await createRequestContext();
+    if (!userId) {
       return json({ error: 'Não autorizado.' }, { status: 401 });
     }
 

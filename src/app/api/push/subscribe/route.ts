@@ -1,6 +1,6 @@
 import type { ApiUntrustedBody } from '@clube-do-jogo/data';
 import { contractJson } from '@/lib/api-route';
-import { createClient } from '@/lib/supabase/server';
+import { createRequestContext } from '@/lib/supabase/server';
 
 const json = contractJson<'pushSubscribe'>();
 
@@ -31,9 +31,8 @@ function isAllowedEndpoint(endpoint: string) {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return json({ error: 'Nao autorizado.' }, { status: 401 });
+  const { supabase, userId } = await createRequestContext({ checkRevocation: true });
+  if (!userId) return json({ error: 'Nao autorizado.' }, { status: 401 });
 
   let body: PushSubscriptionPayload;
   try {
@@ -49,7 +48,7 @@ export async function POST(request: Request) {
   if (!isAllowedEndpoint(endpoint)) return json({ error: 'Endpoint de push nao permitido.' }, { status: 400 });
 
   const { error } = await supabase.from('push_subscriptions').upsert(
-    { user_id: user.id, endpoint, p256dh, auth, updated_at: new Date().toISOString() },
+    { user_id: userId, endpoint, p256dh, auth, updated_at: new Date().toISOString() },
     { onConflict: 'endpoint' },
   );
   if (error) return json({ error: 'Nao foi possivel salvar a assinatura.' }, { status: 500 });
