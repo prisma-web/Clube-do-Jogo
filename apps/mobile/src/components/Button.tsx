@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { useUiSignal } from '@/features/themes/scene-context';
 import { radii, spacing, themedStyles, typography, useThemeColors, type ThemeColors } from '@/theme';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
@@ -22,9 +23,13 @@ export function Button({ label, onPress, variant = 'primary', disabled, loading,
   const colors = useThemeColors();
   const styles = useStyles();
   const isDisabled = disabled || loading;
+  const playSignal = useUiSignal();
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        playSignal('press');
+        onPress();
+      }}
       disabled={isDisabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel || label}

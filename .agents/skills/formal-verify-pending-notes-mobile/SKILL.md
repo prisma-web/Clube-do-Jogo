@@ -7,7 +7,7 @@ description: Verifica com TLA+ que uma anotação privada enviada no app mobile 
 
 A tela de anotações promete: "Anotações escritas sem conexão ficam guardadas neste aparelho e são enviadas automaticamente assim que a conexão voltar ou o app for reaberto." Quem cumpre essa promessa é `useNotesPendingQueue` em `apps/mobile/src/state/discussion-queries.ts`. Cada envio entra numa fila em memória, o `queueRef`. A cada mudança, o hook regrava a fila inteira no AsyncStorage, numa chave por usuário e jogo, a `pendingNotesKey`.
 
-**Propriedade `NoLostNote`.** Depois que um envio chegou ao AsyncStorage, o texto continua lá até o servidor aceitá-lo ou até o usuário descartá-lo num conflito, com o botão **Editar versão do servidor**.
+**Propriedade `NoLostNote`.** Depois que um envio chegou ao AsyncStorage, o texto continua lá até o servidor aceitá-lo ou até o usuário descartá-lo num conflito, com **Usar versão do servidor**, **Editar versão do servidor** ou **Aceitar exclusão**.
 
 **Dano quando quebra.** O usuário toca em enviar, vê "enviando…", e a anotação desaparece do aparelho sem nunca chegar ao servidor.
 
@@ -29,7 +29,7 @@ Rode da raiz do repo:
 .agents/skills/formal-verify-pending-notes-mobile/scripts/check.sh
 ```
 
-O script precisa de Java 11 ou mais novo, e de rede na primeira vez. Ele baixa o TLC, o `tla2tools.jar` v1.7.4, confere o sha256 e o guarda em `.cache/` dentro desta skill, que o git ignora. A execução leva uns 10 s e faz seis checagens. Cada uma tem um resultado registrado:
+O script precisa de Java 11 ou mais novo, e de rede na primeira vez. Ele baixa o TLC, o `tla2tools.jar` v1.7.4, confere o sha256 e o guarda em `.cache/` dentro desta skill, que o git ignora. A execução leva uns 15 s e faz sete checagens. Cada uma tem um resultado registrado:
 
 | Checagem | Config | Registrado |
 |---|---|---|
@@ -39,6 +39,7 @@ O script precisa de Java 11 ou mais novo, e de rede na primeira vez. Ele baixa o
 | `mutant-drop-on-conflict` | base com o conflito descartando a entrada | viola |
 | `mutant-no-load-wait` | base com a carga sem esperar `draftWrites.get(key)` | viola |
 | `mutant-unserialized-writes` | base com as gravações chegando fora de ordem | viola |
+| `mutant-use-local-drops` | base com **Usar minha versão** tirando a entrada da fila e deixando só o envio em voo | viola |
 
 Os mutantes provam que a propriedade ainda consegue falhar. Se um mutante passar, o modelo ficou fraco demais, e um `base` verde não prova nada.
 
@@ -101,9 +102,11 @@ Uma ação do modelo é um passo indivisível, o trecho síncrono de JS entre do
 | `Touchable` | Só a tela do topo recebe toque, e `busy` bloqueia o composer até a fila carregar. |
 | `SubmitCreate` | `submit()` chama `submitCreate`, que chama `flushOne` até o `await`. |
 | `SubmitUpdate` | `beginEdit` e depois `submit()` chamam `submitUpdate`. `onLongPress` ignora nota pendente. |
-| `ResolveUseRemote` | O botão **Editar versão do servidor**, que só aparece em conflito `changed`. |
+| `ResolveUseRemote` | `resolveUseRemote`: os botões **Usar versão do servidor** e **Editar versão do servidor**, que só aparecem em conflito `changed`. |
+| `ResolveUseLocal` | `resolveUseLocal`: **Usar minha versão** (`changed`, vira `update` com `expectedUpdatedAt` = `remote.updatedAt`; o modelo deixa `exp` livre) e **Restaurar minha versão** (`deleted`, vira `create` com o mesmo id). Mesmo id, mesmo texto, depois `flushOne`. |
+| `ResolveAcceptDeletion` | `resolveAcceptDeletion`: **Aceitar exclusão**, só em conflito `deleted`. Descarte do usuário, como `ResolveUseRemote`. |
 | `ResolveKeepAsNew` | O botão **Manter como nova anotação**. Mesmo texto, id novo, `create`. |
-| `FlushAll` | O efeito depois da carga e os listeners de `onlineManager` e `focusManager`, em toda tela montada. |
+| `FlushAll` | O efeito depois da carga e os listeners de `onlineManager` e `focusManager`, em toda tela montada. Também `retryAll`, o botão **Sincronizar novamente**. |
 | `Send` | O prefixo síncrono de `flushOne`. Pula a nota que já está em `flushingRef` ou em conflito. |
 | `Reach` | `createNotesClient` em `packages/data/src/notes.ts`. `create` faz insert, e na falha `matchesSavedNote` conta como sucesso. `update` só grava se `updated_at` for igual a `expectedUpdatedAt`. |
 | `RespondOk` | O sucesso, `dequeueNote(queueRef.current, noteId)`. |
@@ -118,7 +121,7 @@ Uma ação do modelo é um passo indivisível, o trecho síncrono de JS entre do
 Siga estes passos quando um diff mudar de propósito algo do mapa.
 
 1. Mude a ação correspondente para dizer o que o código novo faz, com um comentário que aponte o código. Um passo novo entre dois `await` vira uma ação nova.
-2. Rode `check.sh --reviewed`. Os três mutantes precisam continuar violando. Se a mudança tornar um mutante impossível, troque-o por outro que quebre o código novo, e veja o novo mutante falhar.
+2. Rode `check.sh --reviewed`. Os quatro mutantes precisam continuar violando. Se a mudança tornar um mutante impossível, troque-o por outro que quebre o código novo, e veja o novo mutante falhar.
 3. Se o `base` passar a violar, trate a violação como bug real ou erro de modelagem, como em "Ler um resultado".
 4. Rode `check.sh --deep --reviewed`.
 5. Confirme que o modelo descreve o código no commit novo. Só então troque o `sync` do registro de cobertura por esse commit e acrescente os arquivos novos.
@@ -143,6 +146,7 @@ O modelo deixa de fora:
 - A troca de sessão ou de usuário, com `sessionEpoch` e `isSessionCurrent`. O modelo fixa um usuário logado.
 - `parseQueue` com dado corrompido, `generation` e `lastError`. Os testes unitários cobrem esses pontos, e o modelo os abstrai.
 - O que a lista mostra, em `mergePendingIntoList`, a ordem e as duplicatas no servidor, e o apagar nota, em `useDeleteNote`.
+- O cache offline de notas já sincronizadas (`notes-offline-cache.ts`, `use-notes-offline-cache.ts`). É outra chave do AsyncStorage, só com dados do servidor, e nunca alimenta a fila.
 - O AsyncStorage nativo além de uma regra. Ele aplica as gravações na ordem em que o JS as emite.
 
 ## Registro de cobertura
@@ -150,10 +154,10 @@ O modelo deixa de fora:
 `check.sh` lê o bloco abaixo. A linha `sync` é o commit em que o modelo foi confirmado contra o código. As outras linhas listam os arquivos cobertos e o que cada um contribui.
 
 ```coverage
-sync c3117bb59571a82d6e791977fde03c97fad839f1
+sync 2797165d9a0d74ef6405b0342c4a92ff837b7c63
 apps/mobile/src/state/discussion-queries.ts useNotesPendingQueue, enqueueDraftWrite, draftWrites, pendingNotesKey
 apps/mobile/src/state/notes-queue.ts enqueue, dequeue, markAttempt, markConflict, clearConflict, serializeQueue, parseQueue
-apps/mobile/src/features/notes/PrivateNotes.tsx PrivateNotes key, NotesEditor busy, submit, onLongPress, botões de conflito
+apps/mobile/src/features/notes/PrivateNotes.tsx PrivateNotes key, NotesEditor busy, submit, onLongPress e botão de menu, ConflictCard, Sincronizar novamente
 apps/mobile/app/(app)/(tabs)/jogo-do-mes.tsx PrivateNotes na sub-aba Anotações, cartaz que abre jogos/[id]
 apps/mobile/app/(app)/jogos/[id].tsx PrivateNotes em "Minhas anotações"
 apps/mobile/app/(app)/_layout.tsx Stack em que jogos/[id] empilha sobre (tabs), que continua montado

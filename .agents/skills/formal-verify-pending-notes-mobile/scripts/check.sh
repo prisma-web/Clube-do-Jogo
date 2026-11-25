@@ -74,7 +74,7 @@ fi
 run base "$base_cfg" pass auto
 run finding-F1-two-screens TwoScreens.cfg violation 1
 run finding-F1-remount-in-flight RemountInFlight.cfg violation 1
-for variant in drop-on-conflict no-load-wait unserialized-writes; do
+for variant in drop-on-conflict no-load-wait unserialized-writes use-local-drops; do
   sed "s/Variant = \"none\"/Variant = \"$variant\"/" "$MODEL/PendingNotes.cfg" >"$CACHE/mutant-$variant.cfg"
   run "mutant-$variant" "../.cache/mutant-$variant.cfg" violation 1
 done

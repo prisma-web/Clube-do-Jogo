@@ -14,9 +14,10 @@ import {
   useSetCommentReaction,
   useUpdateComment,
 } from '@/state/discussion-queries';
-import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
+import { themedStyles, useNativeTheme, useThemeColors, radii, spacing, typography } from '@/theme';
 import { formatDateTime, type ClubComment } from '@clube-do-jogo/domain';
 import { ReactionPickerSheet, ReactionsListSheet } from './ReactionSheets';
+import { NOMAI_GUTTER, NomaiThreadConnector } from './NomaiThreadConnector';
 
 const REACTION_LIMIT = 10;
 
@@ -50,6 +51,11 @@ function Discussion({ gameId, clubMonth }: TimelineProps) {
   const [reactionPickerTarget, setReactionPickerTarget] = useState<ReactionPickerTarget | null>(null);
   const [reactionsListTarget, setReactionsListTarget] = useState<ClubComment | null>(null);
   const [reactionNotice, setReactionNotice] = useState('');
+  // Fogueira Cósmica: Nomai connectors link replies to the root; tapping a comment focuses its thread
+  // path (parity with focusedCommentId in src/components/timeline.tsx).
+  const nomai = useNativeTheme().id === 'cosmic-campfire';
+  const [focusedCommentId, setFocusedCommentId] = useState<string | null>(null);
+  const toggleFocus = (id: string) => setFocusedCommentId(current => (current === id ? null : id));
 
   const comments = commentsQuery.data ?? [];
 
@@ -168,11 +174,16 @@ function Discussion({ gameId, clubMonth }: TimelineProps) {
         />
       ) : (
         <View style={styles.list}>
-          {comments.map(comment => (
+          {comments.map(comment => {
+            const focusedReply = comment.replies.some(reply => reply.id === focusedCommentId);
+            const pathActive = nomai && (focusedCommentId === comment.id || focusedReply);
+            return (
             <View key={comment.id} style={styles.thread}>
               <CommentCard
                 comment={comment}
                 nested={false}
+                highlighted={pathActive}
+                onFocusThread={nomai ? () => toggleFocus(comment.id) : undefined}
                 userId={userId}
                 isHistorical={isHistorical}
                 editing={editTarget?.id === comment.id}
@@ -190,12 +201,20 @@ function Discussion({ gameId, clubMonth }: TimelineProps) {
                 onToggleReaction={emoji => toggleReaction(comment, emoji)}
               />
               {comment.replies.length > 0 || replyingTo === comment.id ? (
-                <View style={styles.replies}>
-                  {comment.replies.map(reply => (
+                <View style={[styles.replies, nomai && styles.repliesNomai]}>
+                  {comment.replies.map((reply, index) => (
+                    <View key={reply.id} style={nomai ? styles.nomaiPath : undefined}>
+                    {nomai ? (
+                      <NomaiThreadConnector
+                        active={focusedCommentId === reply.id}
+                        continues={index < comment.replies.length - 1 || replyingTo === comment.id}
+                      />
+                    ) : null}
                     <CommentCard
-                      key={reply.id}
                       comment={reply}
                       nested
+                      highlighted={nomai && focusedCommentId === reply.id}
+                      onFocusThread={nomai ? () => toggleFocus(reply.id) : undefined}
                       userId={userId}
                       isHistorical={isHistorical}
                       editing={editTarget?.id === reply.id}
@@ -211,6 +230,7 @@ function Discussion({ gameId, clubMonth }: TimelineProps) {
                       onOpenReactionsList={() => setReactionsListTarget(reply)}
                       onToggleReaction={emoji => toggleReaction(reply, emoji)}
                     />
+                    </View>
                   ))}
                   {replyingTo === comment.id ? (
                     <View style={styles.replyComposer}>
@@ -237,7 +257,8 @@ function Discussion({ gameId, clubMonth }: TimelineProps) {
                 </View>
               ) : null}
             </View>
-          ))}
+            );
+          })}
         </View>
       )}
 
@@ -294,9 +315,13 @@ function CommentCard({
   onOpenReactionPicker,
   onOpenReactionsList,
   onToggleReaction,
+  highlighted = false,
+  onFocusThread,
 }: {
   comment: ClubComment;
   nested: boolean;
+  highlighted?: boolean;
+  onFocusThread?: () => void;
   userId: string | null;
   isHistorical: boolean;
   editing: boolean;
@@ -318,7 +343,14 @@ function CommentCard({
   const isMine = Boolean(userId) && comment.user_id === userId;
   const authorName = comment.profile?.name || 'Membro';
   return (
-    <View style={[styles.card, nested && styles.cardNested]}>
+    <Pressable
+      // Only themes with thread paths (Fogueira Cósmica) make the card itself focusable; inner
+      // buttons keep their own presses.
+      onPress={onFocusThread}
+      disabled={!onFocusThread}
+      accessible={false}
+      style={[styles.card, nested && styles.cardNested, highlighted && styles.cardHighlighted]}
+    >
       <Pressable
         onPress={() => onOpenProfile(comment.user_id)}
         accessibilityRole="button"
@@ -395,7 +427,7 @@ function CommentCard({
           ) : null}
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -417,6 +449,9 @@ const useStyles = themedStyles(colors => ({
   list: { gap: spacing.lg },
   thread: { gap: spacing.sm },
   replies: { marginLeft: spacing.xl, gap: spacing.sm },
+  repliesNomai: { marginLeft: spacing.md },
+  nomaiPath: { position: 'relative', paddingLeft: NOMAI_GUTTER },
+  cardHighlighted: { borderWidth: 1, margin: -1, borderColor: 'rgba(199,173,250,0.55)', backgroundColor: 'rgba(199,173,250,0.07)' },
   card: {
     flexDirection: 'row',
     gap: spacing.sm,

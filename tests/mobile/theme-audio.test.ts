@@ -84,7 +84,7 @@ function loadPlayers(players: FakePlayer[]) {
   for (const player of players) player.emit({ isLoaded: true, error: null });
 }
 
-function fixture(configureMode: () => Promise<void> = async () => undefined) {
+function fixture(configureMode: () => Promise<void> = async () => undefined, now?: () => number) {
   const players: FakePlayer[] = [];
   const platform: ThemeAudioPlatform = {
     configureMode,
@@ -98,6 +98,7 @@ function fixture(configureMode: () => Promise<void> = async () => undefined) {
     platform,
     ambienceSources: { hearth: 1, spaceflight: 2 },
     signalSources: { enable: 3, press: 4, select: 5, open: 6, close: 7, navigate: 8 },
+    now,
   });
   const bySource = (source: number) => players.filter(player => player.source === source);
   return { controller, players, bySource };
@@ -361,4 +362,78 @@ test('desativação antes do carregamento libera e bloqueia status tardio', asyn
   assert.deepEqual(controller.getSnapshot(), { ready: false, error: null });
   assert.equal(ambience.plays, 0);
   assert.ok(players.every(player => player.releases === 1));
+});
+
+test('troca de modo não toca navigate com os sons do comunicador desligados, mesmo com a ambiência ligada', async () => {
+  const { controller, players, bySource } = fixture();
+
+  controller.setSignalsEnabled(false);
+  controller.setAmbienceEnabled(true);
+  controller.activate('hearth');
+  await flush();
+  loadPlayers(players);
+  controller.activate('spaceflight');
+  await flush();
+  loadPlayers(players.slice(7));
+
+  const ambience = bySource(2)[0];
+  const navigate = bySource(8)[1];
+  assert.equal(ambience.plays, 1);
+  assert.deepEqual(controller.getSnapshot(), { ready: true, error: null });
+  assert.equal(navigate.seekRequests.length, 0);
+
+  // Turning signals back on later must not replay the cue that was dropped.
+  controller.setSignalsEnabled(true);
+  navigate.emit({ isLoaded: true, error: null });
+  assert.equal(navigate.seekRequests.length, 0);
+});
+
+test('playSignal é ignorado com os sinais desligados e volta a tocar ao religar', async () => {
+  const { controller, players, bySource } = fixture();
+
+  controller.activate('hearth');
+  await flush();
+  loadPlayers(players);
+  const press = bySource(4)[0];
+
+  controller.setSignalsEnabled(false);
+  controller.playSignal('press');
+  assert.equal(press.seekRequests.length, 0);
+
+  controller.setSignalsEnabled(true);
+  controller.playSignal('press');
+  assert.equal(press.seekRequests.length, 1);
+});
+
+test('queueSignal toca enable uma vez quando a sessão recém-ligada fica pronta', async () => {
+  const { controller, players, bySource } = fixture();
+
+  controller.setSignalsEnabled(false);
+  controller.queueSignal('enable');
+  controller.setSignalsEnabled(true);
+  controller.activate('hearth');
+  await flush();
+  const enable = bySource(3)[0];
+  assert.equal(enable.seekRequests.length, 0);
+
+  loadPlayers(players);
+  assert.equal(enable.seekRequests.length, 1);
+  enable.seekRequests[0].resolve();
+  await flush();
+  assert.equal(enable.plays, 1);
+
+  bySource(1)[0].emit({ isLoaded: true, error: null });
+  assert.equal(enable.seekRequests.length, 1);
+});
+
+test('queueSignal expira se a sessão não ficar pronta a tempo', async () => {
+  let clock = 1_000;
+  const { controller, players, bySource } = fixture(async () => undefined, () => clock);
+
+  controller.queueSignal('enable');
+  controller.activate('hearth');
+  await flush();
+  clock += 60_000;
+  loadPlayers(players);
+  assert.equal(bySource(3)[0].seekRequests.length, 0);
 });

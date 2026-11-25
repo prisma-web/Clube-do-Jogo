@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Pressable, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { requestProductUpdateReopen } from '@/features/product-updates';
+import { useThemeScene } from '@/features/themes/scene-context';
 import { radii, spacing, themedStyles, typography, useNativeTheme, useThemeColors } from '@/theme';
 
 const scales: (5 | 10)[] = [5, 10];
@@ -26,6 +27,13 @@ export function PreferencesPanel({
   const theme = useNativeTheme();
   const colors = useThemeColors();
   const styles = useStyles();
+  const { audio } = useThemeScene();
+  const toggleAudio = (value: boolean) => {
+    onAudioEnabled(value);
+    // Parity with src/components/theme-selector.tsx: confirm with the "enable" cue. The session
+    // only starts after this toggle re-renders, so queue it until the players are ready.
+    if (value) audio.queueSignal('enable');
+  };
 
   const motionHint = theme.systemReduceMotion
     ? 'O sistema já pede menos movimento, então as animações seguem pausadas.'
@@ -63,7 +71,7 @@ export function PreferencesPanel({
         control={
           <Switch
             value={audioEnabled}
-            onValueChange={onAudioEnabled}
+            onValueChange={toggleAudio}
             disabled={saving}
             accessibilityLabel="Som dos temas"
             accessibilityState={{ checked: audioEnabled, disabled: saving }}
@@ -89,7 +97,10 @@ export function PreferencesPanel({
               return (
                 <Pressable
                   key={scale}
-                  onPress={() => onRatingScale(scale)}
+                  onPress={() => {
+                    audio.playSignal('select');
+                    onRatingScale(scale);
+                  }}
                   disabled={saving}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: active, checked: active, disabled: saving }}

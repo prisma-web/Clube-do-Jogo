@@ -1,5 +1,6 @@
 import { Pressable, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useUiSignal } from '@/features/themes/scene-context';
 import { radii, spacing, themedStyles, useThemeColors } from '@/theme';
 
 export function Chip({ label, icon, selected, onPress }: {
@@ -10,9 +11,13 @@ export function Chip({ label, icon, selected, onPress }: {
 }) {
   const colors = useThemeColors();
   const styles = useStyles();
+  const playSignal = useUiSignal();
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        playSignal('select');
+        onPress();
+      }}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: Boolean(selected) }}

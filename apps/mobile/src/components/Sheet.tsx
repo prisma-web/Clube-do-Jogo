@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useUiSignal } from '@/features/themes/scene-context';
 import { radii, spacing, themedStyles, typography, useNativeTheme } from '@/theme';
 
 export function Sheet({ visible, title, onClose, children, avoidKeyboard = false }: {
@@ -15,6 +16,15 @@ export function Sheet({ visible, title, onClose, children, avoidKeyboard = false
   const theme = useNativeTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
+  const playSignal = useUiSignal();
+  const wasVisible = useRef(visible);
+  useEffect(() => {
+    // Open/close cues on every visibility transition (not on the first render), so a sheet
+    // closed by its own action (e.g. after saving) sounds the same as one dismissed by the user.
+    if (wasVisible.current === visible) return;
+    wasVisible.current = visible;
+    playSignal(visible ? 'open' : 'close');
+  }, [playSignal, visible]);
   const content = (
     <Pressable
       style={[styles.sheet, { paddingBottom: Math.max(spacing.xxl, insets.bottom + spacing.sm) }]}

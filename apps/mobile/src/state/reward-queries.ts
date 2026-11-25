@@ -6,13 +6,13 @@ import {
 } from '@tanstack/react-query';
 import * as React from 'react';
 import type { RewardGrant, ThemeId } from '@clube-do-jogo/domain';
-import { unlockedThemeIds } from '@clube-do-jogo/domain';
 import {
   createRewardsClient,
   type RewardsClient,
 } from '@clube-do-jogo/data';
 import { getMobileSupabaseClient } from '@/platform';
 import { useAppInternal } from './app-provider';
+import { resolveUnlockedThemeIds } from './demo-themes';
 
 type RewardsContext = ReturnType<typeof useAppInternal>;
 
@@ -113,6 +113,7 @@ export function useAcknowledgeReward(): UseMutationResult<void, Error, string> {
 }
 
 export function useUnlockedThemeIds(): ThemeId[] {
+  const { isDemo } = useAppInternal();
   const grants = useRewardGrants();
-  return React.useMemo(() => unlockedThemeIds(grants.data || []), [grants.data]);
+  return React.useMemo(() => resolveUnlockedThemeIds(grants.data || [], isDemo), [grants.data, isDemo]);
 }

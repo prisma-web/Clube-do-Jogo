@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useUiSignal } from '@/features/themes/scene-context';
 import { radii, spacing, themedStyles, useThemeColors } from '@/theme';
 import type { VoteChoice } from '@clube-do-jogo/domain';
 import { voteChoiceOptions } from './vote-choice-options';
@@ -11,6 +12,7 @@ export function PreferenceButtons({ value, disabled, onChange }: {
 }) {
   const colors = useThemeColors();
   const styles = useStyles();
+  const playSignal = useUiSignal();
   return (
     <View style={styles.row}>
       {voteChoiceOptions.map(option => {
@@ -19,7 +21,10 @@ export function PreferenceButtons({ value, disabled, onChange }: {
           <Pressable
             key={option.value}
             disabled={disabled}
-            onPress={() => onChange(option.value)}
+            onPress={() => {
+              playSignal('select');
+              onChange(option.value);
+            }}
             accessibilityRole="button"
             accessibilityLabel={option.label}
             accessibilityState={{ selected: active, disabled }}

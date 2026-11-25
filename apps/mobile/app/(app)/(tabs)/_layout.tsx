@@ -1,12 +1,15 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '@/theme';
+import { useUiSignal } from '@/features/themes/scene-context';
 
 export default function TabsLayout() {
   const colors = useThemeColors();
+  const playSignal = useUiSignal();
 
   return (
     <Tabs
+      screenListeners={{ tabPress: () => playSignal('navigate') }}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.violet400,
