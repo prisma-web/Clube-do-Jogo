@@ -25,12 +25,12 @@ test('emojiKeyboardTheme maps the dark original palette onto every keyboard slot
 
 test('emojiKeyboardTheme follows a light palette instead of hardcoding dark', () => {
   const light = emojiKeyboardTheme(themePalettes.crossing);
-  assert.equal(light.container, '#f7eccf');
-  assert.equal(light.search.text, '#4d6258');
-  assert.equal(light.search.placeholder, '#77897e');
+  assert.equal(light.container, '#fff8df');
+  assert.equal(light.search.text, '#3f5f56');
+  assert.equal(light.search.placeholder, '#6e837a');
   assert.equal(light.search.background, '#f6ead0');
-  assert.equal(light.category.containerActive, '#08aaa0');
-  assert.equal(light.category.iconActive, '#fffaf0');
+  assert.equal(light.category.containerActive, '#45ab9e');
+  assert.equal(light.category.iconActive, '#ffffff');
 });
 
 test('emojiKeyboardTranslation names every category in Portuguese', () => {
