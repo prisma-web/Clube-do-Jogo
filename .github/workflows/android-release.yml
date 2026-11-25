@@ -95,7 +95,14 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew assembleRelease --no-daemon
+        # O lintVital estourou o Metaspace de 512 MB do template e o JVM ficou travado até o
+        # timeout do job. O APK não precisa do lintVital; o resto da memória e o timeout do step
+        # fazem um OOM futuro falhar logo em vez de travar.
+        timeout-minutes: 40
+        run: >-
+          ./gradlew assembleRelease --no-daemon -x lintVitalRelease
+          "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+ExitOnOutOfMemoryError"
+          -Pkotlin.daemon.jvmargs=-Xmx2g
 
       - name: Verify signature and version
         run: |
