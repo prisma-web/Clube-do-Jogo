@@ -221,28 +221,39 @@ export function androidProductUpdate(update: ProductUpdate): ProductUpdate {
   };
 }
 
-/** Resolves a URL to its JSON body; rejects on network or HTTP errors. */
-export type FetchJson = (url: string) => Promise<unknown>;
-
-function productUpdateAsset(release: unknown, repo: string): { tag: string; url: string } | null {
-  if (typeof release !== 'object' || release === null) return null;
-  const { tag_name: tag, assets } = release as Fields;
-  if (typeof tag !== 'string' || !Array.isArray(assets)) return null;
-  const url = `https://github.com/${repo}/releases/download/${tag}/${PRODUCT_UPDATE_ASSET}`;
-  const found = assets.some(asset => typeof asset === 'object' && asset !== null
-    && (asset as Fields).name === PRODUCT_UPDATE_ASSET && (asset as Fields).browser_download_url === url);
-  return found ? { tag, url } : null;
+/** The `product-update.json` of the release tagged `tag`, or of the latest release. Release downloads have no API rate limit. */
+export function productUpdateUrl(repo: string, tag: string | 'latest') {
+  return tag === 'latest'
+    ? `https://github.com/${repo}/releases/latest/download/${PRODUCT_UPDATE_ASSET}`
+    : `https://github.com/${repo}/releases/download/${tag}/${PRODUCT_UPDATE_ASSET}`;
 }
 
-/** The product update of a release (`latest` or a `vX.Y.Z` tag). Null on any failure. */
-export async function fetchReleaseProductUpdate(repo: string, release: string, fetchJson: FetchJson): Promise<ProductUpdate | null> {
+export const PRODUCT_UPDATE_TIMEOUT_MS = 3000;
+
+export type ProductUpdateDownload =
+  | { status: 'found'; update: ProductUpdate }
+  /** The release has no notes this client can show: no asset (404), or one that fails the parser or names another release. */
+  | { status: 'missing' }
+  /** Network error, timeout or server error. Worth trying again later. */
+  | { status: 'failed' };
+
+export type FetchProductUpdate = (url: string, init: { signal: AbortSignal }) => Promise<{
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+}>;
+
+/** Downloads and validates a `product-update.json`, giving up after PRODUCT_UPDATE_TIMEOUT_MS. With `expectedId`, notes of another release count as missing. */
+export async function downloadProductUpdate(url: string, expectedId: string | null, fetchImpl: FetchProductUpdate): Promise<ProductUpdateDownload> {
+  let json: unknown;
   try {
-    const path = release === 'latest' ? 'latest' : `tags/${release}`;
-    const asset = productUpdateAsset(await fetchJson(`https://api.github.com/repos/${repo}/releases/${path}`), repo);
-    if (!asset) return null;
-    const parsed = parseProductUpdate(await fetchJson(asset.url));
-    return parsed.ok && parsed.value.id === asset.tag ? parsed.value : null;
+    const response = await fetchImpl(url, { signal: AbortSignal.timeout(PRODUCT_UPDATE_TIMEOUT_MS) });
+    if (response.status === 404) return { status: 'missing' };
+    if (!response.ok) return { status: 'failed' };
+    json = await response.json();
   } catch {
-    return null;
+    return { status: 'failed' };
   }
+  const parsed = parseProductUpdate(json);
+  return parsed.ok && (expectedId === null || parsed.value.id === expectedId) ? { status: 'found', update: parsed.value } : { status: 'missing' };
 }

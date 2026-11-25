@@ -3,10 +3,12 @@ import { test } from 'node:test';
 import {
   androidProductUpdate,
   assembleProductUpdate,
-  fetchReleaseProductUpdate,
+  downloadProductUpdate,
   parseProductUpdate,
   parseReleaseNote,
+  PRODUCT_UPDATE_TIMEOUT_MS,
   productUpdateStorageKey,
+  productUpdateUrl,
   type ProductUpdate,
 } from './product-updates';
 
@@ -175,63 +177,56 @@ test('the android update swaps in the android copy and keeps the rest', () => {
   assert.equal(android.steps[1].artwork, 'overview');
 });
 
-function releaseJson(tag: string, assets: unknown[]) {
-  return { tag_name: tag, assets };
+test('notes live in the release download URL, which has no API rate limit', () => {
+  assert.equal(productUpdateUrl(REPO, 'v1.2.0'), 'https://github.com/prisma-web/Clube-do-Jogo/releases/download/v1.2.0/product-update.json');
+  assert.equal(productUpdateUrl(REPO, 'latest'), 'https://github.com/prisma-web/Clube-do-Jogo/releases/latest/download/product-update.json');
+});
+
+function respond(body: unknown, status = 200) {
+  return async () => ({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => {
+      if (typeof body === 'string') throw new SyntaxError('Unexpected token <');
+      return body;
+    },
+  });
 }
 
-function asset(tag: string, name = 'product-update.json') {
-  return { name, browser_download_url: `https://github.com/${REPO}/releases/download/${tag}/${name}` };
-}
+const URL_V12 = 'https://github.com/prisma-web/Clube-do-Jogo/releases/download/v1.2.0/product-update.json';
 
-function fakeFetch(responses: Record<string, unknown>) {
-  const requested: string[] = [];
-  const fetchJson = async (url: string) => {
-    requested.push(url);
-    if (!(url in responses)) throw new Error(`unexpected ${url}`);
-    const response = responses[url];
-    if (response instanceof Error) throw response;
-    return response;
+test('downloads valid notes', async () => {
+  assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', respond(update)), { status: 'found', update });
+  assert.deepEqual(await downloadProductUpdate(URL_V12, null, respond(update)), { status: 'found', update });
+});
+
+test('a release without notes, invalid notes or notes of another release are missing', async () => {
+  assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', respond('Not Found', 404)), { status: 'missing' });
+  assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', respond({ ...update, steps: 'nope' })), { status: 'missing' });
+  assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', respond({ ...update, id: 'v1.1.0' })), { status: 'missing' });
+});
+
+test('network errors, server errors and non-JSON bodies are failures worth retrying', async () => {
+  const offline = async () => {
+    throw new TypeError('fetch failed');
   };
-  return { fetchJson, requested };
-}
-
-test('fetches the product update asset of a release by tag', async () => {
-  const { fetchJson, requested } = fakeFetch({
-    [`https://api.github.com/repos/${REPO}/releases/tags/v1.2.0`]: releaseJson('v1.2.0', [asset('v1.2.0', 'clube-do-jogo-v1.2.0.apk'), asset('v1.2.0')]),
-    [`https://github.com/${REPO}/releases/download/v1.2.0/product-update.json`]: update,
-  });
-  assert.deepEqual(await fetchReleaseProductUpdate(REPO, 'v1.2.0', fetchJson), update);
-  assert.equal(requested.length, 2);
+  assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', offline), { status: 'failed' });
+  assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', respond('Bad Gateway', 502)), { status: 'failed' });
+  assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', respond({ message: 'Server Error' }, 500)), { status: 'failed' });
+  assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', respond('<html>captive portal</html>')), { status: 'failed' });
 });
 
-test('fetches the latest release when asked for it', async () => {
-  const { fetchJson } = fakeFetch({
-    [`https://api.github.com/repos/${REPO}/releases/latest`]: releaseJson('v1.2.0', [asset('v1.2.0')]),
-    [`https://github.com/${REPO}/releases/download/v1.2.0/product-update.json`]: update,
+test(`gives up on a server that never answers after ${PRODUCT_UPDATE_TIMEOUT_MS} ms`, { timeout: PRODUCT_UPDATE_TIMEOUT_MS + 1000 }, async () => {
+  // Stands in for the open socket of a real request, which keeps the process alive; AbortSignal.timeout alone does not.
+  const socket = setTimeout(() => {}, PRODUCT_UPDATE_TIMEOUT_MS + 2000);
+  const hanging = (_url: string, { signal }: { signal: AbortSignal }) => new Promise<never>((_resolve, reject) => {
+    signal.addEventListener('abort', () => {
+      clearTimeout(socket);
+      reject(signal.reason);
+    });
   });
-  assert.deepEqual(await fetchReleaseProductUpdate(REPO, 'latest', fetchJson), update);
-});
-
-test('resolves null when the release has no product update asset', async () => {
-  const { fetchJson, requested } = fakeFetch({
-    [`https://api.github.com/repos/${REPO}/releases/latest`]: releaseJson('v1.2.0', [asset('v1.2.0', 'clube-do-jogo-v1.2.0.apk')]),
-  });
-  assert.equal(await fetchReleaseProductUpdate(REPO, 'latest', fetchJson), null);
-  assert.equal(requested.length, 1);
-});
-
-test('resolves null when GitHub fails, the asset is invalid or belongs to another release', async () => {
-  const releaseUrl = `https://api.github.com/repos/${REPO}/releases/latest`;
-  const assetUrl = `https://github.com/${REPO}/releases/download/v1.2.0/product-update.json`;
-  const cases: Record<string, unknown>[] = [
-    { [releaseUrl]: new Error('offline') },
-    { [releaseUrl]: { message: 'Not Found' } },
-    { [releaseUrl]: releaseJson('v1.2.0', [asset('v1.2.0')]), [assetUrl]: new Error('500') },
-    { [releaseUrl]: releaseJson('v1.2.0', [asset('v1.2.0')]), [assetUrl]: { ...update, steps: 'nope' } },
-    { [releaseUrl]: releaseJson('v1.2.0', [asset('v1.2.0')]), [assetUrl]: { ...update, id: 'v1.1.0', version: 'v1.1.0' } },
-    { [releaseUrl]: releaseJson('v1.2.0', [{ name: 'product-update.json', browser_download_url: 'https://evil.example/product-update.json' }]) },
-  ];
-  for (const responses of cases) {
-    assert.equal(await fetchReleaseProductUpdate(REPO, 'latest', fakeFetch(responses).fetchJson), null);
-  }
+  const started = performance.now();
+  assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', hanging), { status: 'failed' });
+  const elapsed = performance.now() - started;
+  assert.ok(elapsed >= PRODUCT_UPDATE_TIMEOUT_MS - 50 && elapsed < PRODUCT_UPDATE_TIMEOUT_MS + 1000, `gave up after ${elapsed} ms`);
 });

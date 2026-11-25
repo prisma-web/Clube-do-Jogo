@@ -1,39 +1,30 @@
-import { useEffect, useSyncExternalStore } from 'react';
-import { androidProductUpdate, type ProductUpdate } from '@clube-do-jogo/domain';
+import { useSyncExternalStore } from 'react';
+import { AppState } from 'react-native';
+import { androidProductUpdate, type ProductUpdate, type ProductUpdateDownload } from '@clube-do-jogo/domain';
 import { updateSource } from '@/features/app-update/apk-update';
+import type { UpdateSource } from '@/features/app-update/release';
 import { nativeStorage } from '@/platform/storage';
-import { loadInstalledProductUpdate } from './release-product-update';
+import { createInstalledProductUpdateStore, loadInstalledProductUpdate } from './release-product-update';
 
-let installed: ProductUpdate | null = null;
-let started = false;
-const listeners = new Set<() => void>();
-
-async function fetchJson(url: string): Promise<unknown> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${url} answered ${response.status}`);
-  return response.json();
-}
-
-function load() {
-  if (started || !updateSource) return;
-  started = true;
-  void loadInstalledProductUpdate(updateSource, { storage: nativeStorage, fetchJson }).then(update => {
-    installed = update && androidProductUpdate(update);
-    listeners.forEach(listener => listener());
+function onForeground(callback: () => void) {
+  const subscription = AppState.addEventListener('change', state => {
+    if (state === 'active') callback();
   });
+  return () => subscription.remove();
 }
 
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
+function storeFor(source: UpdateSource) {
+  return createInstalledProductUpdateStore(async (): Promise<ProductUpdateDownload> => {
+    const result = await loadInstalledProductUpdate(source, { storage: nativeStorage, fetch });
+    return result.status === 'found' ? { status: 'found', update: androidProductUpdate(result.update) } : result;
+  }, onForeground);
 }
 
-const getInstalled = () => installed;
+const store = updateSource ? storeFor(updateSource) : null;
+const noUpdate = () => null;
+const noSubscription = () => () => {};
 
-/** The installed version's notes, loaded once per launch. Null until loaded, and on development, preview and iOS builds. */
+/** The installed version's notes. Null until loaded, and on development, preview and iOS builds. */
 export function useInstalledProductUpdate(): ProductUpdate | null {
-  useEffect(load, []);
-  return useSyncExternalStore(subscribe, getInstalled, getInstalled);
+  return useSyncExternalStore(store?.subscribe ?? noSubscription, store?.get ?? noUpdate, store?.get ?? noUpdate);
 }

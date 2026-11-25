@@ -1,13 +1,12 @@
-import { fetchReleaseProductUpdate, RELEASES_REPO, type ProductUpdate } from '@clube-do-jogo/domain';
+import { downloadProductUpdate, productUpdateUrl, RELEASES_REPO, type ProductUpdate } from '@clube-do-jogo/domain';
 
-// GitHub allows 60 unauthenticated API requests an hour per IP; an hour of Next data cache keeps the site far below it.
+// New notes reach the site within an hour. Next only caches successful responses, so a failure is retried on the next render.
+// Next drops the timeout signal when it refreshes a stale entry in the background, which never holds up a page.
 const REVALIDATE_SECONDS = 3600;
 
 /** The notes of the latest GitHub release, or null on any failure. Server only. */
-export function loadLatestProductUpdate(fetchImpl: typeof fetch = fetch): Promise<ProductUpdate | null> {
-  return fetchReleaseProductUpdate(RELEASES_REPO, 'latest', async url => {
-    const response = await fetchImpl(url, { next: { revalidate: REVALIDATE_SECONDS } });
-    if (!response.ok) throw new Error(`${url} answered ${response.status}`);
-    return response.json();
-  });
+export async function loadLatestProductUpdate(fetchImpl: typeof fetch = fetch): Promise<ProductUpdate | null> {
+  const result = await downloadProductUpdate(productUpdateUrl(RELEASES_REPO, 'latest'), null, (url, init) =>
+    fetchImpl(url, { ...init, next: { revalidate: REVALIDATE_SECONDS } }));
+  return result.status === 'found' ? result.update : null;
 }
