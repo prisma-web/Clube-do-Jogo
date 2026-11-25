@@ -1,8 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useKeyboardVisible } from '@/hooks/use-keyboard-visible';
 import { GOTY_ROUTE } from '@/lib/nav-intent';
-import { gotyBadgeBottomOffset, gotyBadgeClearance, shouldShowGotyBadge } from './goty-logic';
+import { gotyBadgeBottomOffset, gotyBadgeClearance, isGotyBadgeVisible } from './goty-logic';
 import { gotyColors } from './goty-theme';
 import { TgaEmblem } from './TgaEmblem';
 
@@ -16,8 +17,9 @@ export function GotyFloatingBadge() {
   const pathname = usePathname();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const keyboardVisible = useKeyboardVisible();
 
-  if (!shouldShowGotyBadge(pathname)) return null;
+  if (!isGotyBadgeVisible(pathname, keyboardVisible)) return null;
 
   const bottom = gotyBadgeBottomOffset(pathname, insets.bottom);
 

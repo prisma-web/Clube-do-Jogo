@@ -107,6 +107,24 @@ test('demo mutations keep the selected ranking formula', async () => {
   assert.equal(updated?.totalPoints, updated?.legacyTotalPoints);
 });
 
+test('demo library keeps a removed backlog game only while it is a favorite or has progress', async () => {
+  const client = createDataClient();
+  const backlogOnly = demoGames[2];
+  const favorite = demoGames[1];
+  const read = async () => (await client.readLibrary({ userId, profileId: userId, isDemo: true })).library;
+  const before = await read();
+  assert.equal(before.find(item => item.game.id === backlogOnly.id)?.favorite, false);
+  assert.equal(before.find(item => item.game.id === favorite.id)?.favorite, true);
+
+  await client.setBacklog({ userId, isDemo: true, gameId: backlogOnly.id, inBacklog: false });
+  await client.setBacklog({ userId, isDemo: true, gameId: favorite.id, inBacklog: false });
+  const after = await read();
+  assert.equal(after.some(item => item.game.id === backlogOnly.id), false);
+  const kept = after.find(item => item.game.id === favorite.id);
+  assert.equal(kept?.inBacklog, false);
+  assert.equal(kept?.favorite, true);
+});
+
 test('demo progress, backlog and favorites remain coherent after mutations', async () => {
   const client = createDataClient();
   const gameId = demoGames[10].id;

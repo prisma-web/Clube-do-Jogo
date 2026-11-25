@@ -364,6 +364,10 @@ export function shouldShowGotyBadge(pathname: string): boolean {
   return !(pathname === '/goty-2026' || pathname.startsWith('/goty-2026/'));
 }
 
+export function isGotyBadgeVisible(pathname: string, keyboardVisible: boolean): boolean {
+  return shouldShowGotyBadge(pathname) && !keyboardVisible;
+}
+
 const TAB_ROUTES = new Set(['/', '/jogo-do-mes', '/ranking', '/jogos', '/seus-jogos', '/perfil']);
 
 export function isTabBarRoute(pathname: string): boolean {
