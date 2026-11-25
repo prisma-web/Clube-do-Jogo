@@ -57,8 +57,11 @@ jobs:
           fi
           echo "APP_VERSION=${TAG#v}" >> "$GITHUB_ENV"
 
+      # O histórico inteiro e as tags deixam o assemble achar a tag anterior e as notas adicionadas desde ela.
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0
+          fetch-tags: true
           persist-credentials: false
 
       # O checkout traz a tag sem a anotação, e a anotação vira o texto do release no app.
@@ -69,6 +72,10 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+
+      # Antes do build: uma nota inválida falha o release em segundos. Sem nota nova, o arquivo não é gerado.
+      - name: Assemble the release notes
+        run: node scripts/release-notes.mjs assemble "$TAG" --out "$RUNNER_TEMP/product-update.json"
 
       - uses: actions/setup-java@v5
         with:
@@ -127,10 +134,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          apk="$RUNNER_TEMP/clube-do-jogo-$TAG.apk"
-          # Rodar de novo o job substitui o APK em vez de falhar no release já criado.
+          assets=("$RUNNER_TEMP/clube-do-jogo-$TAG.apk")
+          # O app e o site leem as novidades deste asset; o nome product-update.json é contrato.
+          if [[ -f "$RUNNER_TEMP/product-update.json" ]]; then
+            assets+=("$RUNNER_TEMP/product-update.json")
+          fi
+          # Rodar de novo o job substitui os assets em vez de falhar no release já criado.
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$apk" --clobber
+            gh release upload "$TAG" "${assets[@]}" --clobber
           else
-            gh release create "$TAG" "$apk" --title "$TAG" --notes-from-tag --verify-tag
+            gh release create "$TAG" "${assets[@]}" --title "$TAG" --notes-from-tag --verify-tag
           fi

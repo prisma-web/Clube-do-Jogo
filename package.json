@@ -25,6 +25,7 @@
     "perf:ranking": "node scripts/perf-ranking.mjs",
     "perf:auth": "node scripts/perf-auth.mjs",
     "test:dependency-gate": "node --test tests/release/*.test.mjs",
+    "test:release-notes": "node --test tests/release-notes/*.test.mjs",
     "igdb:check": "tsx scripts/igdb-credentials-check.mts",
     "mobile:dependencies:gate": "node scripts/mobile-dependency-gate.mjs"
   },

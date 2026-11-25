@@ -1,0 +1,39 @@
+name: Release note
+
+# Todo PR adiciona uma nota em updates/notes/ ou leva a label sem-novidade. Guia em .claude/skills/release-note/SKILL.md.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-note-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  release-note:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Sem npm ci: o Node 24 remove os tipos do parser em packages/domain ao importar o .ts.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Check the release note
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          OPT_OUT: ${{ contains(github.event.pull_request.labels.*.name, 'sem-novidade') }}
+        run: |
+          args=(check "$BASE_SHA" "$HEAD_SHA")
+          [[ "$OPT_OUT" == true ]] && args+=(--opt-out)
+          node scripts/release-notes.mjs "${args[@]}"

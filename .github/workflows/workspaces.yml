@@ -35,6 +35,7 @@ jobs:
       - run: npm run test:data
       - run: npm run test:api
       - run: npm run test:mobile
+      - run: npm run test:release-notes
 
   web:
     runs-on: ubuntu-latest

@@ -14,3 +14,7 @@ The Supabase project is a live, non-greenfield production database. Existing pro
 - Never run `supabase db reset`, destructive SQL, or broad data cleanup against the linked/live project.
 - Back up or otherwise establish a recoverable path before any migration with meaningful data risk.
 - After applying migrations, verify migration history, critical tables/data counts, and the affected application flows.
+
+## Release notes
+
+Every PR either adds a release note in `updates/notes/<slug>.json` for each change a member notices, or carries the label `sem-novidade`. The `release-note` check enforces it. Write notes with the `release-note` skill (`.claude/skills/release-note/SKILL.md`).
