@@ -1,4 +1,4 @@
-import type { ApiSearchParams } from '@clube-do-jogo/data';
+import { normalizeSearchQuery, type ApiSearchParams } from '@clube-do-jogo/data';
 import { contractJson } from '@/lib/api-route';
 import { createRequestContext } from '@/lib/supabase/server';
 import { searchPlatformsWithIGDB } from '@/lib/igdb';
@@ -7,7 +7,7 @@ const json = contractJson<'searchPlatforms'>();
 
 export async function GET(request: Request) {
   const searchParams: ApiSearchParams<'searchPlatforms'> = new URL(request.url).searchParams;
-  const query = searchParams.get('q')?.trim();
+  const query = normalizeSearchQuery(searchParams.get('q'));
   if (!query) return json({ error: 'Parâmetro de busca "q" é obrigatório.' }, { status: 400 });
 
   const { userId } = await createRequestContext();

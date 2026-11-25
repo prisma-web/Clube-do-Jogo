@@ -211,6 +211,10 @@ export interface ApiSearchParams<K extends ApiRouteKey> {
   get(name: Extract<keyof ApiRequestQuery<K>, string>): string | null;
 }
 
+export function normalizeSearchQuery(value: unknown): string {
+  return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
+}
+
 function withQuery(path: string, query: object): string {
   const params = new URLSearchParams();
   for (const [name, value] of Object.entries(query)) {
@@ -225,8 +229,8 @@ function gamePath(gameId: string, leaf: 'media' | 'mugshots') {
 
 export const apiRoutes = {
   discover: { method: 'GET', path: (query: DiscoverRequestQuery) => withQuery('/api/discover', query) },
-  searchGames: { method: 'GET', path: (query: SearchGamesRequestQuery) => withQuery('/api/search', query) },
-  searchPlatforms: { method: 'GET', path: (query: PlatformSearchRequestQuery) => withQuery('/api/platforms/search', query) },
+  searchGames: { method: 'GET', path: (query: SearchGamesRequestQuery) => withQuery('/api/search', { q: normalizeSearchQuery(query.q) }) },
+  searchPlatforms: { method: 'GET', path: (query: PlatformSearchRequestQuery) => withQuery('/api/platforms/search', { q: normalizeSearchQuery(query.q) }) },
   gameMedia: { method: 'POST', path: (gameId: string) => gamePath(gameId, 'media') },
   gameMugshots: { method: 'GET', path: (gameId: string) => gamePath(gameId, 'mugshots') },
   gotyResolveCovers: { method: 'POST', path: '/api/goty/resolve-covers' },

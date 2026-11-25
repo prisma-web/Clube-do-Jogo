@@ -5,6 +5,7 @@ import { GameListRow } from './GameListRow';
 import { Sheet } from './Sheet';
 import { ErrorState, LoadingState } from './StateViews';
 import { useBacklog, useGameSearch } from '@/state/queries';
+import { normalizeSearchQuery } from '@clube-do-jogo/data';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { radii, spacing, themedStyles, useThemeColors, typography } from '@/theme';
 
@@ -17,7 +18,7 @@ export function AddGameToLibrarySheet({ visible, onClose, libraryIds }: {
   const styles = useStyles();
   const backlog = useBacklog();
   const [draftSearch, setDraftSearch] = useState('');
-  const search = useDebouncedValue(draftSearch.trim(), 350);
+  const search = useDebouncedValue(normalizeSearchQuery(draftSearch), 350);
   const hasQuery = Boolean(search);
 
   const searchQuery = useGameSearch(search);

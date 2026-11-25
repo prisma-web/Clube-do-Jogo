@@ -12,6 +12,7 @@ import type {
   UserPlatform,
 } from '@clube-do-jogo/domain';
 import { normalizeAvatarCrop, shiftMonth } from '@clube-do-jogo/domain';
+import { normalizeSearchQuery } from '@clube-do-jogo/data';
 import type {
   ProfilePatch,
   UserPlatformInput,
@@ -130,7 +131,7 @@ export function useUserPlatforms(profileId?: string): UseQueryResult<UserPlatfor
 export function useSearchPlatforms(query: string): UseQueryResult<UserPlatform[], Error> {
   const context = useAppInternal();
   const currentUserId = context.userId;
-  const normalized = query.trim();
+  const normalized = normalizeSearchQuery(query);
   return useQuery<UserPlatform[], Error>({
     queryKey: ['platform-search', context.sessionEpoch, currentUserId, context.isDemo, normalized],
     enabled: context.ready && Boolean(currentUserId) && Boolean(normalized),
