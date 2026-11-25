@@ -6,6 +6,7 @@ import { PreferenceButtons } from './PreferenceButtons';
 import { Sheet } from './Sheet';
 import { ErrorState, LoadingState } from './StateViews';
 import { useGameSearch } from '@/state/queries';
+import { normalizeSearchQuery } from '@clube-do-jogo/data';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { radii, spacing, themedStyles, useThemeColors, typography } from '@/theme';
 import type { Game, RankingItem, VoteChoice } from '@clube-do-jogo/domain';
@@ -19,7 +20,7 @@ export function AddGameToVoteSheet({ visible, onClose, ranking, onChoose }: {
   const colors = useThemeColors();
   const styles = useStyles();
   const [draftSearch, setDraftSearch] = useState('');
-  const search = useDebouncedValue(draftSearch.trim(), 350);
+  const search = useDebouncedValue(normalizeSearchQuery(draftSearch), 350);
   const hasQuery = Boolean(search);
 
   const searchQuery = useGameSearch(search);

@@ -41,7 +41,7 @@ import type {
   VoteReason,
 } from '@clube-do-jogo/domain';
 import { readApiJson, type ApiTransport } from './api';
-import { apiRoutes, type ApiResponse, type Unvalidated } from './api-contracts';
+import { apiRoutes, normalizeSearchQuery, type ApiResponse, type Unvalidated } from './api-contracts';
 import { DemoStore, type DemoVote } from './demo';
 import { DataError, requireValue, withDataErrors } from './errors';
 import type { GameMediaQuery } from './media';
@@ -897,7 +897,7 @@ export class DataClient {
   }
 
   async searchPlatforms(input: PlatformSearchQuery): Promise<UserPlatform[]> {
-    const query = input.query.trim();
+    const query = normalizeSearchQuery(input.query);
     if (!query) throw new DataError('buscar consoles', 'Informe um console para buscar.');
     if (input.isDemo) return this.demo.searchPlatforms(query, input.userId);
     return withDataErrors('buscar consoles', 'Não foi possível buscar consoles.', async () => {
@@ -1039,7 +1039,7 @@ export class DataClient {
   }
 
   async searchGames(input: GameSearchQuery): Promise<Game[]> {
-    const query = typeof input.query === 'string' ? input.query.trim() : '';
+    const query = normalizeSearchQuery(input.query);
     if (!query) return [];
     if (input.isDemo) return this.demo.searchGames(query);
     return withDataErrors('buscar jogos', 'Não foi possível buscar jogos.', async () => {

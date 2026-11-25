@@ -1,7 +1,7 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
-import { apiRoutes, type ApiErrorBody, type ApiRequestBody, type ApiResponse } from '@clube-do-jogo/data';
+import { apiRoutes, normalizeSearchQuery, type ApiErrorBody, type ApiRequestBody, type ApiResponse } from '@clube-do-jogo/data';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -163,18 +163,19 @@ export default function RankingPage() {
 
   async function searchGames(event: React.FormEvent) {
     event.preventDefault();
-    if (!searchQuery.trim()) return;
+    const term = normalizeSearchQuery(searchQuery);
+    if (!term) return;
     setSearching(true);
     setSearchError('');
     if (isDemo) {
-      const normalized = searchQuery.toLocaleLowerCase('pt-BR');
+      const normalized = term.toLocaleLowerCase('pt-BR');
       const { demoGames } = await import('@/lib/demo-data');
       setResults(demoGames.filter(game => game.title.toLocaleLowerCase('pt-BR').includes(normalized)));
       setSearching(false);
       return;
     }
     try {
-      const response = await apiFetch(apiRoutes.searchGames.path({ q: searchQuery }));
+      const response = await apiFetch(apiRoutes.searchGames.path({ q: term }));
       const payload = await response.json();
       if (!response.ok) throw new Error((payload as ApiErrorBody).error || 'Não foi possível buscar jogos.');
       setResults(payload as ApiResponse<'searchGames'>);

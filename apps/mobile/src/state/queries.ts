@@ -22,7 +22,7 @@ import type {
   VoteParticipant,
   VoteReason,
 } from '@clube-do-jogo/domain';
-import { apiRoutes, type ApiRequestBody } from '@clube-do-jogo/data';
+import { apiRoutes, normalizeSearchQuery, type ApiRequestBody } from '@clube-do-jogo/data';
 import { createMobileApiTransport, getMobileSupabaseClient } from '@/platform';
 import { useAppInternal } from './app-provider';
 import { isNewVote, optimisticRanking } from './optimistic-ranking';
@@ -359,7 +359,7 @@ export function useDiscovery(source: DiscoverSource, search?: string): UseQueryR
 export function useGameSearch(query: string): UseQueryResult<Game[], Error> {
   const context = useAppInternal();
   const userId = context.userId;
-  const normalized = query.trim();
+  const normalized = normalizeSearchQuery(query);
   return useQuery<Game[], Error>({
     queryKey: ['game-search', context.sessionEpoch, userId, normalized, context.isDemo],
     enabled: context.ready && Boolean(userId) && Boolean(normalized),
