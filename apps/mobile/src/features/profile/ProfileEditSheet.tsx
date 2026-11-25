@@ -49,7 +49,7 @@ export function ProfileEditSheet({ visible, profile, saving, error, onClose, onS
     <Sheet visible={visible} title="Editar perfil" onClose={onClose} avoidKeyboard>
       <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.avatarRow}>
-          <Avatar uri={avatarUrl || null} crop={profile.avatar_crop} name={name || profile.name} size={56} />
+          <Avatar uri={avatarUrl || null} crop={avatarUrl.trim() === (profile.avatar_url || '') ? profile.avatar_crop : null} name={name || profile.name} size={56} />
           <Text style={styles.avatarHint}>Escolha um avatar pela galeria, por um personagem de um jogo ou por uma URL de imagem.</Text>
         </View>
 
