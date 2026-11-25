@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { useSharedValue } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { DEFAULT_AVATAR_CROP, avatarNativeTransform, normalizeAvatarCrop, type AvatarCrop } from '@clube-do-jogo/domain';
+import { avatarPreviewOffset, DEFAULT_AVATAR_CROP, normalizeAvatarCrop, type AvatarCrop, type AvatarImageSize } from '@clube-do-jogo/domain';
 import { Sheet } from '@/components/Sheet';
 import { Button } from '@/components/Button';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
+import { createAvatarCropGesture } from './avatar-crop-gesture';
+import { IMAGE_FRAME, PREVIEW_BORDER, PREVIEW_SIZE } from './avatar-preview-frame';
 
 export const DEFAULT_AVATAR_SELECTION_CROP: AvatarCrop = { ...DEFAULT_AVATAR_CROP, zoom: 1.1 };
 
-const PREVIEW_SIZE = 240;
-const PREVIEW_BORDER = 2;
-// The image fills the padding box, inside the ring's border.
-const PREVIEW_IMAGE_SIZE = PREVIEW_SIZE - PREVIEW_BORDER * 2;
+// Fixo de propósito. contentPosition é prop do expo-image, e mexer nela durante o
+// gesto remontava a imagem a cada quadro, deixando o círculo vazio até o dedo parar.
+// O recorte vive no transform, e avatarPreviewOffset faz ele bater com o Avatar.
+const CONTENT_POSITION = { top: '50%', left: '50%' } as const;
 
 export function AvatarCropEditor({ visible, imageUrl, name, crop: initialCrop, saving, onClose, onSave }: {
   visible: boolean;
@@ -28,26 +29,24 @@ export function AvatarCropEditor({ visible, imageUrl, name, crop: initialCrop, s
   const colors = useThemeColors();
   const styles = useStyles();
   const [crop, setCrop] = useState(initialCrop);
-  const dragStart = useSharedValue(initialCrop);
-
-
+  const [gesture] = useState(() => createAvatarCropGesture(IMAGE_FRAME));
+  // Tamanho natural da imagem aberta. Até o onLoad dela, a prévia trata como quadrada.
+  const [loaded, setLoaded] = useState<{ uri: string; size: AvatarImageSize } | null>(null);
+  const imageSize = loaded && loaded.uri === imageUrl ? loaded.size : null;
+  const offset = avatarPreviewOffset(IMAGE_FRAME, imageSize, crop);
 
   const pan = Gesture.Pan()
     .runOnJS(true)
-    .onStart(() => { dragStart.value = crop; })
+    .onStart(() => gesture.startPan(crop))
     .onUpdate(event => {
-      setCrop(current => normalizeAvatarCrop({
-        ...current,
-        x: dragStart.value.x - (event.translationX / PREVIEW_SIZE) * 100,
-        y: dragStart.value.y - (event.translationY / PREVIEW_SIZE) * 100,
-      }));
+      setCrop(current => gesture.pan(current, { x: event.translationX, y: event.translationY }, imageSize));
     });
 
   const pinch = Gesture.Pinch()
     .runOnJS(true)
-    .onStart(() => { dragStart.value = crop; })
+    .onStart(() => gesture.startPinch(crop))
     .onUpdate(event => {
-      setCrop(current => normalizeAvatarCrop({ ...current, zoom: dragStart.value.zoom * event.scale }));
+      setCrop(current => gesture.pinch(current, event.scale));
     });
 
   const composed = Gesture.Simultaneous(pan, pinch);
@@ -61,9 +60,12 @@ export function AvatarCropEditor({ visible, imageUrl, name, crop: initialCrop, s
           <View style={styles.previewWrap} accessible={false}>
             <Image
               source={{ uri: imageUrl }}
-              style={[StyleSheet.absoluteFill, { transform: avatarNativeTransform(crop, PREVIEW_IMAGE_SIZE) }]}
+              style={[StyleSheet.absoluteFill, {
+                transform: [{ translateX: offset.x }, { translateY: offset.y }, { scale: crop.zoom }],
+              }]}
               contentFit="cover"
-              contentPosition={{ top: `${crop.y}%`, left: `${crop.x}%` }}
+              contentPosition={CONTENT_POSITION}
+              onLoad={event => setLoaded({ uri: imageUrl, size: { width: event.source.width, height: event.source.height } })}
               accessibilityLabel={name}
             />
             <View pointerEvents="none" style={styles.previewRing} />

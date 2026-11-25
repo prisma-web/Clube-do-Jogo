@@ -1,14 +1,14 @@
 import { createServerClient } from '@supabase/ssr';
-import type { Database } from '@clube-do-jogo/data';
+import type { Database, DataSupabaseClient } from '@clube-do-jogo/data';
 import { cookies, headers } from 'next/headers';
+import { authenticatedUserId, type MemberCheck } from './auth';
 import { createBearerClient } from './bearer';
 
-export async function createClient() {
+async function clientFor(authorization: string | null): Promise<DataSupabaseClient> {
   // Evitar erros em tempo de build se as variáveis de ambiente não estiverem definidas
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 
-  const authorization = (await headers()).get('authorization');
   if (authorization !== null) return createBearerClient(url, anonKey, authorization);
 
   const cookieStore = await cookies();
@@ -34,4 +34,18 @@ export async function createClient() {
       },
     }
   );
+}
+
+export async function createClient() {
+  return clientFor((await headers()).get('authorization'));
+}
+
+/**
+ * Cliente da requisição junto de quem é o membro. Sem opções o token é conferido
+ * localmente; rotas que usam a service role em nome dele passam checkRevocation.
+ */
+export async function createRequestContext(check?: MemberCheck) {
+  const authorization = (await headers()).get('authorization');
+  const supabase = await clientFor(authorization);
+  return { supabase, userId: await authenticatedUserId(supabase, authorization, check) };
 }

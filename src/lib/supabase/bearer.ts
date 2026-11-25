@@ -12,8 +12,8 @@ export function createBearerClient(url: string, anonKey: string, authorization: 
       detectSessionInUrl: false,
     },
     global: {
-      // auth.getUser() nas rotas valida este JWT no Supabase antes de consultar
-      // dados. Um header inválido não pode recuperar a sessão por cookies.
+      // authenticatedUserId confere este JWT antes de a rota consultar dados.
+      // Um header inválido não pode recuperar a sessão por cookies.
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     },
   });

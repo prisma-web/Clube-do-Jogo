@@ -244,7 +244,7 @@ export default function GameDetailScreen() {
               key={option.value}
               onPress={() => setParticipantsChoice(option.value)}
               accessibilityRole="button"
-              accessibilityLabel={`Ver quem escolheu ${option.label}`}
+              accessibilityLabel={`Ver quem escolheu ${option.accessibilityName}`}
               style={styles.countChip}
             >
               <Ionicons name={option.icon} size={13} color={option.accent(colors)} />

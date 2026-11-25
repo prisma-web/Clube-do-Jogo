@@ -1,16 +1,15 @@
 import { rpcArgsAcceptingNull, type ApiRequestBody } from '@clube-do-jogo/data';
 import { contractJson } from '@/lib/api-route';
 import { GOTY_2026_EDITION_YEAR } from '@clube-do-jogo/domain';
-import { createClient } from '@/lib/supabase/server';
+import { createRequestContext } from '@/lib/supabase/server';
 import { lookupIGDBCoverByTitle } from '@/lib/igdb';
 
 const json = contractJson<'gotyResolveCovers'>();
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const { supabase, userId } = await createRequestContext();
+    if (!userId) {
       return json({ error: 'Não autorizado.' }, { status: 401 });
     }
 

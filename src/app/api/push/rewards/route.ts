@@ -1,7 +1,7 @@
 import type { ApiUntrustedBody } from '@clube-do-jogo/data';
 import { contractJson } from '@/lib/api-route';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
+import { createRequestContext } from '@/lib/supabase/server';
 import { dispatchPushNotification, isAdminUser, isPushConfigured } from '@/lib/push';
 
 const json = contractJson<'pushRewards'>();
@@ -9,9 +9,8 @@ const json = contractJson<'pushRewards'>();
 type RequestBody = ApiUntrustedBody<'pushRewards'>;
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return json({ error: 'Nao autorizado.' }, { status: 401 });
+  const { userId } = await createRequestContext({ checkRevocation: true });
+  if (!userId) return json({ error: 'Nao autorizado.' }, { status: 401 });
 
   let body: RequestBody;
   try {
@@ -24,7 +23,7 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
   if (!admin) return json({ sent: 0, configured: false });
-  if (!await isAdminUser(admin, user.id)) return json({ error: 'Nao autorizado.' }, { status: 403 });
+  if (!await isAdminUser(admin, userId)) return json({ error: 'Nao autorizado.' }, { status: 403 });
 
   const { data: rewards, error: rewardsError } = await admin.from('club_rewards').select('id').eq('club_month', clubMonth);
   if (rewardsError) return json({ error: 'Nao foi possivel carregar recompensas.' }, { status: 500 });

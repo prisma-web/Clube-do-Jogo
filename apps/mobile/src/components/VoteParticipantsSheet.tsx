@@ -61,7 +61,7 @@ export function VoteParticipantsSheet({ visible, onClose, profiles, initialChoic
                 onPress={() => setActive(option.value)}
                 accessibilityRole="tab"
                 accessibilityState={{ selected }}
-                accessibilityLabel={option.label}
+                accessibilityLabel={option.accessibilityName}
                 style={[styles.tab, selected && styles.tabSelected]}
               >
                 <Ionicons name={option.icon} size={14} color={selected ? colors.violet300 : colors.zinc500} />

@@ -1,7 +1,7 @@
 import type { ApiUntrustedBody } from '@clube-do-jogo/data';
 import { contractJson } from '@/lib/api-route';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
+import { createRequestContext } from '@/lib/supabase/server';
 import { dispatchPushNotification, formatPushMonth, isAdminUser, isPushConfigured } from '@/lib/push';
 
 const json = contractJson<'pushClubGame'>();
@@ -9,9 +9,8 @@ const json = contractJson<'pushClubGame'>();
 type RequestBody = ApiUntrustedBody<'pushClubGame'>;
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return json({ error: 'Nao autorizado.' }, { status: 401 });
+  const { userId } = await createRequestContext({ checkRevocation: true });
+  if (!userId) return json({ error: 'Nao autorizado.' }, { status: 401 });
 
   let body: RequestBody;
   try {
@@ -25,7 +24,7 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
   if (!admin) return json({ sent: 0, configured: false });
-  if (!await isAdminUser(admin, user.id)) return json({ error: 'Nao autorizado.' }, { status: 403 });
+  if (!await isAdminUser(admin, userId)) return json({ error: 'Nao autorizado.' }, { status: 403 });
 
   const { data: cycle } = await admin.from('club_months').select('game_id').eq('month', month).eq('status', 'active').maybeSingle();
   if (!cycle || cycle.game_id !== gameId) return json({ sent: 0, changed: false });
@@ -35,7 +34,7 @@ export async function POST(request: Request) {
   let sendWeb = isPushConfigured();
   let duplicateWebClaim = false;
   if (sendWeb) {
-    const claim = await admin.from('push_notification_deliveries').insert({ event_key: eventKey, user_id: user.id });
+    const claim = await admin.from('push_notification_deliveries').insert({ event_key: eventKey, user_id: userId });
     if (claim.error?.code === '23505') {
       duplicateWebClaim = true;
       sendWeb = false;

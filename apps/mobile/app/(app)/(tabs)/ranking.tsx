@@ -238,7 +238,7 @@ export default function RankingScreen() {
                     key={option.value}
                     onPress={() => setParticipantsTarget({ item, choice: option.value })}
                     accessibilityRole="button"
-                    accessibilityLabel={`Ver quem votou ${option.label} em ${item.game.title}`}
+                    accessibilityLabel={`Ver quem votou ${option.accessibilityName} em ${item.game.title}`}
                     style={styles.countChip}
                   >
                     <Ionicons name={option.icon} size={13} color={option.accent(colors)} />
