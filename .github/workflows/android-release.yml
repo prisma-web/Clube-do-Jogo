@@ -74,8 +74,16 @@ jobs:
           cache: npm
 
       # Antes do build: uma nota inválida falha o release em segundos. Sem nota nova, o arquivo não é gerado.
+      # O ponto de partida é o último release publicado, não a última tag: as notas de uma tag
+      # cujo build falhou entram no próximo release.
       - name: Assemble the release notes
-        run: node scripts/release-notes.mjs assemble "$TAG" --out "$RUNNER_TEMP/product-update.json"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          released="$(gh release list --limit 1000 --json tagName,isDraft --jq '[.[] | select(.isDraft | not) | .tagName] | join(",")')"
+          echo "Releases publicados: ${released:-nenhum}"
+          node scripts/release-notes.mjs assemble "$TAG" --released "$released" --out "$RUNNER_TEMP/product-update.json"
 
       - uses: actions/setup-java@v5
         with:

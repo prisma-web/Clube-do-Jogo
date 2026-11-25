@@ -5,9 +5,11 @@ description: Escreve a nota de novidade (updates/notes/<slug>.json) que todo PR 
 
 # Nota de novidade
 
-Cada nota em `updates/notes/` vira um passo das Novidades que o membro vê no site e no app. Quando uma tag `vX.Y.Z` é publicada, `scripts/release-notes.mjs assemble` junta as notas **adicionadas** desde a tag anterior, na ordem dos commits, e publica o `product-update.json` no release. O site mostra as do release mais recente; o app Android, as da versão instalada. Editar uma nota já publicada não a mostra de novo.
+Cada nota em `updates/notes/` vira um passo das Novidades que o membro vê no site e no app. Quando uma tag `vX.Y.Z` é publicada, `scripts/release-notes.mjs assemble` junta as notas **adicionadas** desde o último release publicado, na ordem dos commits, e anexa o `product-update.json` ao release. O site mostra as do release mais recente; o app Android, as da versão instalada. Os dois baixam o arquivo direto do release, sem a API do GitHub.
 
-O check `release-note` roda em todo PR e passa quando o PR adiciona ou altera uma nota válida, ou quando tem a label `sem-novidade`.
+Editar uma nota já publicada não a mostra de novo. Renomear também não: com o conteúdo igual ou quase igual (`git mv`), o git vê uma renomeação e a nota segue como já anunciada. Reescrever a nota inteira sob outro nome conta como nota nova.
+
+O check `release-note` roda em todo PR. Ele passa quando o PR adiciona pelo menos uma nota nova e válida, ou quando tem a label `sem-novidade`. Editar ou renomear uma nota que já existe não conta como nota nova. Com ou sem a label, o check valida toda nota que o PR toca, pelo `.json` ou pelo `.webp`, inclusive quando o PR apaga ou renomeia a captura. Apagar uma nota inteira, o `.json` e o `.webp`, é permitido. Apagar só o `.json` e deixar o `.webp` falha.
 
 ## 1. Nota ou `sem-novidade`
 
@@ -60,7 +62,7 @@ O arquivo precisa ter no máximo 300 KB. Copie `Width` e `Height` para `image.wi
 
 ## 4. Validar
 
-Com Node 24 (o script importa o parser TypeScript de `packages/domain` sem build), commite a nota e rode:
+Com Node 22.14 ou mais novo (o script importa o parser TypeScript de `packages/domain` sem build e, antes do Node 22.18, se relança com `--experimental-strip-types`), commite a nota e rode:
 
 ```sh
 node scripts/release-notes.mjs check origin/master HEAD

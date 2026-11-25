@@ -80,9 +80,11 @@ Membros instalam o APK de produção a partir do GitHub Release mais recente de 
 
 As Novidades vêm das notas em `updates/notes/`, uma por mudança que o membro percebe. Todo PR adiciona uma nota ou leva a label `sem-novidade`, e o workflow `.github/workflows/release-note.yml` cobra isso. A skill `release-note` explica o formato e como capturar a imagem.
 
-No release, `node scripts/release-notes.mjs assemble vX.Y.Z` junta as notas adicionadas desde a maior tag `vX.Y.Z` anterior que seja ancestral da tag, na ordem dos commits que as adicionaram, e publica `product-update.json` como segundo asset do release. As imagens apontam para `raw.githubusercontent.com` na tag, então não mudam depois. Sem nota nova, o release sai só com o APK e ninguém vê Novidades.
+No release, o workflow lista as tags com release publicado (`gh release list`, sem rascunhos) e roda `node scripts/release-notes.mjs assemble vX.Y.Z --released <tags>`. Ele junta as notas adicionadas desde o release anterior, que é a maior tag `vX.Y.Z` menor que a atual, ancestral dela e com release publicado, na ordem dos commits que as adicionaram. Uma tag cujo build falhou não tem release, então as notas dela entram no próximo release publicado. Uma nota renomeada com o conteúdo quase igual (o git a vê como renomeação, com 50% ou mais de semelhança) mantém o lugar e não é anunciada de novo. O resultado vai como `product-update.json`, segundo asset do release. As imagens apontam para `raw.githubusercontent.com` na tag, então não mudam depois. Sem nota nova, o release sai só com o APK e ninguém vê Novidades.
 
-O app Android de produção busca o `product-update.json` do release da versão instalada (`releases/tags/vX.Y.Z`), guarda a última cópia válida no AsyncStorage e mostra a folha uma vez por versão. "Ver novidades" em Configurações reabre essa cópia e some quando não há nenhuma. O site mostra as Novidades do release mais recente, com o fetch em cache por uma hora no Next. Qualquer falha não mostra nada.
+As Novidades não usam a API do GitHub, que limita 60 pedidos por hora por IP. O app Android de produção baixa `https://github.com/prisma-web/Clube-do-Jogo/releases/download/vX.Y.Z/product-update.json` da versão instalada e só aceita o arquivo se o `id` for essa tag. O site baixa `releases/latest/download/product-update.json`, com cache de uma hora no Next. Todo download desiste em 3 s, e qualquer falha não mostra nada.
+
+No app, a última cópia válida fica no AsyncStorage e a folha abre uma vez por versão. "Ver novidades" em Configurações reabre essa cópia e some quando não há nenhuma. Um 404 (versão sem notas) não é buscado de novo até o app abrir a frio. Uma falha de rede ou timeout tenta de novo quando o app volta para o primeiro plano.
 
 ### Configuração única da keystore
 
@@ -99,7 +101,7 @@ git tag -a v1.2.0 -m "Votação mais rápida e correções no ranking."
 git push origin v1.2.0
 ```
 
-O push da tag dispara `.github/workflows/android-release.yml`. Ele gera o projeto Android com `APP_VARIANT=production` e `APP_VERSION` tirada da tag, compila `assembleRelease` assinado com a keystore e confere que o APK não saiu com a assinatura de debug e que tem o `versionName` da tag. Depois publica `clube-do-jogo-vX.Y.Z.apk` e, quando há nota nova, `product-update.json` no release da tag. Uma nota inválida falha o job antes do build. Rodar o job de novo substitui os assets do release existente. Assim que o release sai, a próxima abertura do app instalado mostra o modal.
+O push da tag dispara `.github/workflows/android-release.yml`. Ele gera o projeto Android com `APP_VARIANT=production` e `APP_VERSION` tirada da tag, compila `assembleRelease` assinado com a keystore e confere que o APK não saiu com a assinatura de debug e que tem o `versionName` da tag. Depois publica `clube-do-jogo-vX.Y.Z.apk` e, quando há nota nova, `product-update.json` no release da tag. Uma nota inválida falha o job antes do build. Rodar o job de novo substitui os assets do release existente. Se o build falhar, rode o job de novo ou publique a próxima tag. As notas da tag que falhou entram no próximo release publicado. Assim que o release sai, a próxima abertura do app instalado mostra o modal.
 
 Localmente, `plugins/withReleaseSigning.js` assina o release com a keystore de `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` e `ANDROID_KEY_PASSWORD`, lidos do ambiente ou de propriedades Gradle na hora do build. Sem `ANDROID_KEYSTORE_PATH`, o release continua com a keystore de debug.
 
