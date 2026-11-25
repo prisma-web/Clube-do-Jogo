@@ -25,6 +25,7 @@ sha256() {
 }
 
 command -v java >/dev/null 2>&1 || { echo "java não encontrado: instale um JDK 11 ou mais novo." >&2; exit 1; }
+if [ "$deep" = 1 ] && ! command -v python3 >/dev/null 2>&1; then echo "python3 não encontrado: o --deep precisa dele para view-sound." >&2; exit 1; fi
 mkdir -p "$CACHE"
 if [ ! -f "$JAR" ] || [ "$(sha256 "$JAR")" != "$TLA_SHA256" ]; then
   echo "baixando tla2tools.jar v$TLA_VERSION para $CACHE"
@@ -57,21 +58,47 @@ run() {
   fi
 }
 
-base_cfg=PendingNotes.cfg
-if [ "$deep" = 1 ]; then
-  base_cfg=../.cache/PendingNotes-deep.cfg
-  sed 's/MaxRevs = 2/MaxRevs = 3/' "$MODEL/PendingNotes.cfg" >"$MODEL/$base_cfg"
-fi
+check() {
+  local name="$1" src="$2" variant="$3" expect="$4" workers="$5"
+  sed "s/Variant = \"none\"/Variant = \"$variant\"/" "$MODEL/$src" >"$CACHE/$name.cfg"
+  if [ "$deep" = 1 ]; then
+    sed 's/MaxRevs = 2/MaxRevs = 3/' "$CACHE/$name.cfg" >"$CACHE/$name.cfg.part"
+    echo "VIEW ReducedView" >>"$CACHE/$name.cfg.part"
+    mv "$CACHE/$name.cfg.part" "$CACHE/$name.cfg"
+  fi
+  run "$name" "../.cache/$name.cfg" "$expect" "$workers"
+}
 
-run base "$base_cfg" pass auto
-run finding-F1-two-screens TwoScreens.cfg violation 1
-run finding-F1-remount-in-flight RemountInFlight.cfg violation 1
+orbits() {
+  (cd "$MODEL" && java -XX:+UseParallelGC -cp "$JAR" tlc2.TLC -deadlock -cleanup -workers auto \
+    -metadir "$CACHE/states/view-sound-$1" -config "$CACHE/view-sound-$1.cfg" ViewSound.tla) 2>&1 \
+    | python3 "$SKILL_DIR/scripts/orbits.py" "$CACHE/view-sound-$1.orbits" 2>"$CACHE/view-sound-$1.out" || true
+}
+
+view_sound() {
+  local start elapsed a b
+  start=$(date +%s)
+  sed 's/^INVARIANTS.*/INVARIANT PrintOrbit/' "$MODEL/PendingNotes.cfg" >"$CACHE/view-sound-full.cfg"
+  { cat "$CACHE/view-sound-full.cfg"; echo "VIEW ReducedView"; } >"$CACHE/view-sound-view.cfg"
+  a="$(orbits full)"
+  b="$(orbits view)"
+  elapsed=$(( $(date +%s) - start ))
+  if [ -n "$a" ] && [ "$a" -gt 0 ] && cmp -s "$CACHE/view-sound-full.orbits" "$CACHE/view-sound-view.orbits"; then
+    printf 'OK     %-28s %-9s %3ss  %s órbitas com e sem VIEW\n' view-sound igual "$elapsed" "$a"
+  else
+    printf 'DIFERE %-28s esperado igual, veio %s sem VIEW e %s com VIEW (%ss)  %s\n' view-sound "${a:-0}" "${b:-0}" "$elapsed" "$CACHE/view-sound-*.out"
+    failures=$((failures + 1))
+  fi
+}
+
+check base PendingNotes.cfg none pass auto
+check finding-F1-two-screens TwoScreens.cfg none violation 1
+check finding-F1-remount-in-flight RemountInFlight.cfg none violation 1
 for variant in drop-on-conflict no-load-wait unserialized-writes use-local-drops; do
-  sed "s/Variant = \"none\"/Variant = \"$variant\"/" "$MODEL/PendingNotes.cfg" >"$CACHE/mutant-$variant.cfg"
-  run "mutant-$variant" "../.cache/mutant-$variant.cfg" violation 1
+  check "mutant-$variant" PendingNotes.cfg "$variant" violation 1
 done
-sed 's/Variant = "none"/Variant = "no-rerun"/' "$MODEL/PendingNotes.cfg" >"$CACHE/mutant-no-rerun.cfg"
-run mutant-no-rerun ../.cache/mutant-no-rerun.cfg violation-retry 1
+check mutant-no-rerun PendingNotes.cfg no-rerun violation-retry 1
+if [ "$deep" = 1 ]; then view_sound; fi
 
 sync="$(awk '/^```coverage/{on=1; next} on && /^```/{exit} on && $1=="sync"{print $2}' "$SKILL_DIR/SKILL.md")"
 files=()

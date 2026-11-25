@@ -349,4 +349,36 @@ Spec == Init /\ [][Next]_vars
 
 ChainBound == Len(chain) <= MaxChain
 LifetimeSymmetry == Permutations(Lifetimes)
+
+Inert(l) == status[l] = "dead" \/ (status[l] = "unmounted" /\ \A n \in NoteIds : req[l][n] = NoReq)
+Writers == {l \in Lifetimes : ~Inert(l)}
+Sent(l, n) == req[l][n].phase = "sent"
+Futures(n) ==
+    {server[n]}
+    \cup (IF foreigns < MaxForeign THEN {Foreign} ELSE {})
+    \cup {r \in Revs : r >= nextRev}
+    \cup {stored[n].rev}
+    \cup {chain[k][n].rev : k \in 1..Len(chain)}
+    \cup {mem[l][n].rev : l \in Writers}
+    \cup {req[l][n].entry.rev : l \in {m \in Lifetimes : Sent(m, n)}}
+Stale == -2
+ViewQ(q) == [n \in NoteIds |-> IF q[n].upd /\ q[n].exp \notin Futures(n) THEN [q[n] EXCEPT !.exp = Stale] ELSE q[n]]
+ViewReq(l) ==
+    [n \in NoteIds |->
+       IF Sent(l, n) THEN [entry |-> ViewQ([m \in NoteIds |-> req[l][m].entry])[n], phase |-> "sent"]
+       ELSE IF status[l] = "dead" \/ req[l][n] = NoReq THEN NoReq
+       ELSE [entry |-> NoEntry, phase |-> req[l][n].phase]]
+Safe == serverHad \cup discarded
+LiveRevs == RevsIn(stored) \cup UNION {RevsIn(chain[k]) : k \in 1..Len(chain)} \cup UNION {RevsIn(mem[l]) : l \in Writers}
+ReducedView ==
+    <<ViewQ(stored), [k \in 1..Len(chain) |-> ViewQ(chain[k])], server, status, stack,
+      [l \in Lifetimes |-> status[l] = "mounted" /\ loaded[l]],
+      [l \in Lifetimes |-> IF status[l] = "mounted" /\ ~loaded[l] THEN loadWait[l] ELSE 0],
+      [l \in Lifetimes |-> IF Inert(l) THEN EmptyQ ELSE ViewQ(mem[l])],
+      [l \in Lifetimes |-> IF status[l] = "mounted" THEN conflict[l]
+                            ELSE [n \in NoteIds |-> IF Inert(l) \/ req[l][n] = NoReq THEN "none" ELSE conflict[l][n]]],
+      [l \in Lifetimes |-> ViewReq(l)],
+      [l \in Lifetimes |-> IF Inert(l) THEN {} ELSE rerun[l]],
+      [l \in Lifetimes |-> IF Inert(l) THEN {} ELSE trigd[l]],
+      missed, usedIds, nextRev, durable \ Safe, Safe \cap LiveRevs, crashes, foreigns>>
 =============================================================================
