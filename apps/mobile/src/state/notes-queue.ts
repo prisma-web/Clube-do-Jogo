@@ -151,3 +151,42 @@ export function parseQueue(value: string | null): ParsedQueue {
   }
   return { queue: new Map(entries), unrecoverableCount };
 }
+
+/**
+ * Which notes have a send awaiting the network (flushingRef in useNotesPendingQueue), and which
+ * of those got another flush trigger meanwhile: reconnect, focus, "Sincronizar novamente".
+ *
+ * A send that started on a network that is gone can still be awaiting when the connection comes
+ * back, and fail only afterwards. Skipping the trigger then (the old flushingRef check) left the
+ * note waiting for the next event even with the network up. Here the trigger is remembered and
+ * `finish` tells the caller to send once more.
+ */
+export interface FlushGate {
+  /** True when the caller may send now; false when a send is awaiting (the trigger is kept). */
+  begin(noteId: string): boolean;
+  /** Ends the awaiting send; true when a trigger arrived meanwhile and the note must be sent again. */
+  finish(noteId: string): boolean;
+  isFlushing(noteId: string): boolean;
+}
+
+export function createFlushGate(): FlushGate {
+  const flushing = new Set<string>();
+  const rerun = new Set<string>();
+  return {
+    begin(noteId) {
+      if (flushing.has(noteId)) {
+        rerun.add(noteId);
+        return false;
+      }
+      flushing.add(noteId);
+      return true;
+    },
+    finish(noteId) {
+      flushing.delete(noteId);
+      return rerun.delete(noteId);
+    },
+    isFlushing(noteId) {
+      return flushing.has(noteId);
+    },
+  };
+}

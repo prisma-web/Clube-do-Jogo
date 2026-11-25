@@ -46,7 +46,8 @@ fi
 
 failures=0
 
-# run <name> <cfg relative to model/> <expect: pass|violation> <workers>
+# run <name> <cfg relative to model/> <expect: pass|violation|violation-retry> <workers>
+# violation is NoLostNote; violation-retry is NoLostRetry (a dropped flush trigger).
 # TLC resolves -config against the spec's folder, so it runs from model/.
 run() {
   local name="$1" cfg="$2" expect="$3" workers="$4" out="$CACHE/$1.out" start elapsed got
@@ -56,6 +57,7 @@ run() {
   elapsed=$(( $(date +%s) - start ))
   if grep -q "Model checking completed. No error has been found." "$out"; then got=pass
   elif grep -q "Invariant NoLostNote is violated." "$out"; then got=violation
+  elif grep -q "Invariant NoLostRetry is violated." "$out"; then got=violation-retry
   else got=error; fi
   if [ "$got" = "$expect" ]; then
     printf 'OK     %-28s %-9s %3ss  %s\n' "$name" "$got" "$elapsed" "$out"
@@ -78,6 +80,9 @@ for variant in drop-on-conflict no-load-wait unserialized-writes use-local-drops
   sed "s/Variant = \"none\"/Variant = \"$variant\"/" "$MODEL/PendingNotes.cfg" >"$CACHE/mutant-$variant.cfg"
   run "mutant-$variant" "../.cache/mutant-$variant.cfg" violation 1
 done
+# The code before the reconnect fix: a trigger that meets an awaiting send is skipped.
+sed 's/Variant = "none"/Variant = "no-rerun"/' "$MODEL/PendingNotes.cfg" >"$CACHE/mutant-no-rerun.cfg"
+run mutant-no-rerun ../.cache/mutant-no-rerun.cfg violation-retry 1
 
 # Coverage record: the ```coverage block in SKILL.md (sync commit + files).
 sync="$(awk '/^```coverage/{on=1; next} on && /^```/{exit} on && $1=="sync"{print $2}' "$SKILL_DIR/SKILL.md")"
