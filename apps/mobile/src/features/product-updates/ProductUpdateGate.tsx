@@ -1,22 +1,24 @@
 import { useState, useSyncExternalStore } from 'react';
-import { currentProductUpdate, productUpdateStorageKey } from '@clube-do-jogo/domain';
+import { productUpdateStorageKey, type ProductUpdate } from '@clube-do-jogo/domain';
 import { usePersistentState } from '@/hooks/use-persistent-state';
 import { useApp } from '@/state/app-provider';
 import { isProductUpdateAutoOpenEnabled } from '@/platform/config';
 import { getProductUpdateReopenSignal, subscribeProductUpdateReopen } from './product-update-bus';
 import { shouldShowProductUpdate } from './product-update-visibility';
-import { mobileProductUpdate } from './product-update-mobile';
+import { useInstalledProductUpdate } from './use-installed-product-update';
 import { ProductUpdateSheet } from './ProductUpdateSheet';
-
-const mobileUpdate = mobileProductUpdate(currentProductUpdate);
 
 export function ProductUpdateGate() {
   const { userId } = useApp();
-  const [seen, setSeen, status] = usePersistentState(productUpdateStorageKey(currentProductUpdate.id), false);
+  const update = useInstalledProductUpdate();
+  if (!userId || !update) return null;
+  return <ProductUpdatePrompt update={update} />;
+}
+
+function ProductUpdatePrompt({ update }: { update: ProductUpdate }) {
+  const [seen, setSeen, status] = usePersistentState(productUpdateStorageKey(update.id), false);
   const reopenSignal = useSyncExternalStore(subscribeProductUpdateReopen, getProductUpdateReopenSignal, getProductUpdateReopenSignal);
   const [closedSignal, setClosedSignal] = useState(-1);
-
-  if (!userId) return null;
 
   const visible = shouldShowProductUpdate({
     loading: status.loading,
@@ -34,7 +36,7 @@ export function ProductUpdateGate() {
 
   return (
     <ProductUpdateSheet
-      update={mobileUpdate}
+      update={update}
       visible={visible}
       onClose={dismiss}
       onFinish={dismiss}

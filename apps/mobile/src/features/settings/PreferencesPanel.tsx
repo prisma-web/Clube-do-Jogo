@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { requestProductUpdateReopen } from '@/features/product-updates';
+import { requestProductUpdateReopen, useInstalledProductUpdate } from '@/features/product-updates';
 import { useThemeScene } from '@/features/themes/scene-context';
 import { radii, spacing, themedStyles, typography, useNativeTheme, useThemeColors } from '@/theme';
 
@@ -34,6 +34,7 @@ export function PreferencesPanel({
     // only starts after this toggle re-renders, so queue it until the players are ready.
     if (value) audio.queueSignal('enable');
   };
+  const productUpdate = useInstalledProductUpdate();
 
   const motionHint = theme.systemReduceMotion
     ? 'O sistema já pede menos movimento, então as animações seguem pausadas.'
@@ -116,22 +117,24 @@ export function PreferencesPanel({
         </View>
       </View>
 
-      <Pressable
-        onPress={requestProductUpdateReopen}
-        accessibilityRole="button"
-        accessibilityLabel="Ver novamente as novidades da V1.1"
-        style={styles.row}
-        testID="settings-product-update-reopen"
-      >
-        <View style={styles.rowIcon}>
-          <Ionicons name="megaphone-outline" size={16} color={colors.violet300} />
-        </View>
-        <View style={styles.rowText}>
-          <Text style={styles.rowTitle}>Novidades da V1.1</Text>
-          <Text style={styles.rowHint}>Reveja as novidades desta versão.</Text>
-        </View>
-        <Text style={styles.reopenLabel}>Ver novamente</Text>
-      </Pressable>
+      {productUpdate ? (
+        <Pressable
+          onPress={requestProductUpdateReopen}
+          accessibilityRole="button"
+          accessibilityLabel={`Ver novamente as novidades da ${productUpdate.version}`}
+          style={styles.row}
+          testID="settings-product-update-reopen"
+        >
+          <View style={styles.rowIcon}>
+            <Ionicons name="megaphone-outline" size={16} color={colors.violet300} />
+          </View>
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>{productUpdate.title}</Text>
+            <Text style={styles.rowHint}>Reveja as novidades desta versão.</Text>
+          </View>
+          <Text style={styles.reopenLabel}>Ver novamente</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

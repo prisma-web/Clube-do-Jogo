@@ -1,4 +1,7 @@
 import { defineConfig } from '@playwright/test';
+import path from 'node:path';
+
+const githubReleaseStub = path.join(__dirname, 'tests/web/fixtures/github-release-stub.mjs');
 
 export default defineConfig({
   testDir: './tests/web',
@@ -14,6 +17,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: {
       NEXT_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE: 'false',
+      NODE_OPTIONS: `--import ${githubReleaseStub}`,
     },
   },
 });

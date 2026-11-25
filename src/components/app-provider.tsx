@@ -4,6 +4,7 @@ import { apiFetch } from '@/lib/api-client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
+import type { ProductUpdate } from '@clube-do-jogo/domain';
 import { AnimatePresence, motion } from 'motion/react';
 import { CheckCircle2, CircleAlert, LoaderCircle, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -42,6 +43,7 @@ interface AppContextValue {
   runOperation: <T>(label: string, operation: () => PromiseLike<T>) => Promise<T>;
   runOptimistic: (label: string, apply: () => void, rollback: () => void, operation: () => PromiseLike<unknown>) => Promise<boolean>;
   notify: (message: string) => void;
+  productUpdate: ProductUpdate | null;
 }
 
 export interface ClubUndoPreview {
@@ -104,7 +106,7 @@ function getOperationError(result: unknown): Error | null {
   return new Error(String(error));
 }
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
+export function AppProvider({ children, productUpdate }: { children: React.ReactNode; productUpdate: ProductUpdate | null }) {
   const isDemo = !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<AppContextValue['user']>(isDemo ? { id: 'demo-user', email: 'artur@clubedojogo.com' } : null);
@@ -500,14 +502,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (user) await fetchProfile(user.id);
     },
     updateProfile,
-  }), [authLoading, availableMonths, clubRevision, cycles, fetchClubState, fetchProfile, isDemo, notify, previewClubGameUndo, profile, redoClubGameChange, role, runOperation, runOptimistic, selectedMonth, setClubGame, setSelectedMonth, setTheme, signOut, theme, undoClubGameChange, unlockedThemeIds, updateProfile, user]);
+    productUpdate,
+  }), [authLoading, availableMonths, clubRevision, cycles, fetchClubState, fetchProfile, isDemo, notify, previewClubGameUndo, productUpdate, profile, redoClubGameChange, role, runOperation, runOptimistic, selectedMonth, setClubGame, setSelectedMonth, setTheme, signOut, theme, undoClubGameChange, unlockedThemeIds, updateProfile, user]);
 
   const currentOperation = operations.at(-1);
 
   return (
     <AppContext.Provider value={value}>
       {children}
-      {user && !authLoading && <ProductUpdateDialog />}
+      {user && !authLoading && productUpdate && <ProductUpdateDialog update={productUpdate} />}
       {pendingReward && (
         <RewardCelebration
           key={pendingReward.id}

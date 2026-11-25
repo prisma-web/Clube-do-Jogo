@@ -6,7 +6,6 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { AnimatePresence, motion } from 'motion/react';
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Compass, Gamepad2, Library, Sparkles, Star, Trophy, X, Zap } from 'lucide-react';
 import {
-  currentProductUpdate,
   gameCoverUrl,
   productUpdateStorageKey,
   type ProductUpdate,
@@ -19,11 +18,11 @@ import { cn } from '@/lib/utils';
 const AUTO_OPEN_PRODUCT_UPDATE = process.env.NEXT_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE !== 'false';
 const PRODUCT_UPDATE_EVENT = 'clube-do-jogo:open-product-update';
 
-export function openCurrentProductUpdate() {
-  window.dispatchEvent(new CustomEvent(PRODUCT_UPDATE_EVENT, { detail: currentProductUpdate.id }));
+export function openProductUpdate() {
+  window.dispatchEvent(new Event(PRODUCT_UPDATE_EVENT));
 }
 
-export function ProductUpdateDialog({ update = currentProductUpdate }: { update?: ProductUpdate }) {
+export function ProductUpdateDialog({ update }: { update: ProductUpdate }) {
   const [open, setOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const storageKey = productUpdateStorageKey(update.id);
@@ -50,12 +49,8 @@ export function ProductUpdateDialog({ update = currentProductUpdate }: { update?
     } else if (AUTO_OPEN_PRODUCT_UPDATE && window.localStorage.getItem(storageKey) !== 'true') {
       queueMicrotask(showUpdate);
     }
-    const handleOpen = (event: Event) => {
-      const requestedId = (event as CustomEvent<string>).detail;
-      if (!requestedId || requestedId === update.id) showUpdate();
-    };
-    window.addEventListener(PRODUCT_UPDATE_EVENT, handleOpen);
-    return () => window.removeEventListener(PRODUCT_UPDATE_EVENT, handleOpen);
+    window.addEventListener(PRODUCT_UPDATE_EVENT, showUpdate);
+    return () => window.removeEventListener(PRODUCT_UPDATE_EVENT, showUpdate);
   }, [showUpdate, storageKey, update.id, update.steps.length]);
 
   useEffect(() => {
@@ -109,7 +104,7 @@ export function ProductUpdateDialog({ update = currentProductUpdate }: { update?
                 className="grid min-h-full lg:grid-cols-[1.12fr_.88fr]"
               >
                 <div className="update-notes-visual-wrap min-h-[240px] p-3 sm:min-h-[310px] sm:p-5 lg:min-h-[510px] lg:p-6">
-                  {step.image ? <UpdateSnapshot image={step.image} /> : <UpdateArtwork artwork={step.artwork || 'overview'} />}
+                  {step.image ? <UpdateSnapshot image={step.image} /> : <UpdateArtwork artwork={step.artwork || 'overview'} version={update.version} />}
                 </div>
                 <div className="update-notes-copy flex flex-col justify-center px-5 pb-7 pt-4 sm:px-8 sm:pb-9 lg:px-9 lg:py-12">
                   <span className="text-[10px] font-black uppercase tracking-[.18em] text-violet-300">{step.eyebrow}</span>
@@ -186,7 +181,7 @@ function MiniPoster({ index }: { index: number }) {
   );
 }
 
-function UpdateArtwork({ artwork }: { artwork: ProductUpdateArtwork }) {
+function UpdateArtwork({ artwork, version }: { artwork: ProductUpdateArtwork; version: string }) {
   if (artwork === 'performance') {
     const cards = [
       { label: 'Ranking', Icon: Trophy, width: '82%' },
@@ -221,7 +216,7 @@ function UpdateArtwork({ artwork }: { artwork: ProductUpdateArtwork }) {
           <div className="mb-2 flex items-center gap-1.5 text-[9px] font-black text-violet-200"><Compass className="size-3" />Explorar</div>
           <div className="grid grid-cols-2 gap-2"><MiniPoster index={0} /><MiniPoster index={4} /></div>
         </motion.div>
-        <span className="absolute -right-1 -top-1 inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/25 bg-fuchsia-500/15 px-3 py-1.5 text-[9px] font-black tracking-[.12em] text-fuchsia-200 shadow-lg shadow-fuchsia-950/40"><Sparkles className="size-3" />V1.1</span>
+        <span className="absolute -right-1 -top-1 inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/25 bg-fuchsia-500/15 px-3 py-1.5 text-[9px] font-black tracking-[.12em] text-fuchsia-200 shadow-lg shadow-fuchsia-950/40"><Sparkles className="size-3" />{version}</span>
       </div>
     </div>
   );

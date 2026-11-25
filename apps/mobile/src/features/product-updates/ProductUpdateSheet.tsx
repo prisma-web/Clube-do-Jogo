@@ -33,7 +33,7 @@ export function ProductUpdateSheet({ update, visible, onClose, onFinish }: {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.progress}>{stepIndex + 1} de {update.steps.length}</Text>
-        <ProductUpdateVisual key={stepIndex} step={step} />
+        <ProductUpdateVisual key={stepIndex} step={step} version={update.version} />
         <Text style={styles.eyebrow}>{step.eyebrow}</Text>
         <Text style={styles.title} accessibilityRole="header">{step.title}</Text>
         <Text style={styles.description}>{step.body}</Text>

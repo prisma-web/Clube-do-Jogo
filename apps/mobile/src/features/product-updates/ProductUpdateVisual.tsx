@@ -3,27 +3,26 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import type { ProductUpdateArtwork, ProductUpdateStep } from '@clube-do-jogo/domain';
 import { radii, spacing, themedStyles, useThemeColors } from '@/theme';
-import { productUpdateImage } from './product-update-images';
 
 const POSTER_TONES = ['#4c1d95', '#9d174d', '#155e75', '#92400e'];
 
-export function ProductUpdateVisual({ step }: { step: ProductUpdateStep }) {
+export function ProductUpdateVisual({ step, version }: { step: ProductUpdateStep; version: string }) {
   const styles = useStyles();
-  const image = step.image ? productUpdateImage(step.image.src) : null;
-  if (step.image && image) {
+  const { image } = step;
+  if (image) {
     return (
-      <View style={[styles.frame, { aspectRatio: image.aspectRatio }]}>
+      <View style={[styles.frame, { aspectRatio: image.width / image.height }]}>
         <Image
-          source={image.source}
+          source={{ uri: image.src }}
           style={styles.fill}
           contentFit="cover"
-          contentPosition={step.image.position ?? 'center'}
-          accessibilityLabel={step.image.alt}
+          contentPosition={image.position ?? 'center'}
+          accessibilityLabel={image.alt}
         />
       </View>
     );
   }
-  return <UpdateArtwork artwork={step.artwork ?? 'overview'} />;
+  return <UpdateArtwork artwork={step.artwork ?? 'overview'} version={version} />;
 }
 
 function MiniPoster({ tone, rating }: { tone: string; rating: string }) {
@@ -43,7 +42,7 @@ function MiniPoster({ tone, rating }: { tone: string; rating: string }) {
   );
 }
 
-function UpdateArtwork({ artwork }: { artwork: ProductUpdateArtwork }) {
+function UpdateArtwork({ artwork, version }: { artwork: ProductUpdateArtwork; version: string }) {
   const styles = useStyles();
   const colors = useThemeColors();
 
@@ -78,7 +77,7 @@ function UpdateArtwork({ artwork }: { artwork: ProductUpdateArtwork }) {
   }
 
   return (
-    <View style={[styles.frame, styles.artwork, styles.overview]} accessibilityLabel="Ilustração: novidades da V1.1 com Ranking e Explorar">
+    <View style={[styles.frame, styles.artwork, styles.overview]} accessibilityLabel={`Ilustração: novidades da ${version} com Ranking e Explorar`}>
       <View style={[styles.overviewCard, styles.overviewLeft]}>
         <View style={styles.cardTitle}>
           <Ionicons name="trophy-outline" size={12} color={colors.violet300} />
@@ -101,7 +100,7 @@ function UpdateArtwork({ artwork }: { artwork: ProductUpdateArtwork }) {
       </View>
       <View style={[styles.pill, styles.versionPill]}>
         <Ionicons name="sparkles" size={11} color={colors.violet300} />
-        <Text style={styles.pillText}>V1.1</Text>
+        <Text style={styles.pillText}>{version}</Text>
       </View>
     </View>
   );

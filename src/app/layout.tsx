@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Nunito } from "next/font/google";
 import { AppProvider } from "@/components/app-provider";
 import { AppShell } from "@/components/app-shell";
 import { PwaRegistration } from "@/components/pwa-registration";
+import { loadLatestProductUpdate } from "@/lib/product-update-release";
 import { themes } from "@/lib/themes";
 import "./globals.css";
 
@@ -43,11 +44,12 @@ export const viewport: Viewport = {
   colorScheme: "dark light",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const productUpdate = await loadLatestProductUpdate();
   return (
     <html
       lang="pt-BR"
@@ -57,7 +59,7 @@ export default function RootLayout({
     >
       <body className="min-h-full bg-[var(--background)] text-zinc-50 font-sans">
         <script id="theme-init" suppressHydrationWarning dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('clube-do-jogo:theme');var c=${JSON.stringify(themeBootColors)};if(c[t]){document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=c[t]}if(localStorage.getItem('clube-do-jogo:reduce-motion')==='true')document.documentElement.dataset.reduceMotion='true'}catch(e){}` }} />
-        <AppProvider>
+        <AppProvider productUpdate={productUpdate}>
           <AppShell>{children}</AppShell>
           <PwaRegistration />
         </AppProvider>
