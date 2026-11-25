@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 import { radii, themedStyles } from '@/theme';
 import { initials } from '@/lib/format';
-import { normalizeAvatarCrop, type AvatarCrop } from '@clube-do-jogo/domain';
+import { avatarNativeTransform, normalizeAvatarCrop, type AvatarCrop } from '@clube-do-jogo/domain';
 
 export function Avatar({ uri, crop, name, size = 40 }: {
   uri?: string | null;
@@ -12,13 +12,15 @@ export function Avatar({ uri, crop, name, size = 40 }: {
 }) {
   const styles = useStyles();
   const dimension = { width: size, height: size, borderRadius: radii.full };
+  // Distinct keys make React remount the container when the avatar swaps between initials and
+  // an image. On Android, reusing the initials View for the image left an empty circle.
   if (uri) {
     const normalized = normalizeAvatarCrop(crop);
     return (
-      <View style={[styles.imageClip, dimension]}>
+      <View key="image" style={[styles.imageClip, dimension]}>
         <Image
           source={{ uri }}
-          style={[StyleSheet.absoluteFill, { transform: [{ scale: normalized.zoom }], transformOrigin: `${normalized.x}% ${normalized.y}%` }]}
+          style={[StyleSheet.absoluteFill, { transform: avatarNativeTransform(normalized, size) }]}
           contentFit="cover"
           contentPosition={{ top: `${normalized.y}%`, left: `${normalized.x}%` }}
           accessibilityLabel={`Avatar de ${name || 'membro'}`}
@@ -27,7 +29,7 @@ export function Avatar({ uri, crop, name, size = 40 }: {
     );
   }
   return (
-    <View style={[styles.fallback, dimension]} accessibilityLabel={`Avatar de ${name || 'membro'}`}>
+    <View key="initials" style={[styles.fallback, dimension]} accessibilityLabel={`Avatar de ${name || 'membro'}`}>
       <Text style={[styles.initials, { fontSize: size * 0.36 }]}>{initials(name)}</Text>
     </View>
   );
