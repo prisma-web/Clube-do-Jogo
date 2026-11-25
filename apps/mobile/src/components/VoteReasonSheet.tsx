@@ -62,6 +62,9 @@ export function VoteReasonSheet({ visible, initialReason, initialText, onClose, 
             accessibilityLabel="Motivo detalhado"
           />
         ) : null}
+        {reason === 'other' ? (
+          <Text style={styles.counter} accessibilityLabel={`${text.length} de 150 caracteres`}>{text.length}/150</Text>
+        ) : null}
         <View style={styles.actions}>
           <Button label="Cancelar" variant="secondary" onPress={onClose} style={styles.actionButton} />
           <Button
@@ -104,6 +107,7 @@ const useStyles = themedStyles(colors => ({
     textAlignVertical: 'top',
     ...typography.body,
   },
+  counter: { fontSize: 9, fontWeight: '700', color: colors.zinc600, textAlign: 'right', fontVariant: ['tabular-nums'] },
   actions: { flexDirection: 'row', gap: spacing.sm, paddingTop: spacing.sm },
   actionButton: { flex: 1 },
 }));

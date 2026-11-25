@@ -26,7 +26,7 @@ export function VotingDeckGate() {
   const router = useRouter();
   const colors = useThemeColors();
   const styles = useStyles();
-  const { isHistorical, selectedMonth } = useApp();
+  const { isDemo, isHistorical, selectedMonth } = useApp();
   const ranking = useRanking();
   const vote = useVote();
   const [closed, setClosed] = useState(false);
@@ -51,7 +51,7 @@ export function VotingDeckGate() {
   }, [ranking.refetch]);
 
   useEffect(() => {
-    if (!card) return;
+    if (!card || isDemo) return;
     const transport = createMobileApiTransport(getMobileSupabaseClient());
     const report = (action: 'opened' | 'closed') => {
       void transport.request('/api/push/voting-threshold', {
@@ -65,7 +65,7 @@ export function VotingDeckGate() {
       if (state !== 'active') report('closed');
     });
     return () => subscription.remove();
-  }, [card, selectedMonth]);
+  }, [card, isDemo, selectedMonth]);
 
   const resetPosition = () => {
     Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 7 }).start();
