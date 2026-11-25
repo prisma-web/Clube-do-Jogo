@@ -122,7 +122,7 @@ Até isso ser resolvido, toda receita que precisa das abas depois do login para 
 
 ## Gotcha: Pressable acessível engole o filho
 
-No iOS, um `Pressable` com `accessibilityRole` e `accessibilityLabel` ao mesmo tempo colapsa a subárvore de acessibilidade. Um botão aninhado continua visível e tocável por coordenada, mas some para o VoiceOver e para automação por árvore. `testID` não resolve, porque não entra na árvore do leitor de tela. A correção é estrutural: o Pressable e a ação secundária viram irmãos, como em `apps/mobile/src/components/GameListRow.tsx`. O mesmo colapso explica por que o texto `Novidades da V1.1` não é alvo em Configurações. O alvo é o rótulo do Pressable, `Ver novamente as novidades da V1.1`.
+No iOS, um `Pressable` com `accessibilityRole` e `accessibilityLabel` ao mesmo tempo colapsa a subárvore de acessibilidade. Um botão aninhado continua visível e tocável por coordenada, mas some para o VoiceOver e para automação por árvore. `testID` não resolve, porque não entra na árvore do leitor de tela. A correção é estrutural: o Pressable e a ação secundária viram irmãos, como em `apps/mobile/src/components/GameListRow.tsx`. O mesmo colapso explica por que o texto `Novidades da vX.Y.Z` não é alvo em Configurações. O alvo é o rótulo do Pressable, `Ver novamente as novidades da vX.Y.Z`.
 
 ## Testes do helper
 

@@ -1,9 +1,11 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
+import { fetchLatestProductUpdate } from '@/lib/product-update-release';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
+import type { ProductUpdate } from '@clube-do-jogo/domain';
 import { AnimatePresence, motion } from 'motion/react';
 import { CheckCircle2, CircleAlert, LoaderCircle, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -42,6 +44,7 @@ interface AppContextValue {
   runOperation: <T>(label: string, operation: () => PromiseLike<T>) => Promise<T>;
   runOptimistic: (label: string, apply: () => void, rollback: () => void, operation: () => PromiseLike<unknown>) => Promise<boolean>;
   notify: (message: string) => void;
+  productUpdate: ProductUpdate | null;
 }
 
 export interface ClubUndoPreview {
@@ -120,6 +123,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [operations, setOperations] = useState<{ id: string; label: string }[]>([]);
   const [toasts, setToasts] = useState<{ id: string; message: string }[]>([]);
   const [notices, setNotices] = useState<{ id: string; message: string }[]>([]);
+  const [productUpdate, setProductUpdate] = useState<ProductUpdate | null>(null);
   const demoClubUndos = useRef(new Map<string, { beforeCycles: ClubCycle[]; beforeMonth: string; afterCycles: ClubCycle[]; afterMonth: string; previousEventId?: string; revertedAt?: number }>());
   const demoLatestClubEvent = useRef<string | undefined>(undefined);
 
@@ -227,6 +231,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (stored && /^\d{4}-\d{2}$/.test(stored)) {
       queueMicrotask(() => setSelectedMonthState(stored));
     }
+  }, []);
+
+  useEffect(() => {
+    void fetchLatestProductUpdate().then(setProductUpdate);
   }, []);
 
   useEffect(() => {
@@ -500,14 +508,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (user) await fetchProfile(user.id);
     },
     updateProfile,
-  }), [authLoading, availableMonths, clubRevision, cycles, fetchClubState, fetchProfile, isDemo, notify, previewClubGameUndo, profile, redoClubGameChange, role, runOperation, runOptimistic, selectedMonth, setClubGame, setSelectedMonth, setTheme, signOut, theme, undoClubGameChange, unlockedThemeIds, updateProfile, user]);
+    productUpdate,
+  }), [authLoading, availableMonths, clubRevision, cycles, fetchClubState, fetchProfile, isDemo, notify, previewClubGameUndo, productUpdate, profile, redoClubGameChange, role, runOperation, runOptimistic, selectedMonth, setClubGame, setSelectedMonth, setTheme, signOut, theme, undoClubGameChange, unlockedThemeIds, updateProfile, user]);
 
   const currentOperation = operations.at(-1);
 
   return (
     <AppContext.Provider value={value}>
       {children}
-      {user && !authLoading && <ProductUpdateDialog />}
+      {user && !authLoading && productUpdate && <ProductUpdateDialog update={productUpdate} />}
       {pendingReward && (
         <RewardCelebration
           key={pendingReward.id}
