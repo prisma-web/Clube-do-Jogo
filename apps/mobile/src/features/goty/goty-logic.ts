@@ -385,3 +385,34 @@ const TAB_ROUTES = new Set(['/', '/jogo-do-mes', '/ranking', '/jogos', '/seus-jo
 export function isTabBarRoute(pathname: string): boolean {
   return TAB_ROUTES.has(pathname);
 }
+
+/** Altura padrão da tab bar do expo-router, sem o inset inferior. */
+export const GOTY_BADGE_TAB_BAR_HEIGHT = 56;
+/** Respiro entre o badge e a tab bar (ou a borda inferior). */
+export const GOTY_BADGE_GAP = 12;
+/** Altura do badge: emblema de 36 + padding vertical de 5 + borda de 1. */
+export const GOTY_BADGE_HEIGHT = 48;
+
+/**
+ * Distância do badge à borda inferior da tela. Nas abas ele fica acima da tab bar;
+ * nas telas empilhadas, perto da borda, respeitando o inset do sistema.
+ */
+export function gotyBadgeBottomOffset(pathname: string, insetBottom: number): number {
+  return isTabBarRoute(pathname)
+    ? insetBottom + GOTY_BADGE_TAB_BAR_HEIGHT + GOTY_BADGE_GAP
+    : Math.max(16, insetBottom + GOTY_BADGE_GAP);
+}
+
+/**
+ * Folga que o fim de uma lista rolável precisa para o último item não ficar embaixo do
+ * badge. Nas abas o conteúdo termina na tab bar, então o inset e a barra já ficaram
+ * de fora; nas telas empilhadas o conteúdo vai até a borda da tela. Zero onde o badge
+ * não aparece.
+ */
+export function gotyBadgeClearance(pathname: string, insetBottom: number): number {
+  if (!shouldShowGotyBadge(pathname)) return 0;
+  const aboveContentEnd = isTabBarRoute(pathname)
+    ? GOTY_BADGE_GAP
+    : gotyBadgeBottomOffset(pathname, insetBottom);
+  return aboveContentEnd + GOTY_BADGE_HEIGHT + GOTY_BADGE_GAP;
+}

@@ -30,7 +30,6 @@ export function PlatformCard({ platform }: { platform: UserPlatform }) {
             source={{ uri: platform.logo_url }}
             style={styles.logo}
             contentFit="contain"
-            tintColor="#ffffff"
           />
         ) : (
           <Ionicons name={FALLBACK_ICONS[family]} size={24} color={accent} />

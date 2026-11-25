@@ -31,6 +31,7 @@ import {
   type RankingView as RankingViewMode,
 } from '@/features/ranking/ranking-view';
 import { emptyChoiceProfiles, gameCoverUrl, type Game, type RankingItem, type VoteChoice, type VoteReason } from '@clube-do-jogo/domain';
+import { useGotyBadgeClearance } from '@/features/goty/GotyFloatingBadge';
 
 const rankingViews: Array<{ value: RankingViewMode; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
   { value: 'ranking', label: 'Ranking atual', icon: 'reorder-four-outline' },
@@ -67,6 +68,7 @@ function AnimatedPoints({ value, style, unitStyle }: { value: number; style: obj
 export default function RankingScreen() {
   const colors = useThemeColors();
   const styles = useStyles();
+  const badgeClearance = useGotyBadgeClearance();
   const router = useRouter();
   const { isAdmin, isHistorical, selectedMonth, activeMonth, months, setSelectedMonth } = useApp();
   const voteMonth = shiftMonth(selectedMonth, 1);
@@ -253,7 +255,7 @@ export default function RankingScreen() {
             </View>
           );
         }}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: Math.max(spacing.xxxl, badgeClearance) }]}
         refreshing={rankingQuery.isRefetching}
         onRefresh={() => rankingQuery.refetch()}
         keyboardShouldPersistTaps="handled"

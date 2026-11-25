@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { youtubeEmbedUrl, isAllowedYoutubeOrigin } from '../../apps/mobile/src/features/media/youtube';
+import { youtubeEmbedUrl, isAllowedYoutubeOrigin, isAllowedPlayerNavigation, youtubeEmbedderOrigin, youtubePlayerSource } from '../../apps/mobile/src/features/media/youtube';
 
 test('trailers accept YouTube links and never carry input credentials or query parameters', () => {
   for (const url of ['https://youtu.be/dQw4w9WgXcQ?token=private', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'https://www.youtube.com/embed/dQw4w9WgXcQ']) {
@@ -33,4 +33,26 @@ test('native sharing uses the configured HTTPS site and encodes each route ident
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(JSON.parse(result.stdout), expected);
   }
+});
+
+test('trailers identify the embedder to YouTube so the player does not fail with Error 153', () => {
+  assert.equal(youtubeEmbedderOrigin('https://clube.example/jogos?x=1', 'com.clubedojogo.mobile'), 'https://clube.example');
+  assert.equal(youtubeEmbedderOrigin(null, 'com.clubedojogo.mobile.dev'), 'https://com.clubedojogo.mobile.dev');
+  assert.equal(youtubeEmbedderOrigin('http://clube.example', 'com.clubedojogo.mobile'), 'https://com.clubedojogo.mobile');
+  assert.equal(youtubeEmbedderOrigin(null, 'not an id"><script>'), 'https://clubedojogo.app');
+
+  const embed = youtubeEmbedUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')!;
+  const source = youtubePlayerSource(embed, 'https://clube.example', { autoplay: true })!;
+  assert.equal(source.baseUrl, 'https://clube.example/');
+  assert.match(source.html, /<iframe src="https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?[^"]*autoplay=1/);
+  assert.match(source.html, /origin=https%3A%2F%2Fclube\.example/);
+  assert.match(source.html, /referrerpolicy="strict-origin-when-cross-origin"/);
+  assert.ok(!youtubePlayerSource(embed, 'https://clube.example')!.html.includes('autoplay=1'));
+  assert.equal(youtubePlayerSource('https://example.test/embed/x', 'https://clube.example'), null);
+
+  assert.equal(isAllowedPlayerNavigation('https://clube.example/', 'https://clube.example'), true);
+  assert.equal(isAllowedPlayerNavigation('about:blank', 'https://clube.example'), true);
+  assert.equal(isAllowedPlayerNavigation(embed, 'https://clube.example'), true);
+  assert.equal(isAllowedPlayerNavigation('https://clube.example/jogos', 'https://clube.example'), false);
+  assert.equal(isAllowedPlayerNavigation('https://evil.test/', 'https://clube.example'), false);
 });

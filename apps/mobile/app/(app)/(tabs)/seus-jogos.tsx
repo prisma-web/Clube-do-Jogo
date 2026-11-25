@@ -16,6 +16,7 @@ import { useBacklog, useFavorite, useLibrary, useSetProgress } from '@/state/que
 import { usePersistentState } from '@/hooks/use-persistent-state';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
 import { selectLibraryGames, type LibraryGame, type LibraryQuickFilter, type LibrarySortMode, type ProgressStatus } from '@clube-do-jogo/domain';
+import { useGotyBadgeClearance } from '@/features/goty/GotyFloatingBadge';
 
 type QuickFilter = LibraryQuickFilter;
 type SortMode = LibrarySortMode;
@@ -50,6 +51,7 @@ const filterToggles: Array<{ key: 'playableOnly' | 'shortOnly' | 'ratedOnly'; la
 export default function YourGamesScreen() {
   const colors = useThemeColors();
   const styles = useStyles();
+  const badgeClearance = useGotyBadgeClearance();
   const router = useRouter();
   const libraryQuery = useLibrary();
   const backlog = useBacklog();
@@ -158,7 +160,7 @@ export default function YourGamesScreen() {
             />
           );
         }}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: Math.max(spacing.xxxl, badgeClearance) }]}
         refreshing={libraryQuery.isRefetching}
         onRefresh={() => libraryQuery.refetch()}
         keyboardShouldPersistTaps="handled"

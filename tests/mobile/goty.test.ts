@@ -17,6 +17,8 @@ import {
   formatDeadlineInput,
   hasUnresolvedGameCovers,
   isTabBarRoute,
+  gotyBadgeBottomOffset,
+  gotyBadgeClearance,
   parseDeadlineInput,
   parseGotyTab,
   removePersonalPick,
@@ -200,4 +202,17 @@ test('busca de jogos: rota com includeAllYears e catálogo curado de reserva', (
   const withOtherYears = searchGotyDemoCatalog('', true, 500);
   assert.ok(withOtherYears.length > GOTY_2026_CURATED_CATALOG.length);
   assert.ok(withOtherYears.some(game => !game.is_eligible_2026));
+});
+
+test('o fim das listas sai de baixo do badge GOTY nas abas e nas telas empilhadas', () => {
+  // Abas: o conteúdo termina na tab bar; o badge fica 12 acima dela e tem 48 de altura.
+  assert.equal(gotyBadgeBottomOffset('/ranking', 24), 24 + 56 + 12);
+  assert.equal(gotyBadgeClearance('/ranking', 24), 12 + 48 + 12);
+  assert.equal(gotyBadgeClearance('/ranking', 0), gotyBadgeClearance('/ranking', 48));
+  // Telas empilhadas: o conteúdo vai até a borda, então o inset entra na folga.
+  assert.equal(gotyBadgeBottomOffset('/jogos/abc', 24), 36);
+  assert.equal(gotyBadgeClearance('/jogos/abc', 24), 36 + 48 + 12);
+  assert.equal(gotyBadgeClearance('/jogos/abc', 0), 16 + 48 + 12);
+  // Onde o badge não aparece, nenhuma folga extra.
+  assert.equal(gotyBadgeClearance('/goty-2026', 24), 0);
 });
