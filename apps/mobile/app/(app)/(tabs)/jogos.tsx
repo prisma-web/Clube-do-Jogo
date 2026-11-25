@@ -15,6 +15,7 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { usePersistentState } from '@/hooks/use-persistent-state';
 import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
 import type { DiscoverItem, DiscoverSource } from '@clube-do-jogo/domain';
+import { useGotyBadgeClearance } from '@/features/goty/GotyFloatingBadge';
 
 const sources: Array<{ value: DiscoverSource; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
   { value: 'popular', label: 'Populares', icon: 'flame-outline' },
@@ -51,6 +52,7 @@ const platforms: Array<[number | null, string]> = [
 export default function DiscoverScreen() {
   const colors = useThemeColors();
   const styles = useStyles();
+  const badgeClearance = useGotyBadgeClearance();
   const router = useRouter();
   const { isHistorical } = useApp();
   const [source, setSource] = usePersistentState<DiscoverSource>('clube-do-jogo:mobile:discover-source', 'popular');
@@ -148,7 +150,7 @@ export default function DiscoverScreen() {
             />
           )
         )}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: Math.max(spacing.xxxl, badgeClearance) }]}
         onEndReached={loadMore}
         onEndReachedThreshold={0.4}
         refreshing={discoverQuery.isRefetching && !discoverQuery.isFetchingNextPage}

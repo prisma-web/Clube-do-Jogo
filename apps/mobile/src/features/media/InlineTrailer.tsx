@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { AppState, Pressable, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { themedStyles, useThemeColors, radii, spacing } from '@/theme';
-import { isAllowedYoutubeOrigin, youtubeEmbedUrl } from './youtube';
-
-const ORIGIN_WHITELIST = ['*'];
+import { youtubeEmbedUrl } from './youtube';
+import { YoutubePlayer } from './YoutubePlayer';
 
 /**
  * Embedded trailer for the top of the game detail (parity with the web's
@@ -55,24 +53,7 @@ export function InlineTrailer({ url, title, posterUrl, onExpand }: {
 
   return (
     <View style={styles.frame}>
-      <WebView
-        key={embedUrl}
-        source={{ uri: `${embedUrl}&autoplay=1` }}
-        style={styles.webview}
-        originWhitelist={ORIGIN_WHITELIST}
-        onShouldStartLoadWithRequest={request => isAllowedYoutubeOrigin(request.url)}
-        javaScriptEnabled
-        allowsFullscreenVideo
-        allowsInlineMediaPlayback
-        mediaPlaybackRequiresUserAction={false}
-        sharedCookiesEnabled={false}
-        thirdPartyCookiesEnabled={false}
-        incognito
-        domStorageEnabled={false}
-        cacheEnabled={false}
-        setSupportMultipleWindows={false}
-        accessibilityLabel={`Trailer de ${title}`}
-      />
+      <YoutubePlayer embedUrl={embedUrl} title={title} autoplay style={styles.webview} />
       <View style={styles.controls}>
         <Pressable onPress={() => setPlaying(false)} accessibilityRole="button" accessibilityLabel="Minimizar trailer" hitSlop={8} style={styles.controlButton}>
           <Ionicons name="contract-outline" size={16} color={colors.white} />

@@ -2,19 +2,25 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GOTY_ROUTE } from '@/lib/nav-intent';
-import { isTabBarRoute, shouldShowGotyBadge } from './goty-logic';
+import { gotyBadgeBottomOffset, gotyBadgeClearance, shouldShowGotyBadge } from './goty-logic';
 import { gotyColors } from './goty-theme';
 import { TgaEmblem } from './TgaEmblem';
-
-// Altura padrão da tab bar do expo-router (sem o inset inferior) + respiro.
-const TAB_BAR_HEIGHT = 56;
-const GAP = 12;
 
 /**
  * Atalho flutuante "Especial GOTY 2026" (paridade com goty-floating-badge.tsx da web):
  * fica acima da tab bar nas abas principais, desce para perto da borda nas telas
  * empilhadas e some na própria rota /goty-2026.
  */
+/**
+ * Folga inferior que uma tela rolável precisa para o fim do conteúdo não ficar
+ * embaixo do badge (zero onde ele não aparece).
+ */
+export function useGotyBadgeClearance(): number {
+  const pathname = usePathname();
+  const insets = useSafeAreaInsets();
+  return gotyBadgeClearance(pathname, insets.bottom);
+}
+
 export function GotyFloatingBadge() {
   const pathname = usePathname();
   const router = useRouter();
@@ -22,9 +28,7 @@ export function GotyFloatingBadge() {
 
   if (!shouldShowGotyBadge(pathname)) return null;
 
-  const bottom = isTabBarRoute(pathname)
-    ? insets.bottom + TAB_BAR_HEIGHT + GAP
-    : Math.max(16, insets.bottom + GAP);
+  const bottom = gotyBadgeBottomOffset(pathname, insets.bottom);
 
   return (
     <View pointerEvents="box-none" style={[styles.anchor, { bottom, right: 14 + insets.right }]}>

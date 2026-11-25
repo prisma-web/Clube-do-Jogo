@@ -2,6 +2,9 @@ import type { ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, View, type ScrollViewProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { spacing, themedStyles, useNativeTheme } from '@/theme';
+import { useGotyBadgeClearance } from '@/features/goty/GotyFloatingBadge';
+
+const SCROLL_BOTTOM_PADDING = spacing.xxxl * 2;
 
 export function Screen({ children, scroll = true, contentContainerStyle, onRefresh, refreshing, edges }: {
   children: ReactNode;
@@ -13,6 +16,7 @@ export function Screen({ children, scroll = true, contentContainerStyle, onRefre
 }) {
   const theme = useNativeTheme();
   const styles = useStyles();
+  const badgeClearance = useGotyBadgeClearance();
   // Com uma cena de tema ativa o fundo fica transparente para revelar o cenário montado
   // atrás da navegação; sem cena o fundo continua opaco.
   const safeArea = [styles.safeArea, theme.scene !== 'none' && styles.safeAreaScenic];
@@ -27,8 +31,10 @@ export function Screen({ children, scroll = true, contentContainerStyle, onRefre
   return (
     <SafeAreaView style={safeArea} edges={edges ?? ['top']}>
       <KeyboardAvoidingView style={styles.keyboardArea} behavior="height" enabled={Platform.OS === 'android'}>
+        {/* A folga inferior só vale no ramo rolável: em scroll={false} ela viraria espaço morto
+            fixo e cortaria a lista. Ela cresce para o fim do conteúdo sair de baixo do badge GOTY. */}
         <ScrollView
-          contentContainerStyle={[styles.content, styles.scrollContent, contentContainerStyle as object]}
+          contentContainerStyle={[styles.content, { paddingBottom: Math.max(SCROLL_BOTTOM_PADDING, badgeClearance) }, contentContainerStyle as object]}
           refreshControl={onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={theme.colors.violet400} /> : undefined}
           automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
@@ -45,6 +51,4 @@ const useStyles = themedStyles(colors => ({
   safeArea: { flex: 1, backgroundColor: colors.background },
   safeAreaScenic: { backgroundColor: 'transparent' },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, flexGrow: 1 },
-  // Só no ramo rolável: em scroll={false} esta folga vira espaço morto fixo e corta a lista.
-  scrollContent: { paddingBottom: spacing.xxxl * 2 },
 }));

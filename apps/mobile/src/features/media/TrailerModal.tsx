@@ -1,13 +1,11 @@
 import { useEffect } from 'react';
 import { AppState, Modal, Pressable, View } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { themedStyles, useThemeColors, radii, spacing } from '@/theme';
-import { isAllowedYoutubeOrigin, youtubeEmbedUrl } from './youtube';
+import { youtubeEmbedUrl } from './youtube';
+import { YoutubePlayer } from './YoutubePlayer';
 
 // Let the request guard reject outside links; a whitelist rejection opens the system browser.
-const ORIGIN_WHITELIST = ['*'];
-
 export function TrailerModal({ visible, url, title, onClose }: {
   visible: boolean;
   url: string | null | undefined;
@@ -41,24 +39,7 @@ export function TrailerModal({ visible, url, title, onClose }: {
           >
             <Ionicons name="close" size={22} color={colors.white} />
           </Pressable>
-          <WebView
-            key={embedUrl}
-            source={{ uri: embedUrl }}
-            style={styles.webview}
-            originWhitelist={ORIGIN_WHITELIST}
-            onShouldStartLoadWithRequest={request => isAllowedYoutubeOrigin(request.url)}
-            javaScriptEnabled
-            allowsFullscreenVideo
-            allowsInlineMediaPlayback
-            mediaPlaybackRequiresUserAction={false}
-            sharedCookiesEnabled={false}
-            thirdPartyCookiesEnabled={false}
-            incognito
-            domStorageEnabled={false}
-            cacheEnabled={false}
-            setSupportMultipleWindows={false}
-            accessibilityLabel={`Trailer de ${title}`}
-          />
+          <YoutubePlayer embedUrl={embedUrl} title={title} style={styles.webview} />
         </View>
       </View>
     </Modal>
