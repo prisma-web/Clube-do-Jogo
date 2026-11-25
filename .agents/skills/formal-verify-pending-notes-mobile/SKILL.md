@@ -154,7 +154,7 @@ O modelo deixa de fora:
 `check.sh` lê o bloco abaixo. A linha `sync` é o commit em que o modelo foi confirmado contra o código. As outras linhas listam os arquivos cobertos e o que cada um contribui.
 
 ```coverage
-sync c3117bb59571a82d6e791977fde03c97fad839f1
+sync 2797165d9a0d74ef6405b0342c4a92ff837b7c63
 apps/mobile/src/state/discussion-queries.ts useNotesPendingQueue, enqueueDraftWrite, draftWrites, pendingNotesKey
 apps/mobile/src/state/notes-queue.ts enqueue, dequeue, markAttempt, markConflict, clearConflict, serializeQueue, parseQueue
 apps/mobile/src/features/notes/PrivateNotes.tsx PrivateNotes key, NotesEditor busy, submit, onLongPress e botão de menu, ConflictCard, Sincronizar novamente
