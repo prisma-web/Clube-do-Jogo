@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'motion/react';
 import { Minus, ThumbsDown, ThumbsUp, X } from 'lucide-react';
-import { gameCoverUrl } from '@clube-do-jogo/domain';
+import { gameCoverUrl, voteChoiceLabels } from '@clube-do-jogo/domain';
 import type { VoteChoice } from '@/lib/types';
 import { pendingGames } from '@/lib/quick-voting';
 import { createClient } from '@/lib/supabase/client';
@@ -13,12 +13,13 @@ import { useStaleQuery } from '@/hooks/use-stale-query';
 import { useApp } from './app-provider';
 import { shiftMonth } from '@/lib/utils';
 import { apiFetch } from '@/lib/api-client';
+import { apiRoutes, type ApiRequestBody } from '@clube-do-jogo/data';
 
 const SWIPE_THRESHOLD = 90;
 
 export function QuickVotingDeck() {
   const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, selectedMonth, isHistorical, clubRevision, runOptimistic } = useApp();
+  const { user, isDemo, dataClient, selectedMonth, isHistorical, clubRevision, runOptimistic } = useApp();
   const [closed, setClosed] = useState(false);
   const [sessionReviewedIds, setSessionReviewedIds] = useState<readonly string[]>([]);
   const voteMonth = shiftMonth(selectedMonth, 1);
@@ -51,16 +52,16 @@ export function QuickVotingDeck() {
 
   useEffect(() => {
     if (!card || isDemo) return;
-    void apiFetch('/api/push/voting-threshold', {
-      method: 'POST',
+    void apiFetch(apiRoutes.pushVotingThreshold.path, {
+      method: apiRoutes.pushVotingThreshold.method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'opened', voteMonth }),
+      body: JSON.stringify({ action: 'opened', voteMonth } satisfies ApiRequestBody<'pushVotingThreshold'>),
     });
     const closeSession = () => {
-      void fetch('/api/push/voting-threshold', {
-        method: 'POST',
+      void fetch(apiRoutes.pushVotingThreshold.path, {
+        method: apiRoutes.pushVotingThreshold.method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'closed', voteMonth }),
+        body: JSON.stringify({ action: 'closed', voteMonth } satisfies ApiRequestBody<'pushVotingThreshold'>),
         keepalive: true,
       });
     };
@@ -79,7 +80,7 @@ export function QuickVotingDeck() {
       'Salvando escolha…',
       () => undefined,
       () => setSessionReviewedIds(current => current.filter(id => id !== gameId)),
-      () => supabase.from('votes').upsert({ user_id: user!.id, game_id: gameId, vote_month: voteMonth, choice, reason: null, reason_text: null }, { onConflict: 'user_id,game_id,vote_month' }),
+      () => dataClient.upsertVote({ userId: user!.id, gameId, voteMonth, choice, reason: null, reasonText: null }),
     );
   }
 
@@ -118,9 +119,9 @@ export function QuickVotingDeck() {
         </motion.article>
 
         <div className="mt-4 grid grid-cols-3 gap-2">
-          <VoteButton label="Não" icon={<ThumbsDown className="size-4" />} tone="text-red-300" onClick={() => choose('would_not_play')} />
-          <VoteButton label="Neutro" icon={<Minus className="size-4" />} tone="text-zinc-300" onClick={() => choose('neutral')} />
-          <VoteButton label="Jogaria" icon={<ThumbsUp className="size-4" />} tone="text-emerald-300" onClick={() => choose('would_play')} />
+          <VoteButton label={voteChoiceLabels.would_not_play} icon={<ThumbsDown className="size-4" />} tone="text-red-300" onClick={() => choose('would_not_play')} />
+          <VoteButton label={voteChoiceLabels.neutral} icon={<Minus className="size-4" />} tone="text-zinc-300" onClick={() => choose('neutral')} />
+          <VoteButton label={voteChoiceLabels.would_play} icon={<ThumbsUp className="size-4" />} tone="text-emerald-300" onClick={() => choose('would_play')} />
         </div>
         <p className="mt-4 text-center text-[10px] font-black uppercase tracking-[.16em] text-zinc-600">{position} de {total}</p>
       </section>

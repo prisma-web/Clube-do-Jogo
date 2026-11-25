@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarCheck2, Check, LoaderCircle, Search, Sparkles, Star } from 'lucide-react';
 import { GOTY_2026_CURATED_CATALOG, type GotyPersonalCategory, type GotySearchGameResult } from '@clube-do-jogo/domain';
 import { apiFetch } from '@/lib/api-client';
+import { apiRoutes, type ApiErrorBody, type ApiResponse } from '@clube-do-jogo/data';
 import { demoGames } from '@/lib/demo-data';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -88,16 +89,16 @@ export function GotyGamePickerDialog({
       setLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams({
+        const response = await apiFetch(apiRoutes.gotySearchGames.path({
           q: debouncedQuery,
-          includeAllYears: String(includeAllYears),
+          includeAllYears: includeAllYears ? 'true' : 'false',
           limit: '18',
-        });
-        const response = await apiFetch(`/api/goty/search-games?${params}`);
+        }));
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || 'Não foi possível buscar jogos de 2026.');
+        if (!response.ok) throw new Error((payload as ApiErrorBody).error || 'Não foi possível buscar jogos de 2026.');
         if (!cancelled) {
-          setRemoteResults(Array.isArray(payload.items) ? (payload.items as GotySearchGameResult[]) : []);
+          const result = payload as Partial<ApiResponse<'gotySearchGames'>>;
+          setRemoteResults(Array.isArray(result.items) ? result.items : []);
         }
       } catch (err) {
         if (!cancelled) {

@@ -1,17 +1,20 @@
-import { NextResponse } from 'next/server';
+import { rpcArgsAcceptingNull, type ApiRequestBody } from '@clube-do-jogo/data';
+import { contractJson } from '@/lib/api-route';
 import { GOTY_2026_EDITION_YEAR } from '@clube-do-jogo/domain';
 import { createClient } from '@/lib/supabase/server';
 import { lookupIGDBCoverByTitle } from '@/lib/igdb';
+
+const json = contractJson<'gotyResolveCovers'>();
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
+      return json({ error: 'Não autorizado.' }, { status: 401 });
     }
 
-    const body = await request.json().catch(() => ({})) as { limit?: number };
+    const body = await request.json().catch(() => ({})) as ApiRequestBody<'gotyResolveCovers'>;
     const maxQueries = Math.max(1, Math.min(30, body.limit ?? 20));
 
     const { data: nominees, error: nomineesError } = await supabase
@@ -23,7 +26,7 @@ export async function POST(request: Request) {
 
     if (nomineesError) throw nomineesError;
     if (!nominees || nominees.length === 0) {
-      return NextResponse.json({ updated: 0, remaining: 0 });
+      return json({ updated: 0, remaining: 0 });
     }
 
     // Agrupa por título de jogo para não consultar a IGDB repetidamente para jogos com várias indicações
@@ -64,23 +67,26 @@ export async function POST(request: Request) {
       if (!imageUrl) continue;
 
       for (const nomineeId of nomineeIds) {
-        const { error: rpcError } = await supabase.rpc('update_goty_nominee_cover', {
+        const { error: rpcError } = await supabase.rpc('update_goty_nominee_cover', rpcArgsAcceptingNull<
+          'update_goty_nominee_cover',
+          'next_igdb_id' | 'next_game_id'
+        >({
           target_nominee_id: nomineeId,
           next_image_url: imageUrl,
           next_igdb_id: igdbId,
           next_game_id: gameId,
-        });
+        }));
         if (!rpcError) updatedCount += 1;
       }
     }
 
-    return NextResponse.json({
+    return json({
       updated: updatedCount,
       remaining: Math.max(0, byQuery.size - queries.length),
     });
   } catch (error) {
     console.error('Erro ao resolver capas dos indicados GOTY 2026:', error);
-    return NextResponse.json(
+    return json(
       { error: error instanceof Error ? error.message : 'Não foi possível atualizar as capas.' },
       { status: 500 },
     );

@@ -1,8 +1,8 @@
 import type {
   RealtimeChannel,
   RealtimePostgresChangesPayload,
-  SupabaseClient,
 } from '@supabase/supabase-js';
+import type { DataSupabaseClient } from './supabase';
 import {
   demoGames,
   demoMonths,
@@ -39,7 +39,7 @@ export interface RewardsClient {
 }
 
 export interface RewardsClientOptions {
-  supabase?: SupabaseClient | null;
+  supabase?: DataSupabaseClient | null;
   demo?: boolean;
 }
 
@@ -143,7 +143,7 @@ function parseGrant(value: unknown): RewardGrant | null {
   return { id, reward_id: rewardId, granted_at: grantedAt, seen_at: seenAt, reward };
 }
 
-async function authenticatedClient(supabase: SupabaseClient, userId: string, operation: string) {
+async function authenticatedClient(supabase: DataSupabaseClient, userId: string, operation: string) {
   if (!supabase.auth) throw new DataError(operation, 'Configure o Supabase para acessar suas recompensas.');
   const { data, error } = await supabase.auth.getUser();
   if (error) throw error;
@@ -151,7 +151,7 @@ async function authenticatedClient(supabase: SupabaseClient, userId: string, ope
   return supabase;
 }
 
-async function readRemote(supabase: SupabaseClient, input: RewardsQuery): Promise<RewardGrant[]> {
+async function readRemote(supabase: DataSupabaseClient, input: RewardsQuery): Promise<RewardGrant[]> {
   const client = await authenticatedClient(supabase, input.userId, 'ler recompensas');
   const { data, error } = await client
     .from('user_reward_grants')
@@ -227,10 +227,10 @@ type RewardSubscription = {
   status?: string;
 };
 
-const subscriptions = new WeakMap<SupabaseClient, Map<string, RewardSubscription>>();
+const subscriptions = new WeakMap<DataSupabaseClient, Map<string, RewardSubscription>>();
 let subscriptionId = 0;
 
-function subscribeRemote(supabase: SupabaseClient, input: RewardsSubscriptionOptions): () => void {
+function subscribeRemote(supabase: DataSupabaseClient, input: RewardsSubscriptionOptions): () => void {
   let accounts = subscriptions.get(supabase);
   if (!accounts) {
     accounts = new Map();
@@ -275,7 +275,7 @@ export function createRewardsClient(options: RewardsClientOptions = {}): Rewards
     validateMode(input, demo, 'ler recompensas');
     if (demo) return Promise.resolve(demoEligible(input.userId) ? [demoGrant(seenDemoGrants.has(input.userId))] : []);
     if (!options.supabase) return Promise.reject(new DataError('ler recompensas', 'Configure o Supabase para acessar suas recompensas.'));
-    return withDataErrors('ler recompensas', 'Não foi possível carregar suas recompensas.', () => readRemote(options.supabase as SupabaseClient, input));
+    return withDataErrors('ler recompensas', 'Não foi possível carregar suas recompensas.', () => readRemote(options.supabase as DataSupabaseClient, input));
   };
   const acknowledge = (input: RewardAcknowledgeInput) => {
     validateMode(input, demo, 'reconhecer recompensa');
@@ -291,7 +291,7 @@ export function createRewardsClient(options: RewardsClientOptions = {}): Rewards
     }
     if (!options.supabase) return Promise.reject(new DataError('reconhecer recompensa', 'Configure o Supabase para acessar suas recompensas.'));
     return withDataErrors('reconhecer recompensa', 'Não foi possível reconhecer a recompensa.', async () => {
-      const client = await authenticatedClient(options.supabase as SupabaseClient, input.userId, 'reconhecer recompensa');
+      const client = await authenticatedClient(options.supabase as DataSupabaseClient, input.userId, 'reconhecer recompensa');
       const { error } = await client.rpc('acknowledge_reward_grant', { target_grant_id: input.grantId });
       if (error) throw error;
     });
@@ -300,7 +300,7 @@ export function createRewardsClient(options: RewardsClientOptions = {}): Rewards
     validateMode(input, demo, 'assinar recompensas');
     if (demo) return () => undefined;
     if (!options.supabase) return () => undefined;
-    return subscribeRemote(options.supabase as SupabaseClient, input);
+    return subscribeRemote(options.supabase as DataSupabaseClient, input);
   };
   return { read, acknowledge, subscribe };
 }

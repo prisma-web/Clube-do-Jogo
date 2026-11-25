@@ -1,6 +1,9 @@
-import { NextResponse } from 'next/server';
+import { gameRowAsDomain } from '@clube-do-jogo/data';
+import { contractJson } from '@/lib/api-route';
 import { createClient } from '@/lib/supabase/server';
 import { getGameByIGDBId, searchGamesWithIGDB } from '@/lib/igdb';
+
+const json = contractJson<'gameMedia'>();
 
 function normalizedTitle(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -10,15 +13,15 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
+  if (!user) return json({ error: 'Não autorizado.' }, { status: 401 });
 
   const { data: game, error } = await supabase.from('games').select('*').eq('id', id).maybeSingle();
-  if (error || !game) return NextResponse.json({ error: 'Jogo não encontrado.' }, { status: 404 });
+  if (error || !game) return json({ error: 'Jogo não encontrado.' }, { status: 404 });
   try {
     const metadata = game.igdb_id
       ? await getGameByIGDBId(game.igdb_id)
       : (await searchGamesWithIGDB(game.title)).find(candidate => normalizedTitle(candidate.title) === normalizedTitle(game.title)) ?? null;
-    if (!metadata) return NextResponse.json(game);
+    if (!metadata) return json(gameRowAsDomain(game));
     const patch = {
       igdb_id: game.igdb_id ?? metadata.id,
       description: metadata.description || game.description,
@@ -34,9 +37,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     };
     const { data: updated, error: updateError } = await supabase.from('games').update(patch).eq('id', id).select().single();
     if (updateError) throw updateError;
-    return NextResponse.json(updated);
+    return json(gameRowAsDomain(updated));
   } catch (value) {
     console.error('Erro ao enriquecer mídia do jogo:', value);
-    return NextResponse.json(game);
+    return json(gameRowAsDomain(game));
   }
 }

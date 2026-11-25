@@ -1,14 +1,17 @@
-import { NextResponse } from 'next/server';
+import { gameRowsAsDomain, type ApiSearchParams } from '@clube-do-jogo/data';
+import { contractJson } from '@/lib/api-route';
 import { createClient } from '@/lib/supabase/server';
 import { searchGamesWithIGDB } from '@/lib/igdb';
 import { cacheIGDBGames } from '@/lib/game-cache';
 
+const json = contractJson<'searchGames'>();
+
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
+  const searchParams: ApiSearchParams<'searchGames'> = new URL(request.url).searchParams;
   const query = searchParams.get('q');
 
   if (!query || query.trim() === '') {
-    return NextResponse.json({ error: 'Parâmetro de busca "q" é obrigatório.' }, { status: 400 });
+    return json({ error: 'Parâmetro de busca "q" é obrigatório.' }, { status: 400 });
   }
 
   try {
@@ -17,7 +20,7 @@ export async function GET(request: Request) {
     // 1. Verificar se o usuário está autenticado
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
+      return json({ error: 'Não autorizado.' }, { status: 401 });
     }
 
     // 2. Buscar no banco de dados primeiro (cache local)
@@ -44,7 +47,7 @@ export async function GET(request: Request) {
 
     // Se encontramos resultados locais suficientes e completos, retornamos do cache
     if (cachedGames && cachedGames.length >= 2 && hasFreshMetadata) {
-      return NextResponse.json(cachedGames);
+      return json(gameRowsAsDomain(cachedGames));
     }
 
     // 3. Buscar na IGDB
@@ -53,10 +56,10 @@ export async function GET(request: Request) {
     // 4. Persistir o catálogo externo para que qualquer card possa abrir a página do jogo.
     const savedGames = await cacheIGDBGames(supabase, igdbResults);
 
-    const finalResults = savedGames.length > 0 ? savedGames : (cachedGames || []);
-    return NextResponse.json(finalResults);
+    const finalResults = savedGames.length > 0 ? savedGames : gameRowsAsDomain(cachedGames || []);
+    return json(finalResults);
   } catch (error: unknown) {
     console.error('Erro na API de busca:', error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro interno do servidor.' }, { status: 500 });
+    return json({ error: error instanceof Error ? error.message : 'Erro interno do servidor.' }, { status: 500 });
   }
 }

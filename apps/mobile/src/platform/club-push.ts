@@ -1,3 +1,5 @@
+import { apiRoutes, type ApiRequestBody } from '@clube-do-jogo/data';
+
 type ClubPushTransport = {
   request(path: string, init?: RequestInit): Promise<Response>;
 };
@@ -10,9 +12,11 @@ export type ClubPushInput = {
   closedMonth?: string | null;
 };
 
-async function post(transport: ClubPushTransport, path: string, body: Record<string, string>) {
-  return await transport.request(path, {
-    method: 'POST',
+type PushPostRoute = typeof apiRoutes.pushClubGame | typeof apiRoutes.pushRewards;
+
+async function post(transport: ClubPushTransport, route: PushPostRoute, body: ApiRequestBody<'pushClubGame'> | ApiRequestBody<'pushRewards'>) {
+  return await transport.request(route.path, {
+    method: route.method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
@@ -31,10 +35,10 @@ export async function dispatchClubGamePush(getTransport: () => ClubPushTransport
     return;
   }
   const requests: Array<Promise<unknown>> = [
-    post(transport, '/api/push/club-game', { gameId: input.gameId, month: input.month }),
+    post(transport, apiRoutes.pushClubGame, { gameId: input.gameId, month: input.month } satisfies ApiRequestBody<'pushClubGame'>),
   ];
   if (input.mode === 'next' && input.closedMonth) {
-    requests.push(post(transport, '/api/push/rewards', { clubMonth: input.closedMonth }));
+    requests.push(post(transport, apiRoutes.pushRewards, { clubMonth: input.closedMonth } satisfies ApiRequestBody<'pushRewards'>));
   }
   await Promise.allSettled(requests);
 }

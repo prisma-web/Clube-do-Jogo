@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { DataSupabaseClient, Json } from './supabase';
 import {
   byChoice,
   choiceParticipants,
@@ -13,13 +13,18 @@ import {
   voteChoices,
 } from '@clube-do-jogo/domain';
 import type {
+  AdminUser,
+  AppRole,
+  ClubComment,
   ClubCycle,
+  CommentReaction,
   DiscoverItem,
   DiscoverSource,
   Game,
   GameProgress,
   GameMugshot,
   LibraryGame,
+  LocalNote,
   Profile,
   ProfileWithGames,
   ProgressStatus,
@@ -28,12 +33,15 @@ import type {
   RatingCriterion,
   RatingDetails,
   RatingMode,
+  RewardGrant,
+  StoredProgress,
   UserPlatform,
   VoteChoice,
   VoteParticipant,
   VoteReason,
 } from '@clube-do-jogo/domain';
 import { readApiJson, type ApiTransport } from './api';
+import { apiRoutes, type ApiResponse, type Unvalidated } from './api-contracts';
 import { DemoStore, type DemoVote } from './demo';
 import { DataError, requireValue, withDataErrors } from './errors';
 import type { GameMediaQuery } from './media';
@@ -151,8 +159,105 @@ export interface SessionProfile {
   isAdmin: boolean;
 }
 
+export interface SessionProfileOptions {
+  /** Ignora erros de leitura: perfil vira `null` e o cargo, membro. */
+  ignoreErrors?: boolean;
+}
+
+export interface UserGameRow {
+  userId: string;
+  gameId: string;
+}
+
+export interface VoteRowKey extends UserGameRow {
+  voteMonth: string;
+}
+
+export interface VoteRowInput extends VoteRowKey {
+  choice: VoteChoice;
+  /** `undefined` deixa a coluna fora do upsert e preserva o valor gravado. */
+  reason?: VoteReason | null;
+  /** `undefined` deixa a coluna fora do upsert e preserva o valor gravado. */
+  reasonText?: string | null;
+}
+
+export interface ProgressRowInput extends UserGameRow {
+  progress: StoredProgress;
+  updatedAt: string;
+}
+
+export interface RatingRowInput extends UserGameRow {
+  rating: number | null;
+  ratingMode: RatingMode;
+  ratingDetails: RatingDetails | null;
+}
+
+export interface UserPlatformRowInput {
+  userId: string;
+  platform: UserPlatform;
+}
+
+export interface UserPlatformRowKey {
+  userId: string;
+  igdbPlatformId: number;
+}
+
+export interface ProfileFieldsInput {
+  userId: string;
+  patch: ProfilePatch;
+}
+
+export interface GameAudienceQuery extends UserGameRow {
+  voteMonth: string;
+}
+
+export interface GameAudience {
+  voters: Profile[];
+  completed: Profile[];
+  choiceProfiles: Record<VoteChoice, VoteParticipant[]>;
+  myChoice: VoteChoice | null;
+  myReason: VoteReason | null;
+  myReasonText: string | null;
+  votedByMe: boolean;
+  completedByMe: boolean;
+  inBacklog: boolean;
+  favorite: boolean;
+}
+
+export interface CommentTimelineQuery {
+  userId: string;
+  gameId: string;
+  clubMonth: string;
+}
+
+export interface CommentRowInput {
+  userId: string;
+  gameId: string;
+  clubMonth: string;
+  parentId: string | null;
+  body: string;
+}
+
+export interface CommentReactionRowInput {
+  userId: string;
+  commentId: string;
+  emoji: string;
+  gameId: string;
+  clubMonth: string;
+  enabled: boolean;
+}
+
+export interface OwnCommentKey {
+  userId: string;
+  commentId: string;
+}
+
+export interface NoteSnapshotsQuery extends UserGameRow {
+  month: string;
+}
+
 export interface DataClientOptions {
-  supabase?: SupabaseClient | null;
+  supabase?: DataSupabaseClient | null;
   api?: ApiTransport | null;
   demo?: DemoStore;
   rankingFormula?: RankingFormula;
@@ -253,12 +358,14 @@ function dedupeDiscoveryItems(items: DiscoverItem[]) {
   });
 }
 
+// O ramo de array não existe no contrato (a rota sempre devolve `{ items, hasMore }`);
+// fica como tolerância.
 function discoveryPageFromPayload(payload: unknown): DiscoveryPage {
   if (Array.isArray(payload)) {
     return { items: dedupeDiscoveryItems(payload as DiscoverItem[]), hasMore: false };
   }
   if (!payload || typeof payload !== 'object') return { items: [], hasMore: false };
-  const record = payload as { items?: unknown; hasMore?: unknown };
+  const record = payload as Unvalidated<ApiResponse<'discover'>>;
   return {
     items: Array.isArray(record.items) ? dedupeDiscoveryItems(record.items as DiscoverItem[]) : [],
     hasMore: record.hasMore === true,
@@ -307,6 +414,17 @@ function normalizeProfilePatch(patch: ProfilePatch): ProfilePatch {
   return normalized;
 }
 
+type ProfilePatchRow = Omit<ProfilePatch, 'avatar_crop'> & { avatar_crop?: Json };
+
+/**
+ * `profiles.avatar_crop` é `Json` no banco. `AvatarCrop` é uma interface (sem
+ * assinatura de índice), então o TypeScript não a aceita como `Json`, embora
+ * seja só `{ x, y, zoom }` numéricos. Identidade em tempo de execução.
+ */
+function profilePatchRow(patch: ProfilePatch): ProfilePatchRow {
+  return patch as ProfilePatchRow;
+}
+
 function normalizePlatformInput(platform: UserPlatformInput): UserPlatformInput {
   if (!platform || typeof platform !== 'object' || Array.isArray(platform)) {
     throw new DataError('salvar console', 'Os dados do console são inválidos.');
@@ -330,6 +448,8 @@ function normalizePlatformInput(platform: UserPlatformInput): UserPlatformInput 
   };
 }
 
+// A rota devolve um array (`ApiResponse<'searchPlatforms'>`); o formato `{ items }` não
+// existe no contrato e fica só como tolerância.
 function platformItemsFromPayload(payload: unknown): UserPlatform[] {
   const rows = Array.isArray(payload)
     ? payload
@@ -350,10 +470,11 @@ function platformItemsFromPayload(payload: unknown): UserPlatform[] {
   });
 }
 
+// A rota devolve `{ mugshots }`; o ramo de array não existe no contrato e fica como tolerância.
 function mugshotsFromPayload(payload: unknown): GameMugshot[] {
   const rows = Array.isArray(payload)
     ? payload
-    : payload && typeof payload === 'object' && 'mugshots' in payload && Array.isArray((payload as { mugshots?: unknown }).mugshots)
+    : payload && typeof payload === 'object' && 'mugshots' in payload && Array.isArray((payload as Unvalidated<ApiResponse<'gameMugshots'>>).mugshots)
       ? (payload as { mugshots: unknown[] }).mugshots
       : [];
   return rows.flatMap(value => {
@@ -516,10 +637,59 @@ function libraryFromRows(
   };
 }
 
+/**
+ * O Supabase devolve `{ error }` como objeto simples. A web sempre mostrou
+ * `error.message` no aviso; este Error carrega a mesma mensagem (e code,
+ * details e hint) para quem rejeita em vez de devolver o resultado.
+ */
+function supabaseError(error: unknown): Error {
+  if (error instanceof Error) return error;
+  if (error && typeof error === 'object' && 'message' in error) {
+    return Object.assign(new Error(String((error as { message: unknown }).message)), error);
+  }
+  return new Error(String(error));
+}
+
+const REWARD_GRANTS_SELECT = 'id, reward_id, granted_at, seen_at, reward:club_rewards(id, club_month, code, kind, name, description, theme_id, image_url, cycle:club_months(month, game:games(title, image_url)))';
+
+type TimelineCommentRow = Omit<ClubComment, 'profile' | 'reactions' | 'replies'>;
+type TimelineReactionRow = { comment_id: string; emoji: string; user_id: string };
+
+function commentTimelineFromRows(
+  comments: TimelineCommentRow[],
+  reactions: TimelineReactionRow[],
+  profiles: Profile[],
+  userId: string,
+): ClubComment[] {
+  const profilesById = profileMap(profiles);
+  const reactionMap = new Map<string, Map<string, Profile[]>>();
+  reactions.forEach(reaction => {
+    if (!reactionMap.has(reaction.comment_id)) reactionMap.set(reaction.comment_id, new Map());
+    const byEmoji = reactionMap.get(reaction.comment_id)!;
+    const people = byEmoji.get(reaction.emoji) || [];
+    people.push(profilesById.get(reaction.user_id) || fallbackProfile(reaction.user_id));
+    byEmoji.set(reaction.emoji, people);
+  });
+  const mapped = comments.map((comment): ClubComment => ({
+    ...comment,
+    profile: profilesById.get(comment.user_id) || fallbackProfile(comment.user_id),
+    reactions: Array.from(reactionMap.get(comment.id)?.entries() || []).map(([emoji, users]): CommentReaction => ({ emoji, users, reactedByMe: users.some(person => person.id === userId) })),
+    replies: [],
+  }));
+  // A conversa tem só dois níveis: resposta de resposta entra na raiz.
+  const roots = mapped.filter(comment => !comment.parent_id);
+  mapped.filter(comment => comment.parent_id).forEach(reply => {
+    const direct = mapped.find(comment => comment.id === reply.parent_id);
+    const root = direct?.parent_id ? roots.find(comment => comment.id === direct.parent_id) : roots.find(comment => comment.id === reply.parent_id);
+    root?.replies.push(reply);
+  });
+  return roots;
+}
+
 export class DataClient {
   readonly demo: DemoStore;
   readonly rankingFormula: RankingFormula;
-  private readonly supabase: SupabaseClient | null;
+  private readonly supabase: DataSupabaseClient | null;
   private readonly api: ApiTransport | null;
 
   constructor(options: DataClientOptions = {}) {
@@ -570,14 +740,22 @@ export class DataClient {
     });
   }
 
-  async readSessionProfile(userId: string, isDemo: boolean): Promise<SessionProfile> {
+  private readSessionProfileRows(userId: string) {
+    const client = this.client('ler perfil');
+    return Promise.all([
+      client.from('profiles').select('*').eq('id', userId).maybeSingle(),
+      client.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
+    ]);
+  }
+
+  async readSessionProfile(userId: string, isDemo: boolean, options: SessionProfileOptions = {}): Promise<SessionProfile> {
     if (isDemo) return { profile: this.demo.readProfile(userId), isAdmin: this.demo.readRole(userId) === 'admin' };
+    if (options.ignoreErrors) {
+      const [{ data: profile }, { data: role }] = await this.readSessionProfileRows(userId);
+      return { profile: (profile as Profile | null) || null, isAdmin: role?.role === 'admin' };
+    }
     return withDataErrors('ler perfil', 'Não foi possível carregar o perfil da conta.', async () => {
-      const client = this.client('ler perfil');
-      const [{ data: profile, error: profileError }, { data: role, error: roleError }] = await Promise.all([
-        client.from('profiles').select('*').eq('id', userId).maybeSingle(),
-        client.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
-      ]);
+      const [{ data: profile, error: profileError }, { data: role, error: roleError }] = await this.readSessionProfileRows(userId);
       if (profileError) throw profileError;
       if (roleError) throw roleError;
       return { profile: profile as Profile | null, isAdmin: role?.role === 'admin' };
@@ -594,7 +772,7 @@ export class DataClient {
     return withDataErrors('atualizar perfil', 'Não foi possível atualizar seu perfil.', async () => {
       const client = await this.authenticatedClient('atualizar perfil', input.userId);
       const { data, error } = await client.from('profiles')
-        .update({ ...patch, updated_at: new Date().toISOString() })
+        .update({ ...profilePatchRow(patch), updated_at: new Date().toISOString() })
         .eq('id', input.userId)
         .select('*')
         .single();
@@ -688,12 +866,12 @@ export class DataClient {
     if (!input.gameId.trim()) throw new DataError('carregar mídia', 'O jogo não foi informado.');
     if (input.isDemo) return this.demo.readGame(input.gameId);
     return withDataErrors('carregar mídia', 'Não foi possível carregar a mídia do jogo.', async () => {
-      const payload = await readApiJson<unknown>(
+      const payload = await readApiJson<ApiResponse<'gameMedia'> | null>(
         this.transport('carregar mídia'),
-        `/api/games/${encodeURIComponent(input.gameId)}/media`,
-        { method: 'POST' },
+        apiRoutes.gameMedia.path(input.gameId),
+        { method: apiRoutes.gameMedia.method },
       );
-      return payload as Game | null;
+      return payload;
     });
   }
 
@@ -703,8 +881,8 @@ export class DataClient {
     return withDataErrors('carregar personagens', 'Não foi possível carregar os personagens do jogo.', async () => {
       const payload = await readApiJson<unknown>(
         this.transport('carregar personagens'),
-        `/api/games/${encodeURIComponent(input.gameId)}/mugshots`,
-        { method: 'GET' },
+        apiRoutes.gameMugshots.path(input.gameId),
+        { method: apiRoutes.gameMugshots.method },
       );
       return mugshotsFromPayload(payload);
     });
@@ -742,11 +920,10 @@ export class DataClient {
     if (!query) throw new DataError('buscar consoles', 'Informe um console para buscar.');
     if (input.isDemo) return this.demo.searchPlatforms(query, input.userId);
     return withDataErrors('buscar consoles', 'Não foi possível buscar consoles.', async () => {
-      const params = new URLSearchParams({ q: query });
       const payload = await readApiJson<unknown>(
         this.transport('buscar consoles'),
-        `/api/platforms/search?${params.toString()}`,
-        { method: 'GET' },
+        apiRoutes.searchPlatforms.path({ q: query }),
+        { method: apiRoutes.searchPlatforms.method },
       );
       return platformItemsFromPayload(payload);
     });
@@ -865,17 +1042,17 @@ export class DataClient {
       return this.demo.readDiscoveryPage(input.userId, input.source, filters, offset, limit);
     }
     return withDataErrors('explorar jogos', 'Não foi possível carregar a descoberta.', async () => {
-      const params = new URLSearchParams({
+      const path = apiRoutes.discover.path({
         source: input.source,
         offset: String(offset),
         limit: String(limit),
+        q: filters.search?.trim() || undefined,
+        genre: filters.genre !== undefined ? String(filters.genre) : undefined,
+        platform: filters.platform !== undefined ? String(filters.platform) : undefined,
+        year: filters.year !== undefined ? String(filters.year) : undefined,
+        month: filters.month?.trim() || undefined,
       });
-      if (filters.search?.trim()) params.set('q', filters.search.trim());
-      if (filters.genre !== undefined) params.set('genre', String(filters.genre));
-      if (filters.platform !== undefined) params.set('platform', String(filters.platform));
-      if (filters.year !== undefined) params.set('year', String(filters.year));
-      if (filters.month?.trim()) params.set('month', filters.month.trim());
-      const payload = await readApiJson<unknown>(this.transport('explorar jogos'), `/api/discover?${params.toString()}`, { method: 'GET' });
+      const payload = await readApiJson<unknown>(this.transport('explorar jogos'), path, { method: apiRoutes.discover.method });
       return discoveryPageFromPayload(payload);
     });
   }
@@ -886,8 +1063,7 @@ export class DataClient {
     if (!query) return [];
     if (input.isDemo) return this.demo.searchGames(query);
     return withDataErrors('buscar jogos', 'Não foi possível buscar jogos.', async () => {
-      const params = new URLSearchParams({ q: query });
-      const payload = await readApiJson<unknown>(this.transport('buscar jogos'), `/api/search?${params.toString()}`, { method: 'GET' });
+      const payload = await readApiJson<unknown>(this.transport('buscar jogos'), apiRoutes.searchGames.path({ q: query }), { method: apiRoutes.searchGames.method });
       return gamesFromSearchPayload(payload);
     });
   }
@@ -1032,6 +1208,235 @@ export class DataClient {
       const { error } = await client.from('favorite_games').delete().eq('user_id', input.userId).eq('game_id', input.gameId);
       if (error) throw error;
     });
+  }
+
+  // Operações no formato que a web sempre gravou e leu. Diferente dos métodos
+  // acima, estas não conferem a sessão com auth.getUser() antes da consulta e
+  // não trocam a mensagem do erro: rejeitam com a mensagem do Supabase, que é
+  // a que o aviso da web mostra. Não têm ramo demo; o chamador cuida dele.
+
+  /** Upsert do voto pela chave do voto; motivo `undefined` fica fora da gravação. */
+  async upsertVote(input: VoteRowInput): Promise<void> {
+    const { error } = await this.client('salvar voto').from('votes').upsert({
+      user_id: input.userId,
+      game_id: input.gameId,
+      vote_month: input.voteMonth,
+      choice: input.choice,
+      ...(input.reason !== undefined ? { reason: input.reason } : {}),
+      ...(input.reasonText !== undefined ? { reason_text: input.reasonText } : {}),
+    }, { onConflict: 'user_id,game_id,vote_month' });
+    if (error) throw supabaseError(error);
+  }
+
+  async deleteVote(input: VoteRowKey): Promise<void> {
+    const { error } = await this.client('remover voto').from('votes').delete()
+      .eq('user_id', input.userId)
+      .eq('game_id', input.gameId)
+      .eq('vote_month', input.voteMonth);
+    if (error) throw supabaseError(error);
+  }
+
+  async upsertBacklog(input: UserGameRow): Promise<void> {
+    const { error } = await this.client('adicionar à biblioteca').from('backlogs')
+      .upsert({ user_id: input.userId, game_id: input.gameId }, { onConflict: 'user_id,game_id' });
+    if (error) throw supabaseError(error);
+  }
+
+  async deleteBacklog(input: UserGameRow): Promise<void> {
+    const { error } = await this.client('remover da biblioteca').from('backlogs').delete()
+      .eq('user_id', input.userId)
+      .eq('game_id', input.gameId);
+    if (error) throw supabaseError(error);
+  }
+
+  async upsertFavorite(input: UserGameRow): Promise<void> {
+    const { error } = await this.client('adicionar favorito').from('favorite_games')
+      .upsert({ user_id: input.userId, game_id: input.gameId }, { onConflict: 'user_id,game_id' });
+    if (error) throw supabaseError(error);
+  }
+
+  async deleteFavorite(input: UserGameRow): Promise<void> {
+    const { error } = await this.client('remover favorito').from('favorite_games').delete()
+      .eq('user_id', input.userId)
+      .eq('game_id', input.gameId);
+    if (error) throw supabaseError(error);
+  }
+
+  /** Grava o progresso já calculado pelo chamador, sem reler a linha atual. */
+  async upsertProgress(input: ProgressRowInput): Promise<void> {
+    const { progress } = input;
+    const { error } = await this.client('salvar progresso').from('game_progress').upsert({
+      user_id: input.userId,
+      game_id: input.gameId,
+      status: progress.status,
+      rating: progress.rating,
+      rating_mode: progress.rating_mode,
+      rating_details: progress.rating_details,
+      started_at: progress.started_at,
+      finished_at: progress.finished_at,
+      updated_at: input.updatedAt,
+    }, { onConflict: 'user_id,game_id' });
+    if (error) throw supabaseError(error);
+  }
+
+  /** Atualiza só a nota de uma linha de progresso que já existe. */
+  async updateRating(input: RatingRowInput): Promise<void> {
+    const { error } = await this.client('salvar avaliação').from('game_progress')
+      .update({ rating: input.rating, rating_mode: input.ratingMode, rating_details: input.ratingDetails, updated_at: new Date().toISOString() })
+      .eq('user_id', input.userId)
+      .eq('game_id', input.gameId);
+    if (error) throw supabaseError(error);
+  }
+
+  async upsertUserPlatform(input: UserPlatformRowInput): Promise<void> {
+    const { platform } = input;
+    const { error } = await this.client('salvar console').from('user_platforms').upsert({
+      user_id: input.userId,
+      igdb_platform_id: platform.igdb_platform_id,
+      name: platform.name,
+      abbreviation: platform.abbreviation ?? null,
+      logo_url: platform.logo_url ?? null,
+    }, { onConflict: 'user_id,igdb_platform_id' });
+    if (error) throw supabaseError(error);
+  }
+
+  async deleteUserPlatform(input: UserPlatformRowKey): Promise<void> {
+    const { error } = await this.client('remover console').from('user_platforms').delete()
+      .eq('user_id', input.userId)
+      .eq('igdb_platform_id', input.igdbPlatformId);
+    if (error) throw supabaseError(error);
+  }
+
+  /** Grava o patch como veio, sem normalizar nem devolver a linha. */
+  async updateProfileFields(input: ProfileFieldsInput): Promise<void> {
+    const { error } = await this.client('atualizar perfil').from('profiles')
+      .update({ ...profilePatchRow(input.patch), updated_at: new Date().toISOString() })
+      .eq('id', input.userId);
+    if (error) throw supabaseError(error);
+  }
+
+  async readRewardGrants(userId: string): Promise<RewardGrant[]> {
+    const { data, error } = await this.client('ler recompensas')
+      .from('user_reward_grants')
+      .select(REWARD_GRANTS_SELECT)
+      .eq('user_id', userId)
+      .order('granted_at', { ascending: false });
+    if (error) throw supabaseError(error);
+    return (data || []) as unknown as RewardGrant[];
+  }
+
+  /** Votos do mês, quem terminou e a relação do usuário com o jogo. */
+  async readGameAudience(input: GameAudienceQuery): Promise<GameAudience> {
+    const client = this.client('ler participantes do jogo');
+    // Falha ao ler biblioteca ou favorito conta como "não está".
+    const [{ data: votes, error: votesError }, { data: completed, error: completedError }, { data: backlog }, { data: favorite }] = await Promise.all([
+      client.from('votes').select('user_id, choice, reason, reason_text').eq('game_id', input.gameId).eq('vote_month', input.voteMonth),
+      client.from('game_progress').select('user_id').eq('game_id', input.gameId).eq('status', 'finished'),
+      client.from('backlogs').select('id').eq('game_id', input.gameId).eq('user_id', input.userId).maybeSingle(),
+      client.from('favorite_games').select('id').eq('game_id', input.gameId).eq('user_id', input.userId).maybeSingle(),
+    ]);
+    if (votesError) throw supabaseError(votesError);
+    if (completedError) throw supabaseError(completedError);
+    const voteRows = (votes || []) as Array<{ user_id: string; choice: VoteChoice | null; reason: VoteReason | null; reason_text: string | null }>;
+    const completedRows = (completed || []) as Array<{ user_id: string }>;
+    const ids = Array.from(new Set([...voteRows.map(item => item.user_id), ...completedRows.map(item => item.user_id)]));
+    let profiles: Profile[] = [];
+    if (ids.length) {
+      const response = await client.from('profiles').select('id, name, avatar_url, avatar_crop').in('id', ids);
+      if (response.error) throw supabaseError(response.error);
+      profiles = response.data as Profile[];
+    }
+    const profilesById = profileMap(profiles);
+    const validVotes = voteRows.filter(item => isVoteChoice(item.choice));
+    const choiceProfiles = byChoice<VoteParticipant[]>(choice => validVotes
+      .filter(item => item.choice === choice)
+      .map(item => ({ ...(profilesById.get(item.user_id) || fallbackProfile(item.user_id)), reason: item.reason, reasonText: item.reason_text })));
+    const myVote = validVotes.find(item => item.user_id === input.userId);
+    return {
+      voters: choiceParticipants(choiceProfiles),
+      completed: completedRows.map(item => profilesById.get(item.user_id) || fallbackProfile(item.user_id)),
+      choiceProfiles,
+      myChoice: myVote?.choice ?? null,
+      myReason: myVote?.reason || null,
+      myReasonText: myVote?.reason_text || null,
+      votedByMe: Boolean(myVote),
+      completedByMe: completedRows.some(item => item.user_id === input.userId),
+      inBacklog: Boolean(backlog),
+      favorite: Boolean(favorite),
+    };
+  }
+
+  /** Comentários do ciclo em dois níveis, com reações e perfis. */
+  async readCommentTimeline(input: CommentTimelineQuery): Promise<ClubComment[]> {
+    const client = this.client('ler comentários');
+    const [{ data: comments, error: commentsError }, { data: reactions, error: reactionsError }] = await Promise.all([
+      client.from('club_comments').select('*').eq('game_id', input.gameId).eq('club_month', input.clubMonth).order('created_at'),
+      client.from('comment_reactions').select('comment_id, emoji, user_id').eq('game_id', input.gameId).eq('club_month', input.clubMonth),
+    ]);
+    if (commentsError) throw supabaseError(commentsError);
+    if (reactionsError) throw supabaseError(reactionsError);
+    const commentRows = (comments || []) as unknown as TimelineCommentRow[];
+    const reactionRows = (reactions || []) as unknown as TimelineReactionRow[];
+    const userIds = Array.from(new Set([...commentRows.map(comment => comment.user_id), ...reactionRows.map(reaction => reaction.user_id)]));
+    const { data: profiles, error: profilesError } = userIds.length
+      ? await client.from('profiles').select('id, name, avatar_url, avatar_crop').in('id', userIds)
+      : { data: [], error: null };
+    if (profilesError) throw supabaseError(profilesError);
+    return commentTimelineFromRows(commentRows, reactionRows, (profiles || []) as Profile[], input.userId);
+  }
+
+  /** Publica o comentário e devolve o id gravado (ou `null` se não veio). */
+  async insertComment(input: CommentRowInput): Promise<string | null> {
+    const { data, error } = await this.client('publicar comentário')
+      .from('club_comments')
+      .insert({ user_id: input.userId, game_id: input.gameId, club_month: input.clubMonth, parent_id: input.parentId, body: input.body })
+      .select('id')
+      .single();
+    if (error) throw supabaseError(error);
+    return (data as { id?: string } | null)?.id || null;
+  }
+
+  /** Liga ou desliga a reação do usuário; remover não filtra por jogo ou ciclo. */
+  async writeCommentReaction(input: CommentReactionRowInput): Promise<void> {
+    const client = this.client('salvar reação');
+    const { error } = input.enabled
+      ? await client.from('comment_reactions').insert({ comment_id: input.commentId, user_id: input.userId, emoji: input.emoji, game_id: input.gameId, club_month: input.clubMonth })
+      : await client.from('comment_reactions').delete().eq('comment_id', input.commentId).eq('user_id', input.userId).eq('emoji', input.emoji);
+    if (error) throw supabaseError(error);
+  }
+
+  async deleteOwnComment(input: OwnCommentKey): Promise<void> {
+    const { error } = await this.client('apagar comentário').from('club_comments').delete()
+      .eq('id', input.commentId)
+      .eq('user_id', input.userId);
+    if (error) throw supabaseError(error);
+  }
+
+  /** Todos os perfis com o cargo; quem não tem linha em user_roles é membro. */
+  async readMembersWithRoles(): Promise<AdminUser[]> {
+    const client = this.client('ler usuários');
+    const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }] = await Promise.all([
+      client.from('profiles').select('id, name, email, avatar_url, avatar_crop, bio, created_at').order('name'),
+      client.from('user_roles').select('user_id, role'),
+    ]);
+    if (profilesError) throw supabaseError(profilesError);
+    if (rolesError) throw supabaseError(rolesError);
+    const roleMap = new Map(((roles || []) as Array<{ user_id: string; role: string }>).map(item => [item.user_id, item.role as AppRole]));
+    return ((profiles || []) as Profile[]).map(profile => ({ ...profile, role: roleMap.get(profile.id) || 'member' })) as AdminUser[];
+  }
+
+  /** Anotações congeladas do usuário no fechamento do ciclo. */
+  async readNoteSnapshots(input: NoteSnapshotsQuery): Promise<LocalNote[]> {
+    const { data, error } = await this.client('ler anotações')
+      .from('cycle_note_snapshots')
+      .select('*')
+      .eq('user_id', input.userId)
+      .eq('cycle_month', input.month)
+      .eq('game_id', input.gameId)
+      .order('created_at');
+    if (error) throw supabaseError(error);
+    return ((data || []) as Array<{ note_id: string; user_id: string; game_id: string; body: string; image_data_url: string | null; created_at: string; updated_at: string }>)
+      .map(note => ({ id: note.note_id, userId: note.user_id, gameId: note.game_id, body: note.body, imageDataUrl: note.image_data_url || undefined, createdAt: note.created_at, updatedAt: note.updated_at } satisfies LocalNote));
   }
 
   resetDemo() {

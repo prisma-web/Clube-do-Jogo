@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ratingForScale, ratingFromScale, type RatingScale } from '@clube-do-jogo/domain';
+import { ratingCriterionLabels, ratingForScale, ratingFromScale, type RatingScale } from '@clube-do-jogo/domain';
 import type { RatingCriterion, RatingDetails, RatingMode } from '@clube-do-jogo/domain';
 import { radii, spacing, themedStyles, typography, useThemeColors } from '@/theme';
 import { useRatingScale } from '@/hooks/use-rating-scale';
@@ -11,11 +11,11 @@ import { Chip } from './Chip';
 import { Button } from './Button';
 
 const detailCriteria: Array<{ key: RatingCriterion; label: string }> = [
-  { key: 'graphics', label: 'Gráficos' },
-  { key: 'gameplay', label: 'Gameplay' },
-  { key: 'story', label: 'História' },
-  { key: 'music', label: 'Música' },
-  { key: 'fun', label: 'Diversão' },
+  { key: 'graphics', label: ratingCriterionLabels.graphics },
+  { key: 'gameplay', label: ratingCriterionLabels.gameplay },
+  { key: 'story', label: ratingCriterionLabels.story },
+  { key: 'music', label: ratingCriterionLabels.music },
+  { key: 'fun', label: ratingCriterionLabels.fun },
 ];
 
 function detailsFrom(details: RatingDetails | null | undefined, fallback: number): RatingDetails {

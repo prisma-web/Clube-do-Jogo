@@ -1,10 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@clube-do-jogo/data';
 
 /** Cliente isolado por requisição, sempre com chave pública e RLS do usuário. */
 export function createBearerClient(url: string, anonKey: string, authorization: string) {
   const token = /^Bearer\s+(\S+)$/i.exec(authorization)?.[1];
 
-  return createClient(url, anonKey, {
+  return createClient<Database>(url, anonKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

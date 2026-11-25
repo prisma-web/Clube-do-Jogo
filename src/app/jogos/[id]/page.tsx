@@ -1,13 +1,14 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
+import { apiRoutes, type ApiResponse } from '@clube-do-jogo/data';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Tabs from '@radix-ui/react-tabs';
 import { CalendarDays, CheckCircle2, Clock3, Gamepad2, Heart, ImageIcon, LayoutDashboard, ListChecks, NotebookPen, Share2, Trash2 } from 'lucide-react';
-import { byChoice, choiceParticipants, countChoices, emptyChoiceProfiles, gameCoverUrl, isVoteChoice, moveParticipant } from '@clube-do-jogo/domain';
+import { choiceParticipants, countChoices, emptyChoiceProfiles, gameCoverUrl, moveParticipant } from '@clube-do-jogo/domain';
 import { createClient } from '@/lib/supabase/client';
 import { demoRanking } from '@/lib/demo-data';
 import { fetchGame, fetchUserPlatforms } from '@/lib/data';
@@ -48,7 +49,7 @@ export default function GamePage() {
   const searchParams = useSearchParams();
   const isPreview = searchParams.get('preview') === '1';
   const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, selectedMonth, isHistorical, runOptimistic, clubRevision } = useApp();
+  const { user, isDemo, dataClient, selectedMonth, isHistorical, runOptimistic, clubRevision } = useApp();
   const voteMonth = shiftMonth(selectedMonth, 1);
   const gameQuery = useStaleQuery(`game:${params.id}`, () => fetchGame(supabase, params.id, isDemo));
   const mediaRequested = useRef(new Set<string>());
@@ -57,37 +58,7 @@ export default function GamePage() {
       const item = demoRanking().find(row => row.game.id === params.id) || demoRanking()[0];
       return { voters: item.voters, completed: item.completedBy, choiceProfiles: item.choiceProfiles, myChoice: item.myChoice, myReason: item.myReason, myReasonText: item.myReasonText, votedByMe: item.votedByMe, completedByMe: item.completedByMe, inBacklog: item.inBacklog, favorite: item.game.id === 'hollow-knight' };
     }
-    const [{ data: votes, error: votesError }, { data: completed, error: completedError }, { data: backlog }, { data: favorite }] = await Promise.all([
-      supabase.from('votes').select('user_id, choice, reason, reason_text').eq('game_id', params.id).eq('vote_month', voteMonth),
-      supabase.from('game_progress').select('user_id').eq('game_id', params.id).eq('status', 'finished'),
-      supabase.from('backlogs').select('id').eq('game_id', params.id).eq('user_id', user!.id).maybeSingle(),
-      supabase.from('favorite_games').select('id').eq('game_id', params.id).eq('user_id', user!.id).maybeSingle(),
-    ]);
-    if (votesError) throw votesError;
-    if (completedError) throw completedError;
-    const ids = Array.from(new Set([...(votes || []).map(item => item.user_id), ...(completed || []).map(item => item.user_id)]));
-    let profiles: Profile[] = [];
-    if (ids.length) {
-      const response = await supabase.from('profiles').select('id, name, avatar_url, avatar_crop').in('id', ids);
-      if (response.error) throw response.error;
-      profiles = response.data as Profile[];
-    }
-    const profileMap = new Map(profiles.map(profile => [profile.id, profile]));
-    const validVotes = (votes || []).filter(item => isVoteChoice(item.choice));
-    const choiceProfiles = byChoice<VoteParticipant[]>(choice => validVotes.filter(item => item.choice === choice).map(item => ({ ...(profileMap.get(item.user_id) || { id: item.user_id, name: 'Membro', avatar_url: null }), reason: item.reason as VoteReason | null, reasonText: item.reason_text })));
-    const myVote = validVotes.find(item => item.user_id === user!.id);
-    return {
-      voters: choiceParticipants(choiceProfiles),
-      completed: (completed || []).map(item => profileMap.get(item.user_id) || { id: item.user_id, name: 'Membro', avatar_url: null }),
-      choiceProfiles,
-      myChoice: myVote?.choice ?? null,
-      myReason: (myVote?.reason as VoteReason | null) || null,
-      myReasonText: myVote?.reason_text || null,
-      votedByMe: Boolean(myVote),
-      completedByMe: (completed || []).some(item => item.user_id === user!.id),
-      inBacklog: Boolean(backlog),
-      favorite: Boolean(favorite),
-    };
+    return dataClient.readGameAudience({ userId: user!.id, gameId: params.id, voteMonth });
   }, Boolean(user));
   const game = gameQuery.data;
   const people = peopleQuery.data || { voters: [], completed: [], choiceProfiles: emptyChoiceProfiles(), myChoice: null, myReason: null, myReasonText: null, votedByMe: false, completedByMe: false, inBacklog: false, favorite: false };
@@ -100,8 +71,8 @@ export default function GamePage() {
   useEffect(() => {
     if (isDemo || !game || ((game.screenshot_urls?.length || 0) >= 3 && game.genres?.length && game.platforms?.length && game.platform_ids?.length) || mediaRequested.current.has(game.id)) return;
     mediaRequested.current.add(game.id);
-    void apiFetch(`/api/games/${game.id}/media`, { method: 'POST' })
-      .then(response => response.ok ? response.json() : null)
+    void apiFetch(apiRoutes.gameMedia.path(game.id), { method: apiRoutes.gameMedia.method })
+      .then(response => response.ok ? response.json() as Promise<ApiResponse<'gameMedia'>> : null)
       .then(updated => { if (updated) gameQuery.setData(updated); })
       .catch(() => undefined);
   }, [game, gameQuery, isDemo]);
@@ -110,14 +81,14 @@ export default function GamePage() {
     if (!game || people.inBacklog) return;
     const next = { ...people, inBacklog: true };
     if (isDemo) peopleQuery.setData(next);
-    else await runOptimistic('Adicionando a Meus Jogos…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
+    else await runOptimistic('Adicionando a Meus Jogos…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => dataClient.upsertBacklog({ userId: user!.id, gameId: game.id }));
   }
 
   async function removeFromBacklog() {
     if (!game || !people.inBacklog) return;
     const next = { ...people, inBacklog: false };
     if (isDemo) peopleQuery.setData(next);
-    else await runOptimistic('Removendo de Meus Jogos…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => supabase.from('backlogs').delete().eq('user_id', user!.id).eq('game_id', game.id));
+    else await runOptimistic('Removendo de Meus Jogos…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => dataClient.deleteBacklog({ userId: user!.id, gameId: game.id }));
   }
 
   async function setPreference(choice: VoteChoice | null, reason?: VoteReason | null, reasonText?: string | null) {
@@ -130,10 +101,11 @@ export default function GamePage() {
       peopleQuery.setData(next);
       return;
     }
-    const request = choice
-      ? supabase.from('votes').upsert({ user_id: user!.id, game_id: game.id, vote_month: voteMonth, choice, reason: choice === 'would_not_play' ? reason : null, reason_text: choice === 'would_not_play' ? reasonText : null }, { onConflict: 'user_id,game_id,vote_month' })
-      : supabase.from('votes').delete().eq('user_id', user!.id).eq('game_id', game.id).eq('vote_month', voteMonth);
-    await runOptimistic(choice ? 'Salvando escolha…' : 'Removendo escolha…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => request);
+    const vote = { userId: user!.id, gameId: game.id, voteMonth };
+    const request = () => choice
+      ? dataClient.upsertVote({ ...vote, choice, reason: choice === 'would_not_play' ? reason : null, reasonText: choice === 'would_not_play' ? reasonText : null })
+      : dataClient.deleteVote(vote);
+    await runOptimistic(choice ? 'Salvando escolha…' : 'Removendo escolha…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), request);
   }
 
   async function toggleFavorite() {
@@ -141,10 +113,9 @@ export default function GamePage() {
     const favorite = !people.favorite;
     const next = { ...people, favorite };
     if (isDemo) { peopleQuery.setData(next); return; }
-    const request = favorite
-      ? supabase.from('favorite_games').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' })
-      : supabase.from('favorite_games').delete().eq('user_id', user!.id).eq('game_id', game.id);
-    await runOptimistic(favorite ? 'Adicionando aos favoritos…' : 'Removendo dos favoritos…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), () => request);
+    const row = { userId: user!.id, gameId: game.id };
+    const request = () => favorite ? dataClient.upsertFavorite(row) : dataClient.deleteFavorite(row);
+    await runOptimistic(favorite ? 'Adicionando aos favoritos…' : 'Removendo dos favoritos…', () => peopleQuery.setData(next), () => peopleQuery.setData(people), request);
   }
 
   async function shareGame() {

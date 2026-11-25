@@ -1,14 +1,15 @@
 'use client';
 
 import { Circle, Flag, PlayCircle } from 'lucide-react';
+import { progressStatusLabels } from '@clube-do-jogo/domain';
 import type { Game, ProgressStatus } from '@/lib/types';
 import { Dialog, DialogClose, DialogContent } from './ui/dialog';
 import { GameDialogPreview } from './game-dialog-preview';
 
 const meta = {
-  not_started: { label: 'Não iniciado', Icon: Circle },
-  started: { label: 'Comecei', Icon: PlayCircle },
-  finished: { label: 'Finalizado', Icon: Flag },
+  not_started: { label: progressStatusLabels.not_started, Icon: Circle },
+  started: { label: progressStatusLabels.started, Icon: PlayCircle },
+  finished: { label: progressStatusLabels.finished, Icon: Flag },
 } as const;
 
 export function ProgressConfirmationDialog({ open, onOpenChange, game, currentStatus, targetStatus, onConfirm }: {

@@ -4,18 +4,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { radii, spacing, themedStyles, typography, useThemeColors } from '@/theme';
 import { Sheet } from './Sheet';
 import { Button } from './Button';
-import type { VoteReason } from '@clube-do-jogo/domain';
+import { voteReasonLabels, type VoteReason } from '@clube-do-jogo/domain';
 
 export const voteReasons: Array<{ value: VoteReason; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
-  { value: 'played_before', label: 'Já joguei e não quero de novo', icon: 'refresh-outline' },
-  { value: 'cannot_run', label: 'Não consigo rodar', icon: 'desktop-outline' },
-  { value: 'too_expensive', label: 'Muito caro', icon: 'pricetag-outline' },
-  { value: 'other', label: 'Outro', icon: 'create-outline' },
+  { value: 'played_before', label: voteReasonLabels.played_before, icon: 'refresh-outline' },
+  { value: 'cannot_run', label: voteReasonLabels.cannot_run, icon: 'desktop-outline' },
+  { value: 'too_expensive', label: voteReasonLabels.too_expensive, icon: 'pricetag-outline' },
+  { value: 'other', label: voteReasonLabels.other, icon: 'create-outline' },
 ];
 
-export function voteReasonLabel(reason?: VoteReason | null) {
-  return voteReasons.find(option => option.value === reason)?.label || 'Sem motivo informado';
-}
+export { voteReasonLabel } from '@clube-do-jogo/domain';
 
 export function VoteReasonSheet({ visible, initialReason, initialText, onClose, onConfirm }: {
   visible: boolean;

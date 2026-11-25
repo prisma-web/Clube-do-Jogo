@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { DataSupabaseClient } from './supabase';
 import { demoProfiles } from '@clube-do-jogo/domain/demo';
 import { monthKey, shiftMonth } from '@clube-do-jogo/domain';
 import type { AdminUser, AppRole, ClubCycle, Game } from '@clube-do-jogo/domain';
@@ -95,7 +95,7 @@ export interface RedoClubGameChangeInput extends AdminScope {
 }
 
 export interface AdminDataClientOptions {
-  supabase?: SupabaseClient | null;
+  supabase?: DataSupabaseClient | null;
   demo?: DemoStore;
   demoScope?: string;
   now?: () => Date;
@@ -325,7 +325,7 @@ function once<T>(owner: object, key: string, task: () => Promise<T>): Promise<T>
 }
 
 export class AdminDataClient {
-  private readonly supabase: SupabaseClient | null;
+  private readonly supabase: DataSupabaseClient | null;
   private readonly demo: DemoStore;
   private readonly demoScope: string;
   private readonly now: () => Date;
@@ -339,12 +339,12 @@ export class AdminDataClient {
     this.randomId = options.randomId || (() => `demo-cycle-${this.now().getTime()}-${++demoEventSequence}`);
   }
 
-  private client(operation: string): SupabaseClient {
+  private client(operation: string): DataSupabaseClient {
     if (!this.supabase) throw new DataError(operation, 'Configure o Supabase para usar a administração.');
     return this.supabase;
   }
 
-  private async authenticatedClient(operation: string, userId: string): Promise<SupabaseClient> {
+  private async authenticatedClient(operation: string, userId: string): Promise<DataSupabaseClient> {
     const client = this.client(operation);
     const response = await client.auth.getUser();
     responseError(response);
@@ -354,7 +354,7 @@ export class AdminDataClient {
     return client;
   }
 
-  private async requireAdmin(client: SupabaseClient, operation: string): Promise<void> {
+  private async requireAdmin(client: DataSupabaseClient, operation: string): Promise<void> {
     const response = await client.rpc('is_admin');
     if (response.error) throw rpcError(operation, 'Não foi possível confirmar seu acesso administrativo.', response.error);
     if (response.data !== true) throw new DataError(operation, 'Somente administradores podem concluir esta ação.');
@@ -384,13 +384,13 @@ export class AdminDataClient {
     }
   }
 
-  private async readRole(client: SupabaseClient, targetUserId: string): Promise<AppRole> {
+  private async readRole(client: DataSupabaseClient, targetUserId: string): Promise<AppRole> {
     const response = await client.from('user_roles').select('role').eq('user_id', targetUserId).maybeSingle();
     responseError(response);
     return parseRole((response.data as { role?: unknown } | null)?.role);
   }
 
-  private async readActiveCycle(client: SupabaseClient): Promise<ActiveCycleRow | null> {
+  private async readActiveCycle(client: DataSupabaseClient): Promise<ActiveCycleRow | null> {
     const response = await client.from('club_months')
       .select('month, game_id, updated_at')
       .eq('status', 'active')
@@ -405,7 +405,7 @@ export class AdminDataClient {
     };
   }
 
-  private async readEvents(client: SupabaseClient): Promise<CycleEventRow[]> {
+  private async readEvents(client: DataSupabaseClient): Promise<CycleEventRow[]> {
     const response = await client.from('club_cycle_events')
       .select('id, cycle_month, action, previous_game_id, game_id, created_at, reverted_at, redo_invalidated_at')
       .order('created_at', { ascending: false });
@@ -416,7 +416,7 @@ export class AdminDataClient {
     });
   }
 
-  private async liveUndoPreview(client: SupabaseClient, eventId: string): Promise<ClubGameUndoPreview | null> {
+  private async liveUndoPreview(client: DataSupabaseClient, eventId: string): Promise<ClubGameUndoPreview | null> {
     const response = await client.rpc('get_club_game_undo_preview', { change_event_id: eventId });
     if (response.error) throw rpcError('pré-visualizar reversão', 'Não foi possível carregar a prévia de reversão.', response.error);
     return parseUndoPreview(response.data);

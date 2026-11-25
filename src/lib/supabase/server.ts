@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import type { Database } from '@clube-do-jogo/data';
 import { cookies, headers } from 'next/headers';
 import { createBearerClient } from './bearer';
 
@@ -12,7 +13,7 @@ export async function createClient() {
 
   const cookieStore = await cookies();
 
-  return createServerClient(
+  return createServerClient<Database>(
     url,
     anonKey,
     {

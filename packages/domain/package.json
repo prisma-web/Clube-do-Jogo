@@ -13,6 +13,9 @@
     "./ratings": "./src/ratings.ts",
     "./demo": "./src/demo.ts",
     "./themes": "./src/themes.ts",
-    "./rewards": "./src/rewards.ts"
+    "./theme-palettes": "./src/theme-palettes.ts",
+    "./theme-tokens-css": "./src/theme-tokens-css.ts",
+    "./rewards": "./src/rewards.ts",
+    "./labels": "./src/labels.ts"
   }
 }

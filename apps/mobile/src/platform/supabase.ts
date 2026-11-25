@@ -4,19 +4,20 @@ setupURLPolyfill();
 
 import { AppState, type AppStateStatus } from 'react-native';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { Database, DataSupabaseClient } from '@clube-do-jogo/data';
 import { getSupabaseConfig } from './config';
 import { nativeStorage } from './storage';
 
-let mobileClient: SupabaseClient | null | undefined;
+let mobileClient: DataSupabaseClient | null | undefined;
 
-export function getMobileSupabaseClient(): SupabaseClient | null {
+export function getMobileSupabaseClient(): DataSupabaseClient | null {
   if (mobileClient !== undefined) return mobileClient;
   const config = getSupabaseConfig();
   if (!config) {
     mobileClient = null;
     return mobileClient;
   }
-  mobileClient = createClient(config.url, config.publishableKey, {
+  mobileClient = createClient<Database>(config.url, config.publishableKey, {
     auth: {
       storage: nativeStorage,
       persistSession: true,

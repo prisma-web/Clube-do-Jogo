@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { DataSupabaseClient } from './supabase';
 import type { LocalNote } from '@clube-do-jogo/domain';
 import type { DataScope } from './client';
 import { DataError, withDataErrors } from './errors';
@@ -129,7 +129,7 @@ function cloneNote(note: LocalNote): LocalNote {
   return { ...note };
 }
 
-async function authenticatedClient(supabase: SupabaseClient, userId: string, operation: string) {
+async function authenticatedClient(supabase: DataSupabaseClient, userId: string, operation: string) {
   const auth = supabase.auth;
   if (!auth) throw new DataError(operation, 'Configure o Supabase para acessar suas anotações.');
   const { data, error } = await auth.getUser();
@@ -138,7 +138,7 @@ async function authenticatedClient(supabase: SupabaseClient, userId: string, ope
   return supabase;
 }
 
-async function readRemote(supabase: SupabaseClient, input: NotesQuery) {
+async function readRemote(supabase: DataSupabaseClient, input: NotesQuery) {
   const client = await authenticatedClient(supabase, input.userId, 'ler anotações');
   validateSnapshotMonth(input.snapshotMonth, 'ler anotações');
   if (input.snapshotMonth) {
@@ -155,7 +155,7 @@ async function readRemote(supabase: SupabaseClient, input: NotesQuery) {
   return (data || []).map(row => noteFromRow(row, input.userId, input.gameId, 'ler anotações')).filter((note): note is LocalNote => Boolean(note));
 }
 
-async function readRemoteById(supabase: SupabaseClient, input: DataScope & { gameId: string; noteId: string }) {
+async function readRemoteById(supabase: DataSupabaseClient, input: DataScope & { gameId: string; noteId: string }) {
   const client = await authenticatedClient(supabase, input.userId, 'ler anotação');
   const { data, error } = await client.from('game_notes').select('*')
     .eq('id', input.noteId).eq('user_id', input.userId).eq('game_id', input.gameId).maybeSingle();
@@ -212,7 +212,7 @@ class DemoNotesStore {
   }
 }
 
-export function createNotesClient(options: { supabase?: SupabaseClient | null; demo?: boolean } = {}): NotesClient {
+export function createNotesClient(options: { supabase?: DataSupabaseClient | null; demo?: boolean } = {}): NotesClient {
   const demo = options.demo === true;
   const demoStore = demo ? new DemoNotesStore() : null;
   const read = (input: NotesQuery) => {
@@ -220,7 +220,7 @@ export function createNotesClient(options: { supabase?: SupabaseClient | null; d
     validateSnapshotMonth(input.snapshotMonth, 'ler anotações');
     if (demo) return Promise.resolve(demoStore!.read(input));
     if (!options.supabase) return Promise.reject(new DataError('ler anotações', 'Configure o Supabase para acessar suas anotações.'));
-    return withDataErrors('ler anotações', 'Não foi possível carregar suas anotações.', () => readRemote(options.supabase as SupabaseClient, input));
+    return withDataErrors('ler anotações', 'Não foi possível carregar suas anotações.', () => readRemote(options.supabase as DataSupabaseClient, input));
   };
   const create = async (input: NewNoteInput) => {
     validateScope({ ...input, gameId: input.note?.gameId || '' }, 'criar anotação');
@@ -229,7 +229,7 @@ export function createNotesClient(options: { supabase?: SupabaseClient | null; d
     if (demo) return demoStore!.create(input);
     if (!options.supabase) throw new DataError('criar anotação', 'Configure o Supabase para acessar suas anotações.');
     return withDataErrors('criar anotação', 'Não foi possível criar a anotação.', async () => {
-      const client = await authenticatedClient(options.supabase as SupabaseClient, input.userId, 'criar anotação');
+      const client = await authenticatedClient(options.supabase as DataSupabaseClient, input.userId, 'criar anotação');
       const { data, error } = await client.from('game_notes').insert({
         id: input.note.id,
         user_id: input.note.userId,
@@ -260,7 +260,7 @@ export function createNotesClient(options: { supabase?: SupabaseClient | null; d
     if (demo) return demoStore!.update(input);
     if (!options.supabase) throw new DataError('atualizar anotação', 'Configure o Supabase para acessar suas anotações.');
     return withDataErrors('atualizar anotação', 'Não foi possível atualizar a anotação.', async () => {
-      const client = await authenticatedClient(options.supabase as SupabaseClient, input.userId, 'atualizar anotação');
+      const client = await authenticatedClient(options.supabase as DataSupabaseClient, input.userId, 'atualizar anotação');
       const { data, error } = await client.from('game_notes').update({
         body: input.note.body,
         image_data_url: input.note.imageDataUrl || null,
@@ -270,7 +270,7 @@ export function createNotesClient(options: { supabase?: SupabaseClient | null; d
       if (error) throw error;
       const note = noteFromRow(data, input.userId, input.note.gameId, 'atualizar anotação');
       if (note) return note;
-      const remote = await readRemoteById(options.supabase as SupabaseClient, {
+      const remote = await readRemoteById(options.supabase as DataSupabaseClient, {
         userId: input.userId,
         isDemo: input.isDemo,
         gameId: input.note.gameId,
@@ -289,13 +289,13 @@ export function createNotesClient(options: { supabase?: SupabaseClient | null; d
     }
     if (!options.supabase) throw new DataError('apagar anotação', 'Configure o Supabase para acessar suas anotações.');
     return withDataErrors('apagar anotação', 'Não foi possível apagar a anotação.', async () => {
-      const client = await authenticatedClient(options.supabase as SupabaseClient, input.userId, 'apagar anotação');
+      const client = await authenticatedClient(options.supabase as DataSupabaseClient, input.userId, 'apagar anotação');
       let query = client.from('game_notes').delete().eq('id', input.noteId).eq('user_id', input.userId).eq('game_id', input.gameId);
       if (input.expectedUpdatedAt) query = query.eq('updated_at', input.expectedUpdatedAt);
       const { data, error } = await query.select('id').maybeSingle();
       if (error) throw error;
       if (data || !input.expectedUpdatedAt) return;
-      const remote = await readRemoteById(options.supabase as SupabaseClient, input);
+      const remote = await readRemoteById(options.supabase as DataSupabaseClient, input);
       throw new NotesConflictError(remote ? 'changed' : 'deleted', remote);
     });
   };
@@ -313,18 +313,18 @@ export function createNotesClient(options: { supabase?: SupabaseClient | null; d
 
 export const createNotesDataClient = createNotesClient;
 
-export function readNotes(supabase: SupabaseClient, input: NotesQuery) {
+export function readNotes(supabase: DataSupabaseClient, input: NotesQuery) {
   return createNotesClient({ supabase }).read(input);
 }
 
-export function createNote(supabase: SupabaseClient, input: NewNoteInput) {
+export function createNote(supabase: DataSupabaseClient, input: NewNoteInput) {
   return createNotesClient({ supabase }).create(input);
 }
 
-export function updateNote(supabase: SupabaseClient, input: NoteUpdateInput) {
+export function updateNote(supabase: DataSupabaseClient, input: NoteUpdateInput) {
   return createNotesClient({ supabase }).update(input);
 }
 
-export function deleteNote(supabase: SupabaseClient, input: NoteDeleteInput) {
+export function deleteNote(supabase: DataSupabaseClient, input: NoteDeleteInput) {
   return createNotesClient({ supabase }).remove(input);
 }

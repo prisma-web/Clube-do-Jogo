@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { rpcArgsAcceptingNull, type DataSupabaseClient, type Json } from '@clube-do-jogo/data';
 import type { PushMessage } from './push';
 
 const DELIVERY_CLAIM_LIMIT = 25;
@@ -237,7 +237,7 @@ export function parseNativeUnlinkInput(value: unknown) {
 }
 
 export async function registerNativePushInstallation(
-  client: SupabaseClient,
+  client: DataSupabaseClient,
   input: NativeInstallationInput,
 ): Promise<NativeInstallationRegistration> {
   const { data, error } = await client.rpc('register_native_push_installation', {
@@ -254,7 +254,7 @@ export async function registerNativePushInstallation(
 }
 
 export async function unlinkNativePushInstallation(
-  client: SupabaseClient,
+  client: DataSupabaseClient,
   installationId: string,
   expoPushToken: string,
 ) {
@@ -267,7 +267,7 @@ export async function unlinkNativePushInstallation(
 }
 
 export async function enqueueNativePushNotification(
-  admin: SupabaseClient,
+  admin: DataSupabaseClient,
   eventKey: string,
   message: PushMessage,
   userIds?: string[],
@@ -275,13 +275,16 @@ export async function enqueueNativePushNotification(
 ) {
   const projectId = process.env.EXPO_PROJECT_ID;
   if (!projectId) return { queued: 0, configured: false };
-  const { data, error } = await admin.rpc('enqueue_native_push_deliveries', {
+  const { data, error } = await admin.rpc('enqueue_native_push_deliveries', rpcArgsAcceptingNull<
+    'enqueue_native_push_deliveries',
+    'target_user_ids' | 'excluded_user_id'
+  >({
     target_event_key: eventKey,
     target_project_id: projectId,
     target_message: message,
     target_user_ids: userIds ?? null,
     excluded_user_id: excludeUserId ?? null,
-  });
+  }));
   if (error) throw error;
   return { queued: Number(data ?? 0), configured: true };
 }
@@ -327,6 +330,14 @@ export function createExpoPushTransport(
   };
 }
 
+/**
+ * `raw` é o JSON devolvido pela Expo (lido com `response.json()`), tipado como
+ * `unknown` aqui. Identidade em tempo de execução; só informa ao tipo da RPC.
+ */
+function expoRawJson(value: unknown): Json {
+  return value as Json;
+}
+
 async function awaitStoreRequest<T>(request: PromiseLike<T>): Promise<T> {
   const abortable = request as PromiseLike<T> & {
     abortSignal?: (signal: AbortSignal) => PromiseLike<T>;
@@ -334,7 +345,7 @@ async function awaitStoreRequest<T>(request: PromiseLike<T>): Promise<T> {
   return await (abortable.abortSignal?.(AbortSignal.timeout(STORE_REQUEST_TIMEOUT_MS)) ?? request);
 }
 
-export function createSupabaseNativePushStore(admin: SupabaseClient, workerId: string): NativePushStore {
+export function createSupabaseNativePushStore(admin: DataSupabaseClient, workerId: string): NativePushStore {
   return {
     async claimDeliveries(limit) {
       const { data, error } = await awaitStoreRequest(admin.rpc('claim_native_push_deliveries', {
@@ -354,7 +365,10 @@ export function createSupabaseNativePushStore(admin: SupabaseClient, workerId: s
     },
     async recordTickets(outcomes) {
       await runAllWithConcurrency(outcomes, NATIVE_PUSH_STORE_WRITE_CONCURRENCY, async outcome => {
-        const { data, error } = await awaitStoreRequest(admin.rpc('record_native_push_ticket', {
+        const { data, error } = await awaitStoreRequest(admin.rpc('record_native_push_ticket', rpcArgsAcceptingNull<
+          'record_native_push_ticket',
+          'target_ticket_id' | 'target_error_code' | 'target_error_message' | 'target_retry_at'
+        >({
           target_delivery_id: outcome.delivery.deliveryId,
           target_attempt_id: outcome.delivery.attemptId,
           target_worker_id: workerId,
@@ -365,8 +379,8 @@ export function createSupabaseNativePushStore(admin: SupabaseClient, workerId: s
           target_error_message: outcome.errorMessage ?? null,
           target_retry_at: outcome.retryAt ?? null,
           target_uncertain: outcome.uncertain ?? false,
-          target_raw: outcome.raw ?? null,
-        }));
+          target_raw: expoRawJson(outcome.raw ?? null),
+        })));
         if (error) throw error;
         if (data !== true) throw new Error(`Push ticket outcome was not persisted for delivery ${outcome.delivery.deliveryId}.`);
       });
@@ -388,7 +402,10 @@ export function createSupabaseNativePushStore(admin: SupabaseClient, workerId: s
     },
     async recordReceipts(outcomes) {
       await runAllWithConcurrency(outcomes, NATIVE_PUSH_STORE_WRITE_CONCURRENCY, async outcome => {
-        const { data, error } = await awaitStoreRequest(admin.rpc('record_native_push_receipt', {
+        const { data, error } = await awaitStoreRequest(admin.rpc('record_native_push_receipt', rpcArgsAcceptingNull<
+          'record_native_push_receipt',
+          'target_error_code' | 'target_error_message' | 'target_retry_at'
+        >({
           target_delivery_id: outcome.receipt.deliveryId,
           target_attempt_id: outcome.receipt.attemptId,
           target_worker_id: workerId,
@@ -397,8 +414,8 @@ export function createSupabaseNativePushStore(admin: SupabaseClient, workerId: s
           target_error_code: outcome.errorCode ?? null,
           target_error_message: outcome.errorMessage ?? null,
           target_retry_at: outcome.retryAt ?? null,
-          target_raw: outcome.raw ?? null,
-        }));
+          target_raw: expoRawJson(outcome.raw ?? null),
+        })));
         if (error) throw error;
         if (data !== true) throw new Error(`Push receipt outcome was not persisted for delivery ${outcome.receipt.deliveryId}.`);
       });

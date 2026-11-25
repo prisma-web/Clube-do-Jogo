@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { DataSupabaseClient } from '@clube-do-jogo/data';
 import webpush from 'web-push';
 import { enqueueNativePushNotification } from './push-native';
 
@@ -21,7 +21,7 @@ export function isPushConfigured() {
   return Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT);
 }
 
-export async function sendPushNotification(admin: SupabaseClient, message: PushMessage, userIds?: string[], excludeUserId?: string) {
+export async function sendPushNotification(admin: DataSupabaseClient, message: PushMessage, userIds?: string[], excludeUserId?: string) {
   const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
   const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
   const vapidSubject = process.env.VAPID_SUBJECT;
@@ -55,7 +55,7 @@ export async function sendPushNotification(admin: SupabaseClient, message: PushM
 }
 
 export async function dispatchPushNotification(
-  admin: SupabaseClient,
+  admin: DataSupabaseClient,
   eventKey: string,
   message: PushMessage,
   userIds?: string[],
@@ -78,7 +78,7 @@ export async function dispatchPushNotification(
   };
 }
 
-export async function isAdminUser(admin: SupabaseClient, userId: string) {
+export async function isAdminUser(admin: DataSupabaseClient, userId: string) {
   const { data } = await admin.from('user_roles').select('role').eq('user_id', userId).maybeSingle();
   return data?.role === 'admin';
 }

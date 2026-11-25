@@ -1,9 +1,10 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
+import { apiRoutes, type ApiErrorBody, type ApiResponse } from '@clube-do-jogo/data';
 
 import { useMemo, useState } from 'react';
-import { selectLibraryGames, type LibraryQuickFilter, type LibrarySortMode } from '@clube-do-jogo/domain';
+import { libraryQuickFilterLabels, librarySortModeLabels, progressStatusLabels, selectLibraryGames, type LibraryQuickFilter, type LibrarySortMode } from '@clube-do-jogo/domain';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { ArrowUpDown, Check, ChevronDown, Circle, Filter, Flag, Gamepad2, Heart, Library, MoreHorizontal, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
@@ -24,25 +25,25 @@ type QuickFilter = LibraryQuickFilter;
 type SortMode = LibrarySortMode;
 
 const sortOptions: Array<[SortMode, string]> = [
-  ['updated_desc', 'Atualizados recentemente'],
-  ['updated_asc', 'Atualizados há mais tempo'],
-  ['title_asc', 'Título: A–Z'],
-  ['title_desc', 'Título: Z–A'],
-  ['duration_asc', 'Menor duração'],
-  ['duration_desc', 'Maior duração'],
-  ['rating_desc', 'Maior nota'],
-  ['rating_asc', 'Menor nota'],
+  ['updated_desc', librarySortModeLabels.updated_desc],
+  ['updated_asc', librarySortModeLabels.updated_asc],
+  ['title_asc', librarySortModeLabels.title_asc],
+  ['title_desc', librarySortModeLabels.title_desc],
+  ['duration_asc', librarySortModeLabels.duration_asc],
+  ['duration_desc', librarySortModeLabels.duration_desc],
+  ['rating_desc', librarySortModeLabels.rating_desc],
+  ['rating_asc', librarySortModeLabels.rating_asc],
 ];
 
 const quickFilters: Array<{ value: QuickFilter; label: string; Icon: typeof Library }> = [
-  { value: 'all', label: 'Todos', Icon: Library },
-  { value: 'started', label: 'Comecei', Icon: Gamepad2 },
-  { value: 'finished', label: 'Finalizados', Icon: Flag },
-  { value: 'not_started', label: 'Não iniciados', Icon: Circle },
-  { value: 'favorites', label: 'Favoritos', Icon: Heart },
+  { value: 'all', label: libraryQuickFilterLabels.all, Icon: Library },
+  { value: 'started', label: libraryQuickFilterLabels.started, Icon: Gamepad2 },
+  { value: 'finished', label: libraryQuickFilterLabels.finished, Icon: Flag },
+  { value: 'not_started', label: libraryQuickFilterLabels.not_started, Icon: Circle },
+  { value: 'favorites', label: libraryQuickFilterLabels.favorites, Icon: Heart },
 ];
 
-const statusLabel: Record<ProgressStatus, string> = { not_started: 'Não iniciado', started: 'Comecei', finished: 'Finalizado' };
+const statusLabel: Record<ProgressStatus, string> = progressStatusLabels;
 
 function rebuild(data: ProfileWithGames, library: LibraryGame[]): ProfileWithGames {
   return {
@@ -56,7 +57,7 @@ function rebuild(data: ProfileWithGames, library: LibraryGame[]): ProfileWithGam
 
 function YourGamesPanel() {
   const supabase = useMemo(() => createClient(), []);
-  const { user, isDemo, runOptimistic } = useApp();
+  const { user, isDemo, dataClient, runOptimistic } = useApp();
   const query = useStaleQuery(`profile-games:${user?.id}`, () => fetchProfileWithGames(supabase, user!.id, isDemo), Boolean(user), { staleTime: 120_000 });
   const data = query.data;
   const [listParent] = useAutoAnimate<HTMLDivElement>({ duration: 160, easing: 'cubic-bezier(.22, 1, .36, 1)' });
@@ -97,7 +98,7 @@ function YourGamesPanel() {
     const library = existing ? data.library.map(item => item.game.id === game.id ? entry : item) : [entry, ...data.library];
     const next = rebuild(data, library);
     if (isDemo) query.setData(next);
-    else await runOptimistic('Adicionando a Meus Jogos…', () => query.setData(next), () => query.setData(data), () => supabase.from('backlogs').upsert({ user_id: user!.id, game_id: game.id }, { onConflict: 'user_id,game_id' }));
+    else await runOptimistic('Adicionando a Meus Jogos…', () => query.setData(next), () => query.setData(data), () => dataClient.upsertBacklog({ userId: user!.id, gameId: game.id }));
   }
 
   async function removeFromMyGames(item: LibraryGame) {
@@ -107,7 +108,7 @@ function YourGamesPanel() {
     const next = rebuild(data, library);
     setRemoveTarget(null);
     if (isDemo) query.setData(next);
-    else await runOptimistic('Removendo de Meus Jogos…', () => query.setData(next), () => query.setData(data), () => supabase.from('backlogs').delete().eq('user_id', user!.id).eq('game_id', item.game.id));
+    else await runOptimistic('Removendo de Meus Jogos…', () => query.setData(next), () => query.setData(data), () => dataClient.deleteBacklog({ userId: user!.id, gameId: item.game.id }));
   }
 
   async function toggleFavorite(item: LibraryGame) {
@@ -116,8 +117,8 @@ function YourGamesPanel() {
     const next = rebuild(data, data.library.map(row => row.game.id === item.game.id ? { ...row, favorite, updatedAt: new Date().toISOString() } : row));
     if (isDemo) query.setData(next);
     else await runOptimistic(favorite ? 'Adicionando aos favoritos…' : 'Removendo dos favoritos…', () => query.setData(next), () => query.setData(data), () => favorite
-      ? supabase.from('favorite_games').upsert({ user_id: user!.id, game_id: item.game.id }, { onConflict: 'user_id,game_id' })
-      : supabase.from('favorite_games').delete().eq('user_id', user!.id).eq('game_id', item.game.id));
+      ? dataClient.upsertFavorite({ userId: user!.id, gameId: item.game.id })
+      : dataClient.deleteFavorite({ userId: user!.id, gameId: item.game.id }));
   }
 
   async function applyProgress() {
@@ -128,7 +129,7 @@ function YourGamesPanel() {
     const next = rebuild(data, data.library.map(row => row.game.id === item.game.id ? { ...row, progress, updatedAt: now } : row));
     setProgressTarget(null);
     if (isDemo) query.setData(next);
-    else await runOptimistic('Atualizando progresso…', () => query.setData(next), () => query.setData(data), () => supabase.from('game_progress').upsert({ user_id: user!.id, game_id: item.game.id, ...progress, updated_at: now }, { onConflict: 'user_id,game_id' }));
+    else await runOptimistic('Atualizando progresso…', () => query.setData(next), () => query.setData(data), () => dataClient.upsertProgress({ userId: user!.id, gameId: item.game.id, progress, updatedAt: now }));
   }
 
   async function searchGames(event: React.FormEvent) {
@@ -136,7 +137,7 @@ function YourGamesPanel() {
     if (!searchQuery.trim()) return;
     setSearching(true); setSearchError('');
     if (isDemo) { const { demoGames } = await import('@/lib/demo-data'); const normalized = searchQuery.toLocaleLowerCase('pt-BR'); setResults(demoGames.filter(game => game.title.toLocaleLowerCase('pt-BR').includes(normalized))); setSearching(false); return; }
-    try { const response = await apiFetch(`/api/search?q=${encodeURIComponent(searchQuery)}`); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); setResults(payload); }
+    try { const response = await apiFetch(apiRoutes.searchGames.path({ q: searchQuery })); const payload = await response.json(); if (!response.ok) throw new Error((payload as ApiErrorBody).error); setResults(payload as ApiResponse<'searchGames'>); }
     catch (value) { setSearchError(value instanceof Error ? value.message : 'Não foi possível buscar jogos.'); }
     finally { setSearching(false); }
   }
@@ -144,7 +145,7 @@ function YourGamesPanel() {
   async function searchPlatforms(event: React.FormEvent) {
     event.preventDefault(); if (!platformQuery.trim()) return; setPlatformSearching(true); setPlatformError('');
     if (isDemo) { const available: UserPlatform[] = [{ igdb_platform_id: 130, name: 'Nintendo Switch', abbreviation: 'Switch' }, { igdb_platform_id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' }, { igdb_platform_id: 167, name: 'PlayStation 5', abbreviation: 'PS5' }, { igdb_platform_id: 169, name: 'Xbox Series X|S', abbreviation: 'Xbox' }]; const normalized = platformQuery.toLocaleLowerCase('pt-BR'); setPlatformResults(available.filter(platform => platform.name.toLocaleLowerCase('pt-BR').includes(normalized))); setPlatformSearching(false); return; }
-    try { const response = await apiFetch(`/api/platforms/search?q=${encodeURIComponent(platformQuery)}`); const payload = await response.json(); if (!response.ok) throw new Error(payload.error); setPlatformResults(payload); }
+    try { const response = await apiFetch(apiRoutes.searchPlatforms.path({ q: platformQuery })); const payload = await response.json(); if (!response.ok) throw new Error((payload as ApiErrorBody).error); setPlatformResults(payload as ApiResponse<'searchPlatforms'>); }
     catch (value) { setPlatformError(value instanceof Error ? value.message : 'Não foi possível buscar consoles.'); }
     finally { setPlatformSearching(false); }
   }
@@ -152,13 +153,13 @@ function YourGamesPanel() {
   async function addPlatform(platform: UserPlatform) {
     if (!data || data.platforms.some(item => item.igdb_platform_id === platform.igdb_platform_id)) return;
     const next = { ...data, platforms: [...data.platforms, platform].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) };
-    if (isDemo) query.setData(next); else await runOptimistic('Adicionando console…', () => query.setData(next), () => query.setData(data), () => supabase.from('user_platforms').upsert({ user_id: user!.id, igdb_platform_id: platform.igdb_platform_id, name: platform.name, abbreviation: platform.abbreviation ?? null, logo_url: platform.logo_url ?? null }, { onConflict: 'user_id,igdb_platform_id' }));
+    if (isDemo) query.setData(next); else await runOptimistic('Adicionando console…', () => query.setData(next), () => query.setData(data), () => dataClient.upsertUserPlatform({ userId: user!.id, platform }));
   }
 
   async function removePlatform(platform: UserPlatform) {
     if (!data) return;
     const next = { ...data, platforms: data.platforms.filter(item => item.igdb_platform_id !== platform.igdb_platform_id) };
-    if (isDemo) query.setData(next); else await runOptimistic('Removendo console…', () => query.setData(next), () => query.setData(data), () => supabase.from('user_platforms').delete().eq('user_id', user!.id).eq('igdb_platform_id', platform.igdb_platform_id));
+    if (isDemo) query.setData(next); else await runOptimistic('Removendo console…', () => query.setData(next), () => query.setData(data), () => dataClient.deleteUserPlatform({ userId: user!.id, igdbPlatformId: platform.igdb_platform_id }));
   }
 
   return <div className="mx-auto max-w-3xl animate-fade-in">

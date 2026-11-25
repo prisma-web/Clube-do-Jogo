@@ -3,6 +3,8 @@
 import {
   GOTY_2026_CURATED_CATALOG,
   GOTY_2026_EDITION_YEAR,
+  gotyCategorySectionLabels,
+  gotyEventStatusLabels,
   type GotyBolaoSubmission,
   type GotyBolaoVote,
   type GotyCategory,
@@ -13,6 +15,7 @@ import {
   type GotySearchGameResult,
 } from '@clube-do-jogo/domain';
 import { demoGames } from '@clube-do-jogo/domain/demo';
+import { apiRoutes } from '@clube-do-jogo/data';
 
 export type GotyTab = 'bolao' | 'seu-goty';
 export type BolaoView = 'ballot' | 'leaderboard' | 'admin';
@@ -29,16 +32,16 @@ export const BALLOT_FILTER_OPTIONS: ReadonlyArray<{ id: BallotFilter; label: str
   { id: 'all', label: 'Todas' },
   { id: 'pending', label: 'Pendentes' },
   { id: 'answered', label: 'Respondidas' },
-  { id: 'main', label: 'Principais' },
-  { id: 'craft', label: 'Arte & Técnica' },
-  { id: 'genre', label: 'Gêneros' },
-  { id: 'community_esports', label: 'Comunidade & Esports' },
+  { id: 'main', label: gotyCategorySectionLabels.main },
+  { id: 'craft', label: gotyCategorySectionLabels.craft },
+  { id: 'genre', label: gotyCategorySectionLabels.genre },
+  { id: 'community_esports', label: gotyCategorySectionLabels.community_esports },
 ];
 
 export const EVENT_STATUS_OPTIONS: ReadonlyArray<{ value: GotyEventStatus; label: string; desc: string }> = [
-  { value: 'open', label: 'Aberto', desc: 'Aceita votos' },
-  { value: 'locked', label: 'Encerrado', desc: 'Bloqueia edição' },
-  { value: 'results_published', label: 'Apurado', desc: 'Resultados finais' },
+  { value: 'open', label: gotyEventStatusLabels.open.label, desc: gotyEventStatusLabels.open.description },
+  { value: 'locked', label: gotyEventStatusLabels.locked.label, desc: gotyEventStatusLabels.locked.description },
+  { value: 'results_published', label: gotyEventStatusLabels.results_published.label, desc: gotyEventStatusLabels.results_published.description },
 ];
 
 const MONTHS_LONG = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -329,12 +332,11 @@ export function searchGotyDemoCatalog(query: string, includeAllYears: boolean, l
 }
 
 export function buildSearchGamesPath(query: string, includeAllYears: boolean, limit = GOTY_SEARCH_LIMIT): string {
-  const params = new URLSearchParams({
+  return apiRoutes.gotySearchGames.path({
     q: query.trim(),
-    includeAllYears: String(includeAllYears),
+    includeAllYears: includeAllYears ? 'true' : 'false',
     limit: String(limit),
   });
-  return `/api/goty/search-games?${params.toString()}`;
 }
 
 /** Linha de metadados: "Lançamento 2026 · Ação · PS5". */

@@ -1,29 +1,32 @@
-import { NextResponse } from 'next/server';
+import type { ApiUntrustedBody } from '@clube-do-jogo/data';
+import { contractJson } from '@/lib/api-route';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { dispatchPushNotification } from '@/lib/push';
 
-type CommentRequest = { commentId?: unknown };
+const json = contractJson<'pushComment'>();
+
+type CommentRequest = ApiUntrustedBody<'pushComment'>;
 
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Nao autorizado.' }, { status: 401 });
+  if (!user) return json({ error: 'Nao autorizado.' }, { status: 401 });
 
   let body: CommentRequest;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: 'Pedido invalido.' }, { status: 400 });
+    return json({ error: 'Pedido invalido.' }, { status: 400 });
   }
   const commentId = typeof body.commentId === 'string' ? body.commentId : '';
-  if (!commentId) return NextResponse.json({ error: 'Comentario invalido.' }, { status: 400 });
+  if (!commentId) return json({ error: 'Comentario invalido.' }, { status: 400 });
 
   const { data: comment } = await supabase.from('club_comments').select('id, user_id, game_id, club_month, body').eq('id', commentId).eq('user_id', user.id).maybeSingle();
-  if (!comment) return NextResponse.json({ error: 'Comentario nao encontrado.' }, { status: 404 });
+  if (!comment) return json({ error: 'Comentario nao encontrado.' }, { status: 404 });
 
   const admin = createAdminClient();
-  if (!admin) return NextResponse.json({ sent: 0, configured: false });
+  if (!admin) return json({ sent: 0, configured: false });
 
   const [{ data: game }, { data: author }] = await Promise.all([
     admin.from('games').select('title').eq('id', comment.game_id).maybeSingle(),
@@ -39,5 +42,5 @@ export async function POST(request: Request) {
     url: '/jogo-do-mes?section=timeline',
     tag: `comment:${comment.game_id}:${comment.club_month}`,
   }, undefined, user.id);
-  return NextResponse.json(result);
+  return json(result);
 }

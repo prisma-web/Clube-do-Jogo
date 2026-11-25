@@ -1,8 +1,8 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { DataSupabaseClient } from '@clube-do-jogo/data';
 import type { Game } from './types';
 import type { IGDBGameResult } from './igdb';
 
-export async function cacheIGDBGames(supabase: SupabaseClient, games: IGDBGameResult[]): Promise<Game[]> {
+export async function cacheIGDBGames(supabase: DataSupabaseClient, games: IGDBGameResult[]): Promise<Game[]> {
   const saved: Game[] = [];
   for (const game of games) {
     const payload = {
