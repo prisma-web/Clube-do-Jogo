@@ -3,7 +3,14 @@
   "title": "A ilha tem a mesma cor em todo lugar",
   "body": "No app, o tema Animal Crossing agora usa as mesmas cores do site: o fundo verde da ilha, os cartões cor de papel e os detalhes em verde-água. Abrir o clube no celular ou no computador não muda mais o visual do seu tema.",
   "highlights": [
+    "Os botões principais do Animal Crossing ficaram num verde-água mais escuro, com o texto mais fácil de ler no site e no app.",
     "No tema NieR: Automata, os textos secundários do app ficaram um pouco mais escuros e fáceis de ler."
   ],
-  "artwork": "overview"
+  "image": {
+    "file": "animal-crossing-mesmas-cores.webp",
+    "alt": "Ranking no app com o tema Animal Crossing: fundo verde da ilha e cartão cor de papel com os votos de Hollow Knight.",
+    "width": 860,
+    "height": 500,
+    "position": "top"
+  }
 }
