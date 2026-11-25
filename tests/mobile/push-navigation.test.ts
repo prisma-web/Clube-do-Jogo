@@ -31,6 +31,32 @@ test('accepts only known internal destinations and preserves timeline intent', (
   ]) assert.equal(parsePushDestination(malicious), null);
 });
 
+test('accepts every game-of-month section and the remaining in-app destinations', () => {
+  for (const section of ['timeline', 'progress', 'notes']) {
+    assert.deepEqual(parsePushDestination(`/jogo-do-mes?section=${section}`), {
+      pathname: '/(app)/(tabs)/jogo-do-mes', params: { section },
+    });
+  }
+  assert.deepEqual(parsePushDestination('/configuracoes'), { pathname: '/(app)/configuracoes' });
+  assert.deepEqual(parsePushDestination('/seus-jogos'), { pathname: '/(app)/(tabs)/seus-jogos' });
+  assert.deepEqual(parsePushDestination('/jogos'), { pathname: '/(app)/(tabs)/jogos' });
+  // Sem tela de GOTY no app: o toque cai na home em vez de ser descartado.
+  assert.deepEqual(parsePushDestination('/goty-2026'), { pathname: '/(app)/(tabs)/jogo-do-mes' });
+  for (const rejected of [
+    '/jogo-do-mes?section=other', '/jogo-do-mes?section=notes&next=evil', '/jogo-do-mes?section=',
+    '/configuracoes?next=https://evil.test', '/seus-jogos?x=1', '/jogos?q=a', '/goty-2026?x=1',
+    '/configuracoes/extra', '/goty-2026/extra', '/seus-jogos#frag',
+  ]) assert.equal(parsePushDestination(rejected), null, rejected);
+});
+
+test('new destinations are accepted by the inbox and resolve without existence lookups', async () => {
+  const never = { game: async () => { throw new Error('unexpected'); }, profile: async () => { throw new Error('unexpected'); } };
+  for (const url of ['/jogo-do-mes?section=notes', '/configuracoes', '/seus-jogos', '/jogos', '/goty-2026']) {
+    assert.equal(new PushResponseInbox().capture(response(`n-${url}`, url)), true, url);
+    assert.ok(await resolvePushDestination(url, never));
+  }
+});
+
 test('removed game/profile destinations fall back to a recoverable home route', async () => {
   const missing = { game: async () => false, profile: async () => false };
   assert.deepEqual(await resolvePushDestination('/jogos/old-game', missing), {

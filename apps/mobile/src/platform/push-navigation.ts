@@ -1,6 +1,7 @@
-import { DEFAULT_APP_ROUTE, type PushNavIntent } from '../lib/nav-intent';
+import { DEFAULT_APP_ROUTE, type PushGameOfMonthSection, type PushNavIntent } from '../lib/nav-intent';
 import type { NativeNotificationResponse } from './push-controller';
 
+const SECTION_QUERY = /^\?section=(timeline|progress|notes)$/;
 const DEFAULT_ACTION = 'expo.modules.notifications.actions.DEFAULT';
 
 export type PushDestinationExists = {
@@ -31,13 +32,18 @@ export function parsePushDestination(rawUrl: unknown): PushNavIntent | null {
   const search = queryAt === -1 ? '' : rawUrl.slice(queryAt);
   if (pathname === '/jogo-do-mes') {
     if (!search) return { pathname: DEFAULT_APP_ROUTE };
-    return search === '?section=timeline'
-      ? { pathname: DEFAULT_APP_ROUTE, params: { section: 'timeline' } }
-      : null;
+    const section = SECTION_QUERY.exec(search)?.[1] as PushGameOfMonthSection | undefined;
+    return section ? { pathname: DEFAULT_APP_ROUTE, params: { section } } : null;
   }
   if (search) return null;
   if (pathname === '/ranking') return { pathname: '/(app)/(tabs)/ranking' };
   if (pathname === '/perfil') return { pathname: '/(app)/(tabs)/perfil' };
+  if (pathname === '/jogos') return { pathname: '/(app)/(tabs)/jogos' };
+  if (pathname === '/seus-jogos') return { pathname: '/(app)/(tabs)/seus-jogos' };
+  if (pathname === '/configuracoes') return { pathname: '/(app)/configuracoes' };
+  // O app ainda não tem a tela do GOTY. Aceitar o destino (em vez de descartar o toque) leva a
+  // pessoa à home; quando a rota existir, basta apontar este retorno para ela.
+  if (pathname === '/goty-2026') return { pathname: DEFAULT_APP_ROUTE };
   return dynamicIntent(pathname);
 }
 

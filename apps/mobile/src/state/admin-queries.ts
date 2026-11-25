@@ -15,7 +15,8 @@ import {
   type ClubGameUndoResult,
 } from '@clube-do-jogo/data';
 import type { AdminUser, AppRole, Game } from '@clube-do-jogo/domain';
-import { getMobileSupabaseClient } from '@/platform';
+import { createMobileApiTransport, getMobileSupabaseClient } from '@/platform';
+import { dispatchClubGamePush } from '@/platform/club-push';
 import { useAppInternal } from './app-provider';
 
 export type AdminRoleVariables = {
@@ -155,7 +156,17 @@ export function useSetClubGame(): UseMutationResult<ClubGameChangeResult, Error,
       requireCurrentSession(context, epoch);
       return client.setClubGame({ ...scope(context), ...input });
     },
-    onSuccess: result => invalidateCycleQueries(context, epoch, result.month),
+    onSuccess: (result, input) => {
+      if (!context.isDemo && context.isSessionCurrent(epoch)) {
+        void dispatchClubGamePush(() => createMobileApiTransport(getMobileSupabaseClient()), {
+          gameId: result.gameId,
+          month: result.month,
+          mode: input.preview.mode,
+          closedMonth: input.preview.activeCycle?.month,
+        });
+      }
+      return invalidateCycleQueries(context, epoch, result.month);
+    },
   });
 }
 
