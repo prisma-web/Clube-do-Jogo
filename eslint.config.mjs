@@ -173,6 +173,7 @@ const eslintConfig = defineConfig([
     files: [ALL_SOURCE_FILES],
     rules: {
       "@next/next/no-img-element": "off",
+      "react/no-unstable-nested-components": ["error", { allowAsProps: true }],
     },
   },
   {

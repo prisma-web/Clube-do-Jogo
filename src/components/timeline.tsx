@@ -31,8 +31,6 @@ export function Timeline({ game }: { game: Game }) {
   const [deleting, setDeleting] = useState(false);
   const [reactionTarget, setReactionTarget] = useState<ClubComment | null>(null);
   const [focusedCommentId, setFocusedCommentId] = useState<string | null>(null);
-  const reactionHold = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const suppressReactionClick = useRef(false);
   const [commentsParent] = useAutoAnimate<HTMLDivElement>({ duration: 160, easing: 'cubic-bezier(.22, 1, .36, 1)' });
 
   const query = useStaleQuery<ClubComment[]>(`comments:${game.id}:${selectedMonth}`, async () => {
@@ -110,6 +108,10 @@ export function Timeline({ game }: { game: Game }) {
     await runOptimistic(reaction?.reactedByMe ? 'Removendo reação…' : 'Adicionando reação…', () => query.setData(nextComments), () => query.setData(comments), request);
   }
 
+  function toggleReply(commentId: string) {
+    setReplyingTo(current => current === commentId ? null : commentId);
+  }
+
   async function deleteComment() {
     if (!deleteTarget || isHistorical) return;
     const { comment, rootId } = deleteTarget;
@@ -132,46 +134,6 @@ export function Timeline({ game }: { game: Game }) {
     setDeleting(false);
   }
 
-  function ReactionPicker({ comment, rootId }: { comment: ClubComment; rootId: string }) {
-    return (
-      <Popover.Root>
-        <Popover.Trigger aria-label="Adicionar reação" className="grid size-7 place-items-center rounded-full text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300"><SmilePlus className="size-3.5" /></Popover.Trigger>
-        <Popover.Portal><Popover.Content side="top" align="start" sideOffset={8} className="animated-popup z-[90] overflow-hidden rounded-2xl border border-white/10 shadow-2xl"><EmojiPicker theme={Theme.DARK} emojiStyle={EmojiStyle.NATIVE} width={Math.min(340, typeof window === 'undefined' ? 320 : window.innerWidth - 24)} height={380} previewConfig={{ showPreview: false }} searchPlaceHolder="Buscar emoji" onEmojiClick={(data: EmojiClickData) => void toggleReaction(comment, data.emoji, rootId)} /></Popover.Content></Popover.Portal>
-      </Popover.Root>
-    );
-  }
-
-  function Comment({ comment, rootId, nested = false, pathActive = false }: { comment: ClubComment; rootId: string; nested?: boolean; pathActive?: boolean }) {
-    return (
-      <article
-        className={nested ? 'thread-transmission thread-reply flex gap-2.5 rounded-2xl bg-white/[0.025] px-3 py-3' : 'thread-transmission comment-card rounded-2xl bg-white/[0.025] p-4'}
-        data-thread-active={pathActive || undefined}
-        data-thread-selected={focusedCommentId === comment.id || undefined}
-        tabIndex={0}
-        aria-label={`Focar transmissão de ${comment.profile?.name || 'membro'}`}
-        onClick={() => setFocusedCommentId(comment.id)}
-        onFocus={() => setFocusedCommentId(comment.id)}
-        onKeyDown={event => {
-          if (event.currentTarget !== event.target || (event.key !== 'Enter' && event.key !== ' ')) return;
-          event.preventDefault();
-          setFocusedCommentId(comment.id);
-        }}
-      >
-        <Avatar src={comment.profile?.avatar_url} crop={comment.profile?.avatar_crop} name={comment.profile?.name} className={`comment-avatar ${nested ? 'size-8' : 'size-9'}`} />
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-2"><span className="truncate text-xs font-extrabold text-zinc-200">{comment.profile?.name || 'Membro'}</span><time className="shrink-0 rounded-full border border-white/[0.06] bg-white/[0.045] px-2 py-1 text-[10px] font-semibold text-zinc-400">{formatDateTime(comment.created_at)}</time></div>
-          <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-300">{comment.body}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {comment.reactions.map(reaction => <button key={reaction.emoji} data-active={reaction.reactedByMe} onPointerDown={() => { reactionHold.current = setTimeout(() => { suppressReactionClick.current = true; setReactionTarget(comment); }, 520); }} onPointerUp={() => { if (reactionHold.current) clearTimeout(reactionHold.current); }} onPointerCancel={() => { if (reactionHold.current) clearTimeout(reactionHold.current); }} onPointerLeave={() => { if (reactionHold.current) clearTimeout(reactionHold.current); }} onClick={event => { if (suppressReactionClick.current) { event.preventDefault(); suppressReactionClick.current = false; return; } void toggleReaction(comment, reaction.emoji, rootId); }} title={reaction.users.map(person => person.name).join(', ')} className={`comment-reaction inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs transition active:scale-95 ${reaction.reactedByMe ? 'border-violet-400/35 bg-violet-500/15 text-violet-200' : 'border-white/8 bg-white/[0.035] text-zinc-400'}`}><span>{reaction.emoji}</span><span className="text-[10px] font-bold">{reaction.users.length}</span></button>)}
-            {!isHistorical && <ReactionPicker comment={comment} rootId={rootId} />}
-            {!nested && !isHistorical && <button onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="ml-1 inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[10px] font-bold text-zinc-500 hover:bg-white/5 hover:text-zinc-300"><CornerDownRight className="size-3" />Responder</button>}
-            {!isHistorical && comment.user_id === user!.id && <button type="button" onClick={() => setDeleteTarget({ comment, rootId })} aria-label="Apagar comentário" title="Apagar comentário" className="ml-auto grid size-7 place-items-center rounded-full text-zinc-600 transition hover:bg-red-500/10 hover:text-red-300"><Trash2 className="size-3.5" /></button>}
-          </div>
-        </div>
-      </article>
-    );
-  }
-
   return <>
     <div ref={commentsParent} className="space-y-4">
       {!isHistorical && <div className="comment-composer rounded-2xl bg-white/[0.025] p-3"><div className="flex items-start gap-3"><Avatar src={profile?.avatar_url} crop={profile?.avatar_crop} name={profile?.name} className="comment-avatar size-9" /><textarea value={body} onChange={event => setBody(event.target.value)} rows={2} placeholder="O que você está achando do jogo?" className="min-h-16 min-w-0 flex-1 resize-none bg-transparent py-1 text-sm leading-relaxed outline-none placeholder:text-zinc-600" /></div><div className="mt-2 flex justify-end"><button disabled={!body.trim() || sending} onClick={() => void post(null)} className="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-xl bg-violet-600 px-4 text-xs font-bold transition active:scale-95 disabled:bg-zinc-800 disabled:text-zinc-600"><Send className="size-3.5" />Comentar</button></div></div>}
@@ -181,8 +143,8 @@ export function Timeline({ game }: { game: Game }) {
         const pathActive = focusedCommentId === comment.id || Boolean(focusedReply);
         return (
         <div key={comment.id} className="thread-group" data-thread-path-active={pathActive || undefined}>
-          <Comment comment={comment} rootId={comment.id} pathActive={pathActive} />
-          {(comment.replies.length > 0 || replyingTo === comment.id) && <div className="thread-branch ml-9 mt-3 space-y-2 pl-4 sm:ml-12">{comment.replies.map(reply => <div key={reply.id} className="thread-path" data-thread-path-active={focusedCommentId === reply.id || undefined}><NomaiThreadConnector active={focusedCommentId === reply.id} className="nomai-thread-connector" /><Comment comment={reply} rootId={comment.id} nested pathActive={focusedCommentId === reply.id} /></div>)}
+          <Comment comment={comment} rootId={comment.id} pathActive={pathActive} selectedCommentId={focusedCommentId} currentUserId={user!.id} isHistorical={isHistorical} onSelect={setFocusedCommentId} onReact={toggleReaction} onToggleReply={toggleReply} onDelete={setDeleteTarget} onShowReactions={setReactionTarget} />
+          {(comment.replies.length > 0 || replyingTo === comment.id) && <div className="thread-branch ml-9 mt-3 space-y-2 pl-4 sm:ml-12">{comment.replies.map(reply => <div key={reply.id} className="thread-path" data-thread-path-active={focusedCommentId === reply.id || undefined}><NomaiThreadConnector active={focusedCommentId === reply.id} className="nomai-thread-connector" /><Comment comment={reply} rootId={comment.id} nested pathActive={focusedCommentId === reply.id} selectedCommentId={focusedCommentId} currentUserId={user!.id} isHistorical={isHistorical} onSelect={setFocusedCommentId} onReact={toggleReaction} onToggleReply={toggleReply} onDelete={setDeleteTarget} onShowReactions={setReactionTarget} /></div>)}
             {replyingTo === comment.id && <div className="mt-2 flex items-center gap-2"><input autoFocus value={replyBody} onChange={event => setReplyBody(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void post(comment.id); }} placeholder={`Responder a ${comment.profile?.name || 'membro'}…`} className="h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3 text-xs outline-none focus:border-violet-500" /><button aria-label="Enviar resposta" disabled={!replyBody.trim()} onClick={() => void post(comment.id)} className="grid size-10 shrink-0 place-items-center rounded-xl bg-violet-600 disabled:bg-zinc-800"><Send className="size-3.5" /></button></div>}
           </div>}
         </div>
@@ -209,4 +171,63 @@ export function Timeline({ game }: { game: Game }) {
       </Dialog.Portal>
     </Dialog.Root>
   </>;
+}
+
+type ReactToComment = (comment: ClubComment, emoji: string, rootId: string) => void;
+
+function ReactionPicker({ comment, rootId, onReact }: { comment: ClubComment; rootId: string; onReact: ReactToComment }) {
+  return (
+    <Popover.Root>
+      <Popover.Trigger aria-label="Adicionar reação" className="grid size-7 place-items-center rounded-full text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300"><SmilePlus className="size-3.5" /></Popover.Trigger>
+      <Popover.Portal><Popover.Content side="top" align="start" sideOffset={8} className="animated-popup z-[90] overflow-hidden rounded-2xl border border-white/10 shadow-2xl"><EmojiPicker theme={Theme.DARK} emojiStyle={EmojiStyle.NATIVE} width={Math.min(340, typeof window === 'undefined' ? 320 : window.innerWidth - 24)} height={380} previewConfig={{ showPreview: false }} searchPlaceHolder="Buscar emoji" onEmojiClick={(data: EmojiClickData) => onReact(comment, data.emoji, rootId)} /></Popover.Content></Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+function Comment({ comment, rootId, nested = false, pathActive = false, selectedCommentId, currentUserId, isHistorical, onSelect, onReact, onToggleReply, onDelete, onShowReactions }: {
+  comment: ClubComment;
+  rootId: string;
+  nested?: boolean;
+  pathActive?: boolean;
+  selectedCommentId: string | null;
+  currentUserId: string;
+  isHistorical: boolean;
+  onSelect: (commentId: string) => void;
+  onReact: ReactToComment;
+  onToggleReply: (commentId: string) => void;
+  onDelete: (target: { comment: ClubComment; rootId: string }) => void;
+  onShowReactions: (comment: ClubComment) => void;
+}) {
+  const reactionHold = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressReactionClick = useRef(false);
+  const cancelReactionHold = () => { if (reactionHold.current) clearTimeout(reactionHold.current); };
+
+  return (
+    <article
+      className={nested ? 'thread-transmission thread-reply flex gap-2.5 rounded-2xl bg-white/[0.025] px-3 py-3' : 'thread-transmission comment-card rounded-2xl bg-white/[0.025] p-4'}
+      data-thread-active={pathActive || undefined}
+      data-thread-selected={selectedCommentId === comment.id || undefined}
+      tabIndex={0}
+      aria-label={`Focar transmissão de ${comment.profile?.name || 'membro'}`}
+      onClick={() => onSelect(comment.id)}
+      onFocus={() => onSelect(comment.id)}
+      onKeyDown={event => {
+        if (event.currentTarget !== event.target || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        onSelect(comment.id);
+      }}
+    >
+      <Avatar src={comment.profile?.avatar_url} crop={comment.profile?.avatar_crop} name={comment.profile?.name} className={`comment-avatar ${nested ? 'size-8' : 'size-9'}`} />
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-2"><span className="truncate text-xs font-extrabold text-zinc-200">{comment.profile?.name || 'Membro'}</span><time className="shrink-0 rounded-full border border-white/[0.06] bg-white/[0.045] px-2 py-1 text-[10px] font-semibold text-zinc-400">{formatDateTime(comment.created_at)}</time></div>
+        <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-300">{comment.body}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {comment.reactions.map(reaction => <button key={reaction.emoji} data-active={reaction.reactedByMe} onPointerDown={() => { reactionHold.current = setTimeout(() => { suppressReactionClick.current = true; onShowReactions(comment); }, 520); }} onPointerUp={cancelReactionHold} onPointerCancel={cancelReactionHold} onPointerLeave={cancelReactionHold} onClick={event => { if (suppressReactionClick.current) { event.preventDefault(); suppressReactionClick.current = false; return; } onReact(comment, reaction.emoji, rootId); }} title={reaction.users.map(person => person.name).join(', ')} className={`comment-reaction inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs transition active:scale-95 ${reaction.reactedByMe ? 'border-violet-400/35 bg-violet-500/15 text-violet-200' : 'border-white/8 bg-white/[0.035] text-zinc-400'}`}><span>{reaction.emoji}</span><span className="text-[10px] font-bold">{reaction.users.length}</span></button>)}
+          {!isHistorical && <ReactionPicker comment={comment} rootId={rootId} onReact={onReact} />}
+          {!nested && !isHistorical && <button onClick={() => onToggleReply(comment.id)} className="ml-1 inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[10px] font-bold text-zinc-500 hover:bg-white/5 hover:text-zinc-300"><CornerDownRight className="size-3" />Responder</button>}
+          {!isHistorical && comment.user_id === currentUserId && <button type="button" onClick={() => onDelete({ comment, rootId })} aria-label="Apagar comentário" title="Apagar comentário" className="ml-auto grid size-7 place-items-center rounded-full text-zinc-600 transition hover:bg-red-500/10 hover:text-red-300"><Trash2 className="size-3.5" /></button>}
+        </div>
+      </div>
+    </article>
+  );
 }
