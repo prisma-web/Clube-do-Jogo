@@ -16,10 +16,18 @@ export const themeColorTokens = [
 
 export type ThemeColorToken = (typeof themeColorTokens)[number];
 
-export interface PlatformThemeColor {
-  readonly app: string | null;
-  readonly web: string | null;
-}
+export const platformDivergenceReasons = {
+  opaqueSurfaceWithoutBackdropBlur: 'Na web o surface é translúcido e fica sobre a cena do tema com backdrop blur. O React Native não tem esse blur, então o app usa o mesmo RGB opaco para o texto continuar legível sobre a cena.',
+  borderInsteadOfLayeredShadow: 'Na web os cards do tema se separam do fundo por uma sombra em camadas (--theme-shadow) e a borda é transparente. O app não desenha essa sombra, então mantém uma borda visível.',
+  nativeSecondaryTextContrast: 'No app este tom pinta placeholders e ícones sobre o surface escuro. O valor mais claro mantém contraste em torno de 4:1, onde o da web fica perto de 3:1.',
+} as const;
+
+export type PlatformDivergenceReason = keyof typeof platformDivergenceReasons;
+
+export type PlatformThemeColor =
+  | { readonly app: string; readonly web: null }
+  | { readonly app: null; readonly web: string }
+  | { readonly app: string; readonly web: string; readonly reason: PlatformDivergenceReason };
 
 export type ThemeColorValue = string | PlatformThemeColor;
 export type ThemePaletteSource = { readonly [Token in ThemeColorToken]?: ThemeColorValue };
@@ -30,6 +38,10 @@ function appOnly(app: string): PlatformThemeColor {
 
 function webOnly(web: string): PlatformThemeColor {
   return { app: null, web };
+}
+
+function divergent(reason: PlatformDivergenceReason, app: string, web: string): PlatformThemeColor {
+  return { app, web, reason };
 }
 
 export const themePaletteSource = {
@@ -102,7 +114,7 @@ export const themePaletteSource = {
     zinc300: '#c5b99e',
     zinc400: '#a79f8b',
     zinc500: '#8f8878',
-    zinc600: { app: '#7c7461', web: '#575348' },
+    zinc600: divergent('nativeSecondaryTextContrast', '#7c7461', '#575348'),
     zinc700: '#3d4037',
     zinc800: '#252d27',
     zinc900: '#152019',
@@ -153,7 +165,7 @@ export const themePaletteSource = {
     zinc200: webOnly('#4b413d'),
     zinc300: '#594e4a',
     zinc400: '#5e5550',
-    zinc500: { app: '#6b615b', web: '#574e49' },
+    zinc500: '#574e49',
     zinc600: '#7c7268',
     zinc700: '#b0ab98',
     zinc800: '#c3bda8',
@@ -183,20 +195,20 @@ export const themePaletteSource = {
     black: appOnly('#000000'),
   },
   crossing: {
-    background: { app: '#e7dcc0', web: '#d8edce' },
-    foreground: { app: '#4d6258', web: '#3f5f56' },
-    surface: { app: '#f7eccf', web: '#fff8df' },
-    surfaceSoft: { app: '#f2e4c5', web: '#f6edcf' },
+    background: '#d8edce',
+    foreground: '#3f5f56',
+    surface: '#fff8df',
+    surfaceSoft: '#f6edcf',
     surfaceSofter: appOnly('#f6ead0'),
-    surfaceDeep: { app: '#e8d9b8', web: '#ebe2bd' },
+    surfaceDeep: '#ebe2bd',
     card: appOnly('#f9efd6'),
-    hairline: { app: 'rgb(119 84 57 / 16%)', web: 'transparent' },
+    hairline: divergent('borderInsteadOfLayeredShadow', 'rgb(119 84 57 / 16%)', 'transparent'),
     hairlineSoft: appOnly('rgb(119 84 57 / 10%)'),
     violet200: webOnly('#e8fff9'),
-    violet300: { app: '#08756d', web: '#2f8176' },
-    violet400: { app: '#07968c', web: '#27998c' },
-    violet500: { app: '#08aaa0', web: '#45ab9e' },
-    violet600: { app: '#087a73', web: '#3d998d' },
+    violet300: '#2f8176',
+    violet400: '#27998c',
+    violet500: '#45ab9e',
+    violet600: '#2f8176',
     violet700: webOnly('#2e746b'),
     violet950: webOnly('#164a45'),
     fuchsia600: '#75b94e',
@@ -204,22 +216,22 @@ export const themePaletteSource = {
     zinc50: webOnly('#35564e'),
     zinc100: webOnly('#3d5d54'),
     zinc200: webOnly('#45645b'),
-    zinc300: { app: '#596e63', web: '#506e65' },
-    zinc400: { app: '#687c71', web: '#617b72' },
-    zinc500: { app: '#77897e', web: '#6e837a' },
-    zinc600: { app: '#819187', web: '#91a096' },
-    zinc700: { app: '#c3cdbd', web: '#c4cfbb' },
-    zinc800: { app: '#e3e8d9', web: '#e6e8ce' },
-    zinc900: { app: '#f5f4e5', web: '#f5efd3' },
-    zinc950: { app: '#fffaf0', web: '#fff8df' },
+    zinc300: '#506e65',
+    zinc400: '#617b72',
+    zinc500: '#6e837a',
+    zinc600: '#91a096',
+    zinc700: '#c4cfbb',
+    zinc800: '#e6e8ce',
+    zinc900: '#f5efd3',
+    zinc950: '#fff8df',
     amber200: '#7a4824',
-    amber300: { app: '#a86b35', web: '#c07b42' },
-    amber400: { app: '#cf8e4c', web: '#aa682e' },
+    amber300: '#c07b42',
+    amber400: '#aa682e',
     amber500: webOnly('#d79b52'),
     amber950: appOnly('#4b2c12'),
-    emerald300: { app: '#3d7f2d', web: '#3f8b52' },
-    emerald400: { app: '#397b2b', web: '#37834a' },
-    emerald500: { app: '#4f9138', web: '#60a95b' },
+    emerald300: '#3f8b52',
+    emerald400: '#37834a',
+    emerald500: '#60a95b',
     sky200: webOnly('#347b91'),
     sky400: '#3c94aa',
     red300: '#a92f35',
@@ -227,18 +239,18 @@ export const themePaletteSource = {
     red500: '#c63f44',
     red600: '#ac2e34',
     pink400: appOnly('#d3607e'),
-    supportVote: { app: '#56bfb1', web: '#4eafa2' },
-    supportCompleted: { app: '#86c673', web: '#72b86a' },
-    supportBacklog: { app: '#78b8cc', web: '#6ab6c7' },
-    supportDanger: { app: '#d26f78', web: '#dc796f' },
-    primaryOn: { app: '#fffaf0', web: '#ffffff' },
+    supportVote: '#4eafa2',
+    supportCompleted: '#72b86a',
+    supportBacklog: '#6ab6c7',
+    supportDanger: '#dc796f',
+    primaryOn: '#ffffff',
     white: appOnly('#ffffff'),
     black: appOnly('#000000'),
   },
   ori: {
     background: '#030a16',
     foreground: '#e8fbff',
-    surface: { app: '#06182a', web: 'rgb(6 24 42 / 88%)' },
+    surface: divergent('opaqueSurfaceWithoutBackdropBlur', '#06182a', 'rgb(6 24 42 / 88%)'),
     surfaceSoft: 'rgb(105 215 240 / 7%)',
     surfaceSofter: appOnly('rgb(105 215 240 / 4.5%)'),
     surfaceDeep: 'rgb(1 8 18 / 52%)',
@@ -260,7 +272,7 @@ export const themePaletteSource = {
     zinc300: '#a8ccd3',
     zinc400: '#7faab4',
     zinc500: '#648d99',
-    zinc600: { app: '#557b89', web: '#416878' },
+    zinc600: divergent('nativeSecondaryTextContrast', '#557b89', '#416878'),
     zinc700: '#29495a',
     zinc800: '#143246',
     zinc900: '#091f33',
@@ -291,7 +303,7 @@ export const themePaletteSource = {
   'cosmic-campfire': {
     background: '#010205',
     foreground: '#f3ead9',
-    surface: { app: '#060a0e', web: 'rgb(6 10 14 / 91%)' },
+    surface: divergent('opaqueSurfaceWithoutBackdropBlur', '#060a0e', 'rgb(6 10 14 / 91%)'),
     surfaceSoft: 'rgb(225 235 232 / 5.5%)',
     surfaceSofter: appOnly('rgb(225 235 232 / 3.5%)'),
     surfaceDeep: 'rgb(0 2 5 / 66%)',
@@ -313,7 +325,7 @@ export const themePaletteSource = {
     zinc300: '#c5b8a4',
     zinc400: '#a99d8c',
     zinc500: '#857e73',
-    zinc600: { app: '#7a746c', web: '#65625d' },
+    zinc600: divergent('nativeSecondaryTextContrast', '#7a746c', '#65625d'),
     zinc700: '#44494a',
     zinc800: '#28333a',
     zinc900: '#13232d',

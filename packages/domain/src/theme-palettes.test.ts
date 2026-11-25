@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { formatThemeColor, parseThemeColor, resolveThemePalette, themeColorTokens, themePaletteSource, webThemeColorProperty } from './theme-palettes';
+import { formatThemeColor, parseThemeColor, platformDivergenceReasons, resolveThemePalette, themeColorTokens, themePaletteSource, webThemeColorProperty } from './theme-palettes';
 import { renderThemeTokensCss, THEME_TOKENS_CSS_PATH, THEME_TOKENS_GENERATE_COMMAND } from './theme-tokens-css';
 import { themes } from './themes';
 
@@ -24,6 +24,7 @@ test('todo valor é uma cor válida e pares por plataforma só existem para dive
       assert.ok(value.app !== null || value.web !== null, `${themeId}.${token} não define nenhuma plataforma`);
       if (value.app !== null && value.web !== null) {
         assert.notDeepEqual(parseThemeColor(value.app), parseThemeColor(value.web), `${themeId}.${token} é igual nas duas plataformas: use um valor único`);
+        assert.ok('reason' in value && value.reason in platformDivergenceReasons, `${themeId}.${token} diverge entre web e app sem motivo documentado`);
       }
     }
   }
