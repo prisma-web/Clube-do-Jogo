@@ -29,6 +29,7 @@ import { useAppInternal } from './app-provider';
 import {
   clearConflict,
   createConflicts,
+  createFlushGate,
   createQueue,
   dequeue as dequeueNote,
   enqueue as enqueueNote,
@@ -40,6 +41,7 @@ import {
   type PendingLocalNote,
   type PendingNotesQueue,
 } from './notes-queue';
+import { refetchNotesAfterWrite } from './notes-refresh';
 
 export { mergePendingIntoList, type NoteConflict, type PendingLocalNote, type PendingNotesQueue } from './notes-queue';
 
@@ -688,7 +690,8 @@ export function useNotesPendingQueue(gameId: string): NotesPendingQueueState {
   const [corruptionError, setCorruptionError] = React.useState<Error | null>(null);
   const queueRef = React.useRef(queue);
   const conflictsRef = React.useRef(conflicts);
-  const flushingRef = React.useRef(new Set<string>());
+  // Sends awaiting the network, plus the triggers that arrived meanwhile (createFlushGate).
+  const flushGateRef = React.useRef(createFlushGate());
 
   const applyQueue = React.useCallback((next: PendingNotesQueue) => {
     queueRef.current = next;
@@ -731,32 +734,35 @@ export function useNotesPendingQueue(gameId: string): NotesPendingQueueState {
     return () => { cancelled = true; };
   }, [context, context.ready, epoch, key, userId]);
 
-  const flushOne = React.useCallback(async (noteId: string) => {
-    if (!context.isSessionCurrent(epoch) || flushingRef.current.has(noteId) || conflictsRef.current.has(noteId)) return;
-    const entry = queueRef.current.get(noteId);
-    if (!entry) return;
-    flushingRef.current.add(noteId);
-    try {
-      const resolvedUserId = requireUser(context.userId);
-      if (entry.origin === 'update') {
-        await client.update({ userId: resolvedUserId, isDemo: context.isDemo, note: entry.note, expectedUpdatedAt: entry.expectedUpdatedAt || entry.note.updatedAt });
-      } else {
-        await client.create({ userId: resolvedUserId, isDemo: context.isDemo, note: entry.note });
+  const flushOne = React.useCallback(async (noteId: string): Promise<void> => {
+    // One pass per send. A trigger that arrived while a send awaited (createFlushGate) runs one
+    // more pass right after it settles, in the same tick: a dequeued or conflicted note stops there.
+    for (let again = true; again;) {
+      if (!context.isSessionCurrent(epoch) || conflictsRef.current.has(noteId)) return;
+      const entry = queueRef.current.get(noteId);
+      if (!entry || !flushGateRef.current.begin(noteId)) return;
+      try {
+        const resolvedUserId = requireUser(context.userId);
+        if (entry.origin === 'update') {
+          await client.update({ userId: resolvedUserId, isDemo: context.isDemo, note: entry.note, expectedUpdatedAt: entry.expectedUpdatedAt || entry.note.updatedAt });
+        } else {
+          await client.create({ userId: resolvedUserId, isDemo: context.isDemo, note: entry.note });
+        }
+        if (!context.isSessionCurrent(epoch)) return;
+        applyQueue(dequeueNote(queueRef.current, noteId));
+        applyConflicts(clearConflict(conflictsRef.current, noteId));
+        void refetchNotesAfterWrite(context.queryClient, notesKey(context, gameId, null));
+      } catch (error) {
+        if (!context.isSessionCurrent(epoch)) return;
+        if (error instanceof NotesConflictError) {
+          applyConflicts(markConflict(conflictsRef.current, noteId, error.kind === 'changed' && error.remote
+            ? { kind: 'changed', local: entry.note, remote: error.remote }
+            : { kind: 'deleted', local: entry.note }));
+        }
+        applyQueue(markAttempt(queueRef.current, noteId, error instanceof Error ? error.message : 'Não foi possível enviar a anotação.'));
+      } finally {
+        again = flushGateRef.current.finish(noteId);
       }
-      if (!context.isSessionCurrent(epoch)) return;
-      applyQueue(dequeueNote(queueRef.current, noteId));
-      applyConflicts(clearConflict(conflictsRef.current, noteId));
-      void context.queryClient.invalidateQueries({ queryKey: notesKey(context, gameId, null) });
-    } catch (error) {
-      if (!context.isSessionCurrent(epoch)) return;
-      if (error instanceof NotesConflictError) {
-        applyConflicts(markConflict(conflictsRef.current, noteId, error.kind === 'changed' && error.remote
-          ? { kind: 'changed', local: entry.note, remote: error.remote }
-          : { kind: 'deleted', local: entry.note }));
-      }
-      applyQueue(markAttempt(queueRef.current, noteId, error instanceof Error ? error.message : 'Não foi possível enviar a anotação.'));
-    } finally {
-      flushingRef.current.delete(noteId);
     }
   }, [applyConflicts, applyQueue, client, context, epoch, gameId]);
 

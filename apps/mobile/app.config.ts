@@ -87,6 +87,8 @@ const config: ExpoConfig = {
     './plugins/withUISceneLifecycle',
     // Assina o release com a keystore de ANDROID_KEYSTORE_PATH quando ela é informada no build.
     './plugins/withReleaseSigning',
+    // Timeouts e ping HTTP/2 no OkHttp do fetch: sem eles um pedido numa rede que sumiu nunca termina.
+    './plugins/withNetworkTimeouts',
     ['expo-build-properties', { android: { usesCleartextTraffic: localHttp } }],
     ['expo-audio', { microphonePermission: false, recordAudioAndroid: false, enableBackgroundPlayback: false, enableBackgroundRecording: false }],
     ['expo-notifications', { defaultChannel: 'default', color: '#8b5cf6', enableBackgroundRemoteNotifications: false }],
