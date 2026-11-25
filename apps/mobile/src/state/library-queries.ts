@@ -16,6 +16,7 @@ import type {
 } from '@clube-do-jogo/domain';
 import { shiftMonth } from '@clube-do-jogo/domain';
 import { useAppInternal } from './app-provider';
+import { progressQueryKey } from './queries';
 
 const DISCOVERY_PAGE_SIZE = 24;
 
@@ -31,12 +32,10 @@ function requireUser(userId: string | null) {
   return userId;
 }
 
-function requireLive(isHistorical: boolean) {
-  if (isHistorical) throw new Error('O histórico é somente leitura.');
-}
-
+// Ratings always write the live progress row; the historical Jogo do Mês snapshot
+// stays read-only in its UI (parity with the web).
 function progressKey(context: ReturnType<typeof useAppInternal>, gameId: string) {
-  return ['progress', context.sessionEpoch, context.userId, context.selectedMonth, context.isHistorical, gameId, context.isDemo] as const;
+  return progressQueryKey(context, gameId, null);
 }
 
 function libraryKey(context: ReturnType<typeof useAppInternal>) {
@@ -149,18 +148,16 @@ export function useSetRating(): UseMutationResult<void, Error, RatingVariables> 
   return useMutation<void, Error, RatingVariables, RatingRollback>({
     mutationFn: input => {
       if (!context.isSessionCurrent(epoch)) throw new Error('Sua sessão mudou. Tente novamente.');
-      requireLive(context.isHistorical);
       return context.dataClient.setRating({
         userId: requireUser(context.userId),
         isDemo: context.isDemo,
-        historical: context.isHistorical,
+        historical: false,
         ...input,
       });
     },
     onMutate: async input => {
       if (!context.isSessionCurrent(epoch)) throw new Error('Sua sessão mudou. Tente novamente.');
       const currentUserId = requireUser(context.userId);
-      requireLive(context.isHistorical);
       const progressKeyForGame = progressKey(context, input.gameId);
       await Promise.all([
         context.queryClient.cancelQueries({ queryKey: progressKeyForGame }),

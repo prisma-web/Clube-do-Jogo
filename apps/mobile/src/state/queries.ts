@@ -77,8 +77,15 @@ function libraryKey(context: ReturnType<typeof useAppInternal>, profileId: strin
   return ['library', context.sessionEpoch, context.userId, profileId, shiftMonth(context.selectedMonth, 1), context.isDemo] as const;
 }
 
+// Progress is live by default, even while a historical cycle is selected (parity
+// with the web game detail and Meus Jogos). Only a caller that explicitly passes a
+// `snapshotMonth` (the historical Jogo do Mês) reads the frozen cycle snapshot.
+export function progressQueryKey(context: Pick<ReturnType<typeof useAppInternal>, 'sessionEpoch' | 'userId' | 'isDemo'>, gameId: string, snapshotMonth: string | null = null) {
+  return ['progress', context.sessionEpoch, context.userId, snapshotMonth, gameId, context.isDemo] as const;
+}
+
 function progressKey(context: ReturnType<typeof useAppInternal>, gameId: string) {
-  return ['progress', context.sessionEpoch, context.userId, context.selectedMonth, context.isHistorical, gameId, context.isDemo] as const;
+  return progressQueryKey(context, gameId, null);
 }
 
 function profileForVote(profile: Profile | null, input: VoteVariables): VoteParticipant {
@@ -168,18 +175,19 @@ export function useLibrary(profileId?: string): UseQueryResult<ProfileWithGames,
   });
 }
 
-export function useProgress(gameId: string): UseQueryResult<GameProgress[], Error> {
+export function useProgress(gameId: string, options?: { snapshotMonth?: string | null }): UseQueryResult<GameProgress[], Error> {
   const context = useAppInternal();
   const userId = context.userId;
+  const snapshotMonth = options?.snapshotMonth || null;
   return useQuery<GameProgress[], Error>({
-    queryKey: progressKey(context, gameId),
+    queryKey: progressQueryKey(context, gameId, snapshotMonth),
     enabled: context.ready && Boolean(userId) && Boolean(gameId),
     queryFn: () => context.dataClient.readProgress({
       userId: requireUser(userId),
       isDemo: context.isDemo,
       gameId,
-      month: context.selectedMonth,
-      historical: context.isHistorical,
+      month: snapshotMonth ?? undefined,
+      historical: Boolean(snapshotMonth),
     }),
   });
 }
@@ -246,13 +254,11 @@ export function useSetProgress(): UseMutationResult<void, Error, ProgressVariabl
     mutationFn: input => {
       if (!context.isSessionCurrent(epoch)) throw new Error('Sua sessão mudou. Tente novamente.');
       const userId = requireUser(context.userId);
-      requireLive(context.isHistorical);
-      return context.dataClient.setProgress({ userId, isDemo: context.isDemo, ...input, historical: context.isHistorical });
+      return context.dataClient.setProgress({ userId, isDemo: context.isDemo, ...input, historical: false });
     },
     onMutate: async input => {
       if (!context.isSessionCurrent(epoch)) throw new Error('Sua sessão mudou. Tente novamente.');
       const userId = requireUser(context.userId);
-      requireLive(context.isHistorical);
       const key = progressKey(context, input.gameId);
       await context.queryClient.cancelQueries({ queryKey: key });
       if (!context.isSessionCurrent(epoch)) throw new Error('Sua sessão mudou. Tente novamente.');
