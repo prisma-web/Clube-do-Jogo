@@ -7,6 +7,8 @@ import { Screen } from '@/components/Screen';
 import { AppHeader } from '@/components/AppHeader';
 import { AddGameToVoteSheet } from '@/components/AddGameToVoteSheet';
 import { Chip } from '@/components/Chip';
+import { MonthPicker } from '@/components/MonthPicker';
+import { MonthTrigger } from '@/components/MonthTrigger';
 import { PreferenceButtons } from '@/components/PreferenceButtons';
 import { Sheet } from '@/components/Sheet';
 import { VoteParticipantsSheet } from '@/components/VoteParticipantsSheet';
@@ -66,7 +68,7 @@ export default function RankingScreen() {
   const colors = useThemeColors();
   const styles = useStyles();
   const router = useRouter();
-  const { isAdmin, isHistorical, selectedMonth } = useApp();
+  const { isAdmin, isHistorical, selectedMonth, activeMonth, months, setSelectedMonth } = useApp();
   const voteMonth = shiftMonth(selectedMonth, 1);
   const rankingQuery = useRanking();
   const vote = useVote();
@@ -80,6 +82,7 @@ export default function RankingScreen() {
   const [rankingSearch, setRankingSearch] = useState('');
   const [rankingView, setRankingView] = usePersistentState<RankingViewMode>('clube-do-jogo:mobile:ranking-view', 'ranking');
   const [showAll, setShowAll] = useState(false);
+  const [monthPickerVisible, setMonthPickerVisible] = useState(false);
 
   const ranking = useMemo(() => rankingQuery.data ?? [], [rankingQuery.data]);
   const placements = useMemo(() => computeRankingPlacements(ranking), [ranking]);
@@ -130,7 +133,7 @@ export default function RankingScreen() {
       setReasonTarget({ game });
       return;
     }
-    vote.mutate({ gameId: game.id, choice });
+    vote.mutate({ gameId: game.id, game, choice });
   }
 
   function confirmReason(reason: VoteReason, reasonText: string | null) {
@@ -140,7 +143,7 @@ export default function RankingScreen() {
     if (target.item) {
       vote.mutate({ gameId: target.item.game.id, choice: 'would_not_play', reason, reasonText: reasonText ?? undefined });
     } else if (target.game) {
-      vote.mutate({ gameId: target.game.id, choice: 'would_not_play', reason, reasonText: reasonText ?? undefined });
+      vote.mutate({ gameId: target.game.id, game: target.game, choice: 'would_not_play', reason, reasonText: reasonText ?? undefined });
     }
   }
 
@@ -214,7 +217,7 @@ export default function RankingScreen() {
                   </View>
                   <AnimatedPoints value={item.totalPoints} style={styles.points} unitStyle={styles.pointsUnit} />
                 </View>
-                {!isHistorical ? (
+                {!isHistorical || isAdmin ? (
                   <Pressable
                     onPress={() => setActionsTarget(item)}
                     accessibilityRole="button"
@@ -271,6 +274,10 @@ export default function RankingScreen() {
                 </Pressable>
               ) : undefined}
             />
+
+            <View style={styles.monthRow}>
+              <MonthTrigger month={selectedMonth} isHistorical={isHistorical} onPress={() => setMonthPickerVisible(true)} />
+            </View>
 
             {vote.isError ? <Text style={styles.formError}>{vote.error?.message}</Text> : null}
             {backlog.isError ? <Text style={styles.formError}>{backlog.error?.message}</Text> : null}
@@ -352,18 +359,20 @@ export default function RankingScreen() {
       <Sheet visible={Boolean(actionsTarget)} title={actionsTarget?.game.title ?? ''} onClose={() => setActionsTarget(null)}>
         {actionsTarget ? (
           <View style={styles.sheetBody}>
-            <Pressable
-              disabled={actionsTarget.inBacklog}
-              onPress={() => addToLibrary(actionsTarget)}
-              accessibilityRole="button"
-              accessibilityLabel={actionsTarget.inBacklog ? 'Já está em Meus Jogos' : 'Adicionar a Meus Jogos'}
-              style={[styles.sheetItem, actionsTarget.inBacklog && styles.sheetItemDisabled]}
-            >
-              <Ionicons name={actionsTarget.inBacklog ? 'checkmark' : 'library-outline'} size={18} color={actionsTarget.inBacklog ? colors.emerald400 : colors.zinc400} />
-              <Text style={[styles.sheetItemLabel, actionsTarget.inBacklog && styles.sheetItemLabelDone]}>
-                {actionsTarget.inBacklog ? 'Já está em Meus Jogos' : 'Adicionar a Meus Jogos'}
-              </Text>
-            </Pressable>
+            {!isHistorical ? (
+              <Pressable
+                disabled={actionsTarget.inBacklog}
+                onPress={() => addToLibrary(actionsTarget)}
+                accessibilityRole="button"
+                accessibilityLabel={actionsTarget.inBacklog ? 'Já está em Meus Jogos' : 'Adicionar a Meus Jogos'}
+                style={[styles.sheetItem, actionsTarget.inBacklog && styles.sheetItemDisabled]}
+              >
+                <Ionicons name={actionsTarget.inBacklog ? 'checkmark' : 'library-outline'} size={18} color={actionsTarget.inBacklog ? colors.emerald400 : colors.zinc400} />
+                <Text style={[styles.sheetItemLabel, actionsTarget.inBacklog && styles.sheetItemLabelDone]}>
+                  {actionsTarget.inBacklog ? 'Já está em Meus Jogos' : 'Adicionar a Meus Jogos'}
+                </Text>
+              </Pressable>
+            ) : null}
             {isAdmin ? (
               <Pressable
                 onPress={() => {
@@ -383,6 +392,18 @@ export default function RankingScreen() {
         ) : null}
       </Sheet>
 
+      <MonthPicker
+        visible={monthPickerVisible}
+        months={months}
+        selectedMonth={selectedMonth}
+        activeMonth={activeMonth}
+        onSelect={month => {
+          setSelectedMonth(month);
+          setShowAll(false);
+        }}
+        onClose={() => setMonthPickerVisible(false)}
+      />
+
       {clubGameAdmin.sheet}
     </Screen>
   );
@@ -399,6 +420,7 @@ const useStyles = themedStyles(colors => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  monthRow: { flexDirection: 'row', marginTop: -spacing.sm, marginBottom: spacing.md },
   formError: { color: colors.red300, fontSize: 11, fontWeight: '600', marginBottom: spacing.md },
   searchField: {
     flexDirection: 'row',

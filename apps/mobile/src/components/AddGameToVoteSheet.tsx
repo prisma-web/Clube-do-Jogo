@@ -5,10 +5,10 @@ import { GameListRow } from './GameListRow';
 import { PreferenceButtons } from './PreferenceButtons';
 import { Sheet } from './Sheet';
 import { ErrorState, LoadingState } from './StateViews';
-import { useDiscoveryPages } from '@/state/library-queries';
+import { useGameSearch } from '@/state/queries';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { radii, spacing, themedStyles, useThemeColors, typography } from '@/theme';
-import type { DiscoverItem, Game, RankingItem, VoteChoice } from '@clube-do-jogo/domain';
+import type { Game, RankingItem, VoteChoice } from '@clube-do-jogo/domain';
 
 export function AddGameToVoteSheet({ visible, onClose, ranking, onChoose }: {
   visible: boolean;
@@ -22,13 +22,8 @@ export function AddGameToVoteSheet({ visible, onClose, ranking, onChoose }: {
   const search = useDebouncedValue(draftSearch.trim(), 350);
   const hasQuery = Boolean(search);
 
-  const discoverQuery = useDiscoveryPages('popular', { search: search || undefined });
-
-  const games = useMemo(() => {
-    if (!hasQuery) return [];
-    const items: DiscoverItem[] = discoverQuery.data?.pages.flatMap(page => page.items) ?? [];
-    return items.map(item => item.game);
-  }, [discoverQuery.data, hasQuery]);
+  const searchQuery = useGameSearch(search);
+  const games = useMemo(() => (hasQuery ? searchQuery.data ?? [] : []), [hasQuery, searchQuery.data]);
 
   return (
     <Sheet visible={visible} title="Adicionar jogo à votação" onClose={onClose} avoidKeyboard>
@@ -49,12 +44,12 @@ export function AddGameToVoteSheet({ visible, onClose, ranking, onChoose }: {
         <ScrollView style={styles.results} contentContainerStyle={styles.resultsContent} keyboardShouldPersistTaps="handled">
           {!hasQuery ? (
             <Text style={styles.emptyText}>Busque pelo nome do jogo.</Text>
-          ) : discoverQuery.isLoading ? (
+          ) : searchQuery.isLoading ? (
             <LoadingState />
-          ) : discoverQuery.isError ? (
-            <ErrorState message={discoverQuery.error.message} onRetry={() => discoverQuery.refetch()} />
+          ) : searchQuery.isError ? (
+            <ErrorState message={searchQuery.error.message} onRetry={() => searchQuery.refetch()} />
           ) : games.length === 0 ? (
-            <Text style={styles.emptyText}>Busque pelo nome do jogo.</Text>
+            <Text style={styles.emptyText}>Nenhum jogo encontrado.</Text>
           ) : (
             games.map(game => {
               const existing = ranking.find(item => item.game.id === game.id);

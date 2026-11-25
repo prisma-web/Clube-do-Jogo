@@ -83,6 +83,10 @@ export interface DiscoveryQuery extends DataScope {
   month?: string;
 }
 
+export interface GameSearchQuery extends DataScope {
+  query: string;
+}
+
 export interface DiscoveryFilters {
   search?: string;
   genre?: number;
@@ -259,6 +263,20 @@ function discoveryPageFromPayload(payload: unknown): DiscoveryPage {
     items: Array.isArray(record.items) ? dedupeDiscoveryItems(record.items as DiscoverItem[]) : [],
     hasMore: record.hasMore === true,
   };
+}
+
+function gamesFromSearchPayload(payload: unknown): Game[] {
+  if (!Array.isArray(payload)) return [];
+  const seen = new Set<string>();
+  const games: Game[] = [];
+  for (const value of payload) {
+    if (!value || typeof value !== 'object') continue;
+    const game = value as Game;
+    if (typeof game.id !== 'string' || typeof game.title !== 'string' || seen.has(game.id)) continue;
+    seen.add(game.id);
+    games.push(game);
+  }
+  return games;
 }
 
 function normalizeProfileText(value: unknown, label: string): string | null {
@@ -862,6 +880,18 @@ export class DataClient {
     });
   }
 
+  /** Title search backed by `GET /api/search` (local cache first, then IGDB), like the web ranking search. */
+  async searchGames(input: GameSearchQuery): Promise<Game[]> {
+    const query = typeof input.query === 'string' ? input.query.trim() : '';
+    if (!query) return [];
+    if (input.isDemo) return this.demo.searchGames(query);
+    return withDataErrors('buscar jogos', 'Não foi possível buscar jogos.', async () => {
+      const params = new URLSearchParams({ q: query });
+      const payload = await readApiJson<unknown>(this.transport('buscar jogos'), `/api/search?${params.toString()}`, { method: 'GET' });
+      return gamesFromSearchPayload(payload);
+    });
+  }
+
   async readDiscovery(input: DiscoveryQuery): Promise<DiscoverItem[]> {
     const page = await this.readDiscoveryPage({
       userId: input.userId,
@@ -895,19 +925,16 @@ export class DataClient {
         if (error) throw error;
         return;
       }
-      const { error: deleteError } = await client.from('votes').delete()
-        .eq('user_id', input.userId)
-        .eq('game_id', input.gameId)
-        .eq('vote_month', voteMonth);
-      if (deleteError) throw deleteError;
-      const { error } = await client.from('votes').insert({
+      // Upsert keeps the row (and its created_at) when a member changes an
+      // existing vote, so "added at" ordering and first-voter pushes stay right.
+      const { error } = await client.from('votes').upsert({
         user_id: input.userId,
         game_id: input.gameId,
         vote_month: voteMonth,
         choice: input.choice,
         reason,
         reason_text: reasonText,
-      });
+      }, { onConflict: 'user_id,game_id,vote_month' });
       if (error) throw error;
     });
   }

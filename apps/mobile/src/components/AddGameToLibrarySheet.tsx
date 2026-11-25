@@ -4,11 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { GameListRow } from './GameListRow';
 import { Sheet } from './Sheet';
 import { ErrorState, LoadingState } from './StateViews';
-import { useDiscoveryPages } from '@/state/library-queries';
-import { useBacklog } from '@/state/queries';
+import { useBacklog, useGameSearch } from '@/state/queries';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { radii, spacing, themedStyles, useThemeColors, typography } from '@/theme';
-import type { DiscoverItem } from '@clube-do-jogo/domain';
 
 export function AddGameToLibrarySheet({ visible, onClose, libraryIds }: {
   visible: boolean;
@@ -22,13 +20,8 @@ export function AddGameToLibrarySheet({ visible, onClose, libraryIds }: {
   const search = useDebouncedValue(draftSearch.trim(), 350);
   const hasQuery = Boolean(search);
 
-  const discoverQuery = useDiscoveryPages('popular', { search: search || undefined });
-
-  const games = useMemo(() => {
-    if (!hasQuery) return [];
-    const items: DiscoverItem[] = discoverQuery.data?.pages.flatMap(page => page.items) ?? [];
-    return items.map(item => item.game);
-  }, [discoverQuery.data, hasQuery]);
+  const searchQuery = useGameSearch(search);
+  const games = useMemo(() => (hasQuery ? searchQuery.data ?? [] : []), [hasQuery, searchQuery.data]);
 
   return (
     <Sheet visible={visible} title="Adicionar a Meus Jogos" onClose={onClose} avoidKeyboard>
@@ -49,12 +42,12 @@ export function AddGameToLibrarySheet({ visible, onClose, libraryIds }: {
         <ScrollView style={styles.results} contentContainerStyle={styles.resultsContent} keyboardShouldPersistTaps="handled">
           {!hasQuery ? (
             <Text style={styles.emptyText}>Busque pelo nome do jogo.</Text>
-          ) : discoverQuery.isLoading ? (
+          ) : searchQuery.isLoading ? (
             <LoadingState />
-          ) : discoverQuery.isError ? (
-            <ErrorState message={discoverQuery.error.message} onRetry={() => discoverQuery.refetch()} />
+          ) : searchQuery.isError ? (
+            <ErrorState message={searchQuery.error.message} onRetry={() => searchQuery.refetch()} />
           ) : games.length === 0 ? (
-            <Text style={styles.emptyText}>Busque pelo nome do jogo.</Text>
+            <Text style={styles.emptyText}>Nenhum jogo encontrado.</Text>
           ) : (
             games.map(game => {
               const inLibrary = libraryIds.has(game.id);
