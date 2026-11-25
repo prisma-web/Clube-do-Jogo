@@ -144,3 +144,55 @@ export function createFlushGate(): FlushGate {
     },
   };
 }
+
+export interface PendingNotesSnapshot {
+  queue: PendingNotesQueue;
+  conflicts: NoteConflictsByNoteId;
+}
+
+export interface PendingNotesStorage {
+  read(): Promise<string | null>;
+  write(queue: PendingNotesQueue): void;
+}
+
+export interface PendingNotesStore {
+  getSnapshot(): PendingNotesSnapshot;
+  subscribe(listener: () => void): () => void;
+  load(): Promise<number>;
+  setQueue(queue: PendingNotesQueue): void;
+  setConflicts(conflicts: NoteConflictsByNoteId): void;
+  readonly flushGate: FlushGate;
+}
+
+export function createPendingNotesStore(storage: PendingNotesStorage): PendingNotesStore {
+  let snapshot: PendingNotesSnapshot = { queue: createQueue(), conflicts: createConflicts() };
+  let loading: Promise<number> | null = null;
+  const listeners = new Set<() => void>();
+  const publish = (next: PendingNotesSnapshot) => {
+    snapshot = next;
+    listeners.forEach(listener => listener());
+  };
+  return {
+    getSnapshot: () => snapshot,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    },
+    load() {
+      loading ||= storage.read().then(value => {
+        const parsed = parseQueue(value);
+        publish({ ...snapshot, queue: parsed.queue });
+        return parsed.unrecoverableCount;
+      });
+      return loading;
+    },
+    setQueue(queue) {
+      publish({ ...snapshot, queue });
+      storage.write(queue);
+    },
+    setConflicts(conflicts) {
+      publish({ ...snapshot, conflicts });
+    },
+    flushGate: createFlushGate(),
+  };
+}

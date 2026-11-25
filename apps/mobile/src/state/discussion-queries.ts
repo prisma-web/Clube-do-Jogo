@@ -30,18 +30,16 @@ import { createMobileApiTransport, getMobileSupabaseClient, nativeStorage } from
 import { useAppInternal } from './app-provider';
 import {
   clearConflict,
-  createConflicts,
-  createFlushGate,
-  createQueue,
+  createPendingNotesStore,
   dequeue as dequeueNote,
   enqueue as enqueueNote,
   markAttempt,
   markConflict,
-  parseQueue,
   serializeQueue,
   type NoteConflictsByNoteId,
   type PendingLocalNote,
   type PendingNotesQueue,
+  type PendingNotesStore,
 } from './notes-queue';
 import { refetchNotesAfterWrite } from './notes-refresh';
 
@@ -648,6 +646,28 @@ function pendingNotesKey(userId: string, gameId: string) {
   return `@clube-do-jogo/notes-pending-queue/${encodeURIComponent(userId)}/${encodeURIComponent(gameId)}`;
 }
 
+const pendingNotesStores = new Map<string, PendingNotesStore>();
+
+function sharedPendingNotesStore(key: string): PendingNotesStore {
+  let store = pendingNotesStores.get(key);
+  if (!store) {
+    store = createPendingNotesStore({
+      read: () => nativeStorage.getItem(key),
+      write: queue => {
+        void enqueueDraftWrite(key, () => queue.size
+          ? nativeStorage.setItem(key, serializeQueue(queue))
+          : nativeStorage.removeItem(key));
+      },
+    });
+    pendingNotesStores.set(key, store);
+  }
+  return store;
+}
+
+function unsavedPendingNotesStore(): PendingNotesStore {
+  return createPendingNotesStore({ read: async () => null, write: () => undefined });
+}
+
 export interface NotesPendingQueueState {
   queue: PendingNotesQueue;
   conflicts: NoteConflictsByNoteId;
@@ -669,60 +689,35 @@ export function useNotesPendingQueue(gameId: string): NotesPendingQueueState {
   const client = getNotesClient(context.isDemo);
   const key = userId && gameId ? pendingNotesKey(userId, gameId) : null;
 
-  const [queue, setQueue] = React.useState<PendingNotesQueue>(createQueue);
-  const [conflicts, setConflicts] = React.useState<NoteConflictsByNoteId>(createConflicts);
+  const store = React.useMemo(() => key ? sharedPendingNotesStore(key) : unsavedPendingNotesStore(), [key]);
+  const subscribe = React.useCallback((listener: () => void) => store.subscribe(listener), [store]);
+  const getSnapshot = React.useCallback(() => store.getSnapshot(), [store]);
+  const { queue, conflicts } = React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const [loadedKey, setLoadedKey] = React.useState<string | null>(null);
   const [corruptionError, setCorruptionError] = React.useState<Error | null>(null);
-  const queueRef = React.useRef(queue);
-  const conflictsRef = React.useRef(conflicts);
-  const flushGateRef = React.useRef(createFlushGate());
-
-  const applyQueue = React.useCallback((next: PendingNotesQueue) => {
-    queueRef.current = next;
-    setQueue(next);
-    if (key) {
-      void enqueueDraftWrite(key, () => next.size
-        ? nativeStorage.setItem(key, serializeQueue(next))
-        : nativeStorage.removeItem(key));
-    }
-  }, [key]);
-
-  const applyConflicts = React.useCallback((next: NoteConflictsByNoteId) => {
-    conflictsRef.current = next;
-    setConflicts(next);
-  }, []);
 
   React.useEffect(() => {
     if (!key || !context.ready) return undefined;
     let cancelled = false;
-    void (draftWrites.get(key) || Promise.resolve()).catch(() => undefined).then(() => nativeStorage.getItem(key)).then(value => {
+    void store.load().then(unrecoverableCount => {
       if (cancelled || !context.isSessionCurrent(epoch) || context.userId !== userId) return;
-      try {
-        const parsed = parseQueue(value);
-        queueRef.current = parsed.queue;
-        setQueue(parsed.queue);
-        setCorruptionError(parsed.unrecoverableCount > 0
-          ? new Error(`${parsed.unrecoverableCount} anotação${parsed.unrecoverableCount === 1 ? '' : 'ões'} pendente${parsed.unrecoverableCount === 1 ? '' : 's'} não p${parsed.unrecoverableCount === 1 ? 'ôde' : 'uderam'} ser recuperada${parsed.unrecoverableCount === 1 ? '' : 's'}.`)
-          : null);
-      } catch (reason) {
-        queueRef.current = createQueue();
-        setQueue(createQueue());
-        setCorruptionError(reason instanceof Error ? reason : new Error('Não foi possível carregar as anotações pendentes.'));
-      }
+      setCorruptionError(unrecoverableCount > 0
+        ? new Error(`${unrecoverableCount} anotação${unrecoverableCount === 1 ? '' : 'ões'} pendente${unrecoverableCount === 1 ? '' : 's'} não p${unrecoverableCount === 1 ? 'ôde' : 'uderam'} ser recuperada${unrecoverableCount === 1 ? '' : 's'}.`)
+        : null);
       setLoadedKey(key);
-    }).catch(reason => {
+    }, reason => {
       if (cancelled || !context.isSessionCurrent(epoch) || context.userId !== userId) return;
-      setLoadedKey(key);
       setCorruptionError(reason instanceof Error ? reason : new Error('Não foi possível carregar as anotações pendentes.'));
+      setLoadedKey(key);
     });
     return () => { cancelled = true; };
-  }, [context, context.ready, epoch, key, userId]);
+  }, [context, context.ready, epoch, key, store, userId]);
 
   const flushOne = React.useCallback(async (noteId: string): Promise<void> => {
     for (let again = true; again;) {
-      if (!context.isSessionCurrent(epoch) || conflictsRef.current.has(noteId)) return;
-      const entry = queueRef.current.get(noteId);
-      if (!entry || !flushGateRef.current.begin(noteId)) return;
+      if (!context.isSessionCurrent(epoch) || store.getSnapshot().conflicts.has(noteId)) return;
+      const entry = store.getSnapshot().queue.get(noteId);
+      if (!entry || !store.flushGate.begin(noteId)) return;
       try {
         const resolvedUserId = requireUser(context.userId);
         if (entry.origin === 'update') {
@@ -731,26 +726,26 @@ export function useNotesPendingQueue(gameId: string): NotesPendingQueueState {
           await client.create({ userId: resolvedUserId, isDemo: context.isDemo, note: entry.note });
         }
         if (!context.isSessionCurrent(epoch)) return;
-        applyQueue(dequeueNote(queueRef.current, noteId));
-        applyConflicts(clearConflict(conflictsRef.current, noteId));
+        store.setQueue(dequeueNote(store.getSnapshot().queue, noteId));
+        store.setConflicts(clearConflict(store.getSnapshot().conflicts, noteId));
         void refetchNotesAfterWrite(context.queryClient, notesKey(context, gameId, null));
       } catch (error) {
         if (!context.isSessionCurrent(epoch)) return;
         if (error instanceof NotesConflictError) {
-          applyConflicts(markConflict(conflictsRef.current, noteId, error.kind === 'changed' && error.remote
+          store.setConflicts(markConflict(store.getSnapshot().conflicts, noteId, error.kind === 'changed' && error.remote
             ? { kind: 'changed', local: entry.note, remote: error.remote }
             : { kind: 'deleted', local: entry.note }));
         }
-        applyQueue(markAttempt(queueRef.current, noteId, error instanceof Error ? error.message : 'Não foi possível enviar a anotação.'));
+        store.setQueue(markAttempt(store.getSnapshot().queue, noteId, error instanceof Error ? error.message : 'Não foi possível enviar a anotação.'));
       } finally {
-        again = flushGateRef.current.finish(noteId);
+        again = store.flushGate.finish(noteId);
       }
     }
-  }, [applyConflicts, applyQueue, client, context, epoch, gameId]);
+  }, [client, context, epoch, gameId, store]);
 
   const flushAll = React.useCallback(() => {
-    for (const noteId of queueRef.current.keys()) void flushOne(noteId);
-  }, [flushOne]);
+    for (const noteId of store.getSnapshot().queue.keys()) void flushOne(noteId);
+  }, [flushOne, store]);
 
   React.useEffect(() => {
     if (!key || loadedKey !== key || !context.userId) return undefined;
@@ -765,52 +760,52 @@ export function useNotesPendingQueue(gameId: string): NotesPendingQueueState {
 
   const submitCreate = React.useCallback((note: LocalNote) => {
     const entry: PendingLocalNote = { note, origin: 'create', generation: 0 };
-    applyQueue(enqueueNote(queueRef.current, entry));
-    applyConflicts(clearConflict(conflictsRef.current, note.id));
+    store.setQueue(enqueueNote(store.getSnapshot().queue, entry));
+    store.setConflicts(clearConflict(store.getSnapshot().conflicts, note.id));
     void flushOne(note.id);
-  }, [applyConflicts, applyQueue, flushOne]);
+  }, [flushOne, store]);
 
   const submitUpdate = React.useCallback((note: LocalNote, expectedUpdatedAt: string) => {
     const entry: PendingLocalNote = { note, origin: 'update', expectedUpdatedAt, generation: 0 };
-    applyQueue(enqueueNote(queueRef.current, entry));
-    applyConflicts(clearConflict(conflictsRef.current, note.id));
+    store.setQueue(enqueueNote(store.getSnapshot().queue, entry));
+    store.setConflicts(clearConflict(store.getSnapshot().conflicts, note.id));
     void flushOne(note.id);
-  }, [applyConflicts, applyQueue, flushOne]);
+  }, [flushOne, store]);
 
   const resolveUseRemote = React.useCallback((noteId: string) => {
-    applyQueue(dequeueNote(queueRef.current, noteId));
-    applyConflicts(clearConflict(conflictsRef.current, noteId));
+    store.setQueue(dequeueNote(store.getSnapshot().queue, noteId));
+    store.setConflicts(clearConflict(store.getSnapshot().conflicts, noteId));
     void context.queryClient.invalidateQueries({ queryKey: notesKey(context, gameId, null) });
-  }, [applyConflicts, applyQueue, context, gameId]);
+  }, [context, gameId, store]);
 
   const resolveKeepAsNew = React.useCallback((noteId: string) => {
-    const entry = queueRef.current.get(noteId);
+    const entry = store.getSnapshot().queue.get(noteId);
     if (!entry) return;
     const createdAt = new Date().toISOString();
     const fresh: PendingLocalNote = { note: { ...entry.note, id: randomUUID(), createdAt, updatedAt: createdAt }, origin: 'create', generation: 0 };
-    applyQueue(enqueueNote(dequeueNote(queueRef.current, noteId), fresh));
-    applyConflicts(clearConflict(conflictsRef.current, noteId));
+    store.setQueue(enqueueNote(dequeueNote(store.getSnapshot().queue, noteId), fresh));
+    store.setConflicts(clearConflict(store.getSnapshot().conflicts, noteId));
     void flushOne(fresh.note.id);
-  }, [applyConflicts, applyQueue, flushOne]);
+  }, [flushOne, store]);
 
   const resolveUseLocal = React.useCallback((noteId: string) => {
-    const entry = queueRef.current.get(noteId);
-    const conflict = conflictsRef.current.get(noteId);
+    const entry = store.getSnapshot().queue.get(noteId);
+    const conflict = store.getSnapshot().conflicts.get(noteId);
     if (!entry || !conflict) return;
     const next: PendingLocalNote = conflict.kind === 'changed'
       ? { note: { ...entry.note, updatedAt: new Date().toISOString() }, origin: 'update', expectedUpdatedAt: conflict.remote.updatedAt, generation: 0 }
       : { note: entry.note, origin: 'create', generation: 0 };
-    applyQueue(enqueueNote(queueRef.current, next));
-    applyConflicts(clearConflict(conflictsRef.current, noteId));
+    store.setQueue(enqueueNote(store.getSnapshot().queue, next));
+    store.setConflicts(clearConflict(store.getSnapshot().conflicts, noteId));
     void flushOne(noteId);
-  }, [applyConflicts, applyQueue, flushOne]);
+  }, [flushOne, store]);
 
   const resolveAcceptDeletion = React.useCallback((noteId: string) => {
-    if (conflictsRef.current.get(noteId)?.kind !== 'deleted') return;
-    applyQueue(dequeueNote(queueRef.current, noteId));
-    applyConflicts(clearConflict(conflictsRef.current, noteId));
+    if (store.getSnapshot().conflicts.get(noteId)?.kind !== 'deleted') return;
+    store.setQueue(dequeueNote(store.getSnapshot().queue, noteId));
+    store.setConflicts(clearConflict(store.getSnapshot().conflicts, noteId));
     void context.queryClient.invalidateQueries({ queryKey: notesKey(context, gameId, null) });
-  }, [applyConflicts, applyQueue, context, gameId]);
+  }, [context, gameId, store]);
 
   const retryAll = React.useCallback(() => {
     if (!key || loadedKey !== key) return;

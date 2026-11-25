@@ -51,9 +51,9 @@ run() {
   elif grep -q "Invariant NoLostRetry is violated." "$out"; then got=violation-retry
   else got=error; fi
   if [ "$got" = "$expect" ]; then
-    printf 'OK     %-28s %-9s %3ss  %s\n' "$name" "$got" "$elapsed" "$out"
+    printf 'OK     %-36s %-9s %3ss  %s\n' "$name" "$got" "$elapsed" "$out"
   else
-    printf 'DIFERE %-28s esperado %s, veio %s (%ss)  %s\n' "$name" "$expect" "$got" "$elapsed" "$out"
+    printf 'DIFERE %-36s esperado %s, veio %s (%ss)  %s\n' "$name" "$expect" "$got" "$elapsed" "$out"
     failures=$((failures + 1))
   fi
 }
@@ -84,18 +84,21 @@ view_sound() {
   b="$(orbits view)"
   elapsed=$(( $(date +%s) - start ))
   if [ -n "$a" ] && [ "$a" -gt 0 ] && cmp -s "$CACHE/view-sound-full.orbits" "$CACHE/view-sound-view.orbits"; then
-    printf 'OK     %-28s %-9s %3ss  %s órbitas com e sem VIEW\n' view-sound igual "$elapsed" "$a"
+    printf 'OK     %-36s %-9s %3ss  %s órbitas com e sem VIEW\n' view-sound igual "$elapsed" "$a"
   else
-    printf 'DIFERE %-28s esperado igual, veio %s sem VIEW e %s com VIEW (%ss)  %s\n' view-sound "${a:-0}" "${b:-0}" "$elapsed" "$CACHE/view-sound-*.out"
+    printf 'DIFERE %-36s esperado igual, veio %s sem VIEW e %s com VIEW (%ss)  %s\n' view-sound "${a:-0}" "${b:-0}" "$elapsed" "$CACHE/view-sound-*.out"
     failures=$((failures + 1))
   fi
 }
 
 check base PendingNotes.cfg none pass auto
-check finding-F1-two-screens TwoScreens.cfg none violation 1
-check finding-F1-remount-in-flight RemountInFlight.cfg none violation 1
-for variant in drop-on-conflict no-load-wait unserialized-writes use-local-drops; do
+check regression-F1-two-screens TwoScreens.cfg none pass auto
+check regression-F1-remount-in-flight RemountInFlight.cfg none pass auto
+for variant in drop-on-conflict reload-on-mount unserialized-writes use-local-drops; do
   check "mutant-$variant" PendingNotes.cfg "$variant" violation 1
+done
+for scenario in TwoScreens RemountInFlight; do
+  check "mutant-per-instance-$scenario" "$scenario.cfg" per-instance violation 1
 done
 check mutant-no-rerun PendingNotes.cfg no-rerun violation-retry 1
 if [ "$deep" = 1 ]; then view_sound; fi
