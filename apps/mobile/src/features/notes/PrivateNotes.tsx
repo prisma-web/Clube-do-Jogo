@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/Button';
+import { useKeepFormAboveKeyboard } from '@/components/Screen';
 import { Sheet } from '@/components/Sheet';
 import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
 import { ImageGalleryModal } from '@/features/media/ImageGalleryModal';
@@ -43,6 +44,8 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
   const [deleteTarget, setDeleteTarget] = useState<LocalNote | null>(null);
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const listRef = useRef<ScrollView>(null);
+  const composerRef = useRef<View>(null);
+  const keepComposerAboveKeyboard = useKeepFormAboveKeyboard(composerRef);
 
   const fromCache = !notesQuery.data && Boolean(offline.cache);
   const confirmedNotes = notesQuery.data ?? offline.cache?.notes ?? [];
@@ -256,7 +259,7 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
       )}
 
       {!readOnly ? (
-        <View style={styles.composerCard}>
+        <View ref={composerRef} style={styles.composerCard}>
           {editing ? (
             <View style={styles.editingBanner}>
               <Text style={styles.editingBannerText}>Editando anotação</Text>
@@ -294,6 +297,7 @@ function NotesEditor({ gameId, snapshotMonth }: PrivateNotesProps) {
               placeholderTextColor={colors.zinc600}
               multiline
               style={styles.composerInput}
+              {...keepComposerAboveKeyboard}
               testID="private-notes-input"
               accessibilityLabel="Escrever anotação"
             />

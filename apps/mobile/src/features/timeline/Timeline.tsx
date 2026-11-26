@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Keyboard, Pressable, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
+import { useKeepFormAboveKeyboard } from '@/components/Screen';
 import { Sheet } from '@/components/Sheet';
 import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
 import { useAppInternal } from '@/state/app-provider';
@@ -43,6 +44,10 @@ function Discussion({ gameId, clubMonth }: TimelineProps) {
   const setReaction = useSetCommentReaction();
 
   const [body, setBody] = useState('');
+  const composerRef = useRef<View>(null);
+  const keepComposerAboveKeyboard = useKeepFormAboveKeyboard(composerRef);
+  const replyComposerRef = useRef<View>(null);
+  const keepReplyAboveKeyboard = useKeepFormAboveKeyboard(replyComposerRef);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyBody, setReplyBody] = useState('');
   const [editTarget, setEditTarget] = useState<ClubComment | null>(null);
@@ -136,7 +141,7 @@ function Discussion({ gameId, clubMonth }: TimelineProps) {
   return (
     <View style={styles.container}>
       {!isHistorical ? (
-        <View style={styles.composerCard}>
+        <View ref={composerRef} style={styles.composerCard}>
           <View style={styles.composerRow}>
             <Avatar uri={profile?.avatar_url} crop={profile?.avatar_crop} name={profile?.name} size={36} />
             <TextInput
@@ -146,6 +151,7 @@ function Discussion({ gameId, clubMonth }: TimelineProps) {
               placeholderTextColor={colors.zinc600}
               multiline
               style={styles.composerInput}
+              {...keepComposerAboveKeyboard}
               testID="timeline-composer-input"
               accessibilityLabel="Escrever comentário"
             />
@@ -231,13 +237,14 @@ function Discussion({ gameId, clubMonth }: TimelineProps) {
                     </View>
                   ))}
                   {replyingTo === comment.id ? (
-                    <View style={styles.replyComposer}>
+                    <View ref={replyComposerRef} style={styles.replyComposer}>
                       <TextInput
                         value={replyBody}
                         onChangeText={setReplyBody}
                         placeholder={`Responder a ${comment.profile?.name || 'membro'}…`}
                         placeholderTextColor={colors.zinc600}
                         style={styles.replyInput}
+                        {...keepReplyAboveKeyboard}
                         testID={`timeline-reply-input-${comment.id}`}
                         accessibilityLabel="Escrever resposta"
                       />
@@ -339,6 +346,8 @@ function CommentCard({
   const colors = useThemeColors();
   const styles = useStyles();
   const isMine = Boolean(userId) && comment.user_id === userId;
+  const editFormRef = useRef<View>(null);
+  const keepEditFormAboveKeyboard = useKeepFormAboveKeyboard(editFormRef);
   const authorName = comment.profile?.name || 'Membro';
   return (
     <Pressable
@@ -368,12 +377,13 @@ function CommentCard({
         </View>
 
         {editing ? (
-          <View style={styles.editForm}>
+          <View ref={editFormRef} style={styles.editForm}>
             <TextInput
               value={editBody}
               onChangeText={onEditBodyChange}
               multiline
               style={styles.editInput}
+              {...keepEditFormAboveKeyboard}
               testID={`timeline-edit-input-${comment.id}`}
               accessibilityLabel="Editar comentário"
             />
