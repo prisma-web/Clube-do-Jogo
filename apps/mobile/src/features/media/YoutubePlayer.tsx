@@ -32,7 +32,7 @@ export function YoutubePlayer({ embedUrl, title, autoplay, style, onPlayerState,
   }
 
   function handleMessage(event: WebViewMessageEvent) {
-    const state = parseTrailerPlayerMessage(event.nativeEvent.data);
+    const state = parseTrailerPlayerMessage(event.nativeEvent, embedderOrigin);
     if (state !== null) onPlayerState?.(state);
   }
 

@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useScreenScroll } from '@/components/Screen';
-import { themedStyles, useThemeColors, radii, spacing } from '@/theme';
+import { themedStyles, useNativeTheme, useThemeColors, radii, spacing } from '@/theme';
 import {
   FLOATING_TRAILER_MARGIN,
   floatingTrailerSize,
@@ -51,7 +51,6 @@ export function InlineTrailer({ url, title, posterUrl, suspended, onExpand }: {
 
   useFocusEffect(useCallback(() => stop, [stop]));
 
-
   if (!embedUrl) return null;
 
   return (
@@ -73,7 +72,7 @@ export function InlineTrailer({ url, title, posterUrl, suspended, onExpand }: {
           </Pressable>
         )}
       </View>
-      {playing && anchor ? (
+      {playing && anchor && anchor.width > 0 ? (
         <PlayingTrailer
           embedUrl={embedUrl}
           title={title}
@@ -97,6 +96,7 @@ function PlayingTrailer({ embedUrl, title, anchor, onMinimize, onExpand }: {
   onExpand: () => void;
 }) {
   const styles = useStyles();
+  const { reduceMotion } = useNativeTheme();
   const screenScroll = useScreenScroll();
   const player = useRef<YoutubePlayerHandle>(null);
   const [playback, setPlayback] = useState<TrailerPlayback>('loading');
@@ -120,8 +120,8 @@ function PlayingTrailer({ embedUrl, title, anchor, onMinimize, onExpand }: {
   );
 
   useEffect(() => {
-    progress.set(withTiming(floating ? 1 : 0, { duration: FLOAT_ANIMATION_MS }));
-  }, [floating, progress]);
+    progress.set(withTiming(floating ? 1 : 0, { duration: reduceMotion ? 0 : FLOAT_ANIMATION_MS }));
+  }, [floating, progress, reduceMotion]);
 
   useEffect(() => {
     if (!screenScroll || !floating) return undefined;

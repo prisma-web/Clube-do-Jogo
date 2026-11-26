@@ -103,9 +103,9 @@ export function youtubePlayerSource(embedUrl: string | null | undefined, embedde
 
 export type PlayerNavigation = 'load' | 'open-outside' | 'block';
 
-export function playerNavigation(url: string, embedderOrigin: string, isTopFrame: boolean): PlayerNavigation {
+export function playerNavigation(url: string, embedderOrigin: string, isTopFrame: boolean | undefined): PlayerNavigation {
   if (url === 'about:blank' || url === 'about:srcdoc') return 'load';
-  if (!isTopFrame) return isAllowedYoutubeOrigin(url) ? 'load' : 'block';
+  if (isTopFrame === false) return isAllowedYoutubeOrigin(url) ? 'load' : 'block';
   if (url === embedderOrigin || url === `${embedderOrigin}/`) return 'load';
   return isAllowedYoutubeOrigin(url) ? 'open-outside' : 'block';
 }

@@ -54,11 +54,17 @@ test('a spot taller than the viewport still counts as in place when it fills the
   assert.equal(isTrailerInPlace(150, 180, 100, 300), true);
 });
 
-test('only well-formed state messages from the player page are accepted', () => {
-  assert.equal(parseTrailerPlayerMessage('{"type":"youtube-state","state":1}'), 1);
-  assert.equal(parseTrailerPlayerMessage('{"type":"youtube-state","state":-1}'), -1);
+test('only well-formed state messages sent by the player page itself are accepted', () => {
+  const site = 'https://clube.example';
+  const fromPage = (data: string, url = `${site}/`) => parseTrailerPlayerMessage({ data, url }, site);
+  assert.equal(fromPage('{"type":"youtube-state","state":1}'), 1);
+  assert.equal(fromPage('{"type":"youtube-state","state":-1}'), -1);
+  assert.equal(fromPage('{"type":"youtube-state","state":2}', site), 2);
   for (const data of ['', 'null', '1', '{"type":"youtube-state","state":4}', '{"type":"youtube-state","state":"1"}', '{"type":"other","state":1}', '{oops']) {
-    assert.equal(parseTrailerPlayerMessage(data), null, data);
+    assert.equal(fromPage(data), null, data);
+  }
+  for (const url of ['https://www.youtube-nocookie.com', 'https://www.youtube-nocookie.com/embed/x', 'https://evil.test/', 'not a url']) {
+    assert.equal(fromPage('{"type":"youtube-state","state":1}', url), null, url);
   }
 });
 

@@ -106,6 +106,8 @@ test('the player page stays on the embed; YouTube links that would replace it op
   assert.equal(playerNavigation('about:blank', site, true), 'load');
   assert.equal(playerNavigation(embed, site, false), 'load');
   assert.equal(playerNavigation('https://www.youtube.com/', site, true), 'open-outside');
+  assert.equal(playerNavigation('https://www.youtube.com/', site, undefined), 'open-outside');
+  assert.equal(playerNavigation('https://clube.example/', site, undefined), 'load');
   assert.equal(playerNavigation('https://www.youtube.com/watch?v=dQw4w9WgXcQ', site, true), 'open-outside');
   assert.equal(playerNavigation('https://clube.example/jogos', site, true), 'block');
   assert.equal(playerNavigation('https://evil.test/', site, true), 'block');

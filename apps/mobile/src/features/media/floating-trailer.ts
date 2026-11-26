@@ -21,10 +21,11 @@ export function nextTrailerPlayback(current: TrailerPlayback, event: TrailerEven
   }
 }
 
-export function parseTrailerPlayerMessage(data: string): YoutubePlayerState | null {
+export function parseTrailerPlayerMessage(message: { data: string; url: string }, embedderOrigin: string): YoutubePlayerState | null {
   let payload: unknown;
   try {
-    payload = JSON.parse(data);
+    if (new URL(message.url).origin !== embedderOrigin) return null;
+    payload = JSON.parse(message.data);
   } catch {
     return null;
   }

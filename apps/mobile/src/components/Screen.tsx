@@ -43,7 +43,7 @@ export function Screen({ children, scroll = true, contentContainerStyle, onRefre
   const badgeClearance = useGotyBadgeClearance();
   const safeArea = [styles.safeArea, theme.scene !== 'none' && styles.safeAreaScenic];
   const { scrollRef, contentRef, setFocusedForm, onScrollLayout } = useFormAboveKeyboard();
-  const { attachScroll, screenScroll, onViewportLayout, focusScrollPaused } = useScreenScrollState(scrollRef);
+  const { attachScroll, screenScroll, onViewportLayout, focusScrollPaused } = useScreenScrollState(scrollRef, scroll);
   const shapeKey = `${theme.shape.font}-${theme.shape.decor ? 'decor' : 'plain'}`;
 
   if (!scroll) {
@@ -79,9 +79,9 @@ export function Screen({ children, scroll = true, contentContainerStyle, onRefre
   );
 }
 
-function useScreenScrollState(scrollRef: RefObject<ScrollView | null>) {
+function useScreenScrollState(scrollRef: RefObject<ScrollView | null>, scroll: boolean) {
   const animatedRef = useAnimatedRef<ScrollView>();
-  const offset = useScrollOffset(animatedRef);
+  const offset = useScrollOffset(scroll ? animatedRef : null);
   const viewportHeight = useSharedValue(0);
   const [focusScrollPaused, setFocusScrollPaused] = useState(false);
   const attachScroll = useCallback((node: ScrollView | null) => {
