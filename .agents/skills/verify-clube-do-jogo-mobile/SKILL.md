@@ -17,14 +17,14 @@ Buscar só em `src/` já produziu falsos "não está conectado".
 
 ## Dados: demo, nunca produção
 
-Não há fixture Supabase local alcançável hoje (conferido em 23/11/2026). Ninguém escuta na porta 55421 neste Mac nem no `rogstrix`, não há CLI `supabase` aqui, e o `rogstrix` nega acesso ao Docker para o usuário `matheus`. O caminho sem credencial é o **modo demonstração**: o build não recebe `EXPO_PUBLIC_SUPABASE_*`, a tela de login oferece `Entrar no modo demonstração`, e os dados vêm de `packages/domain/src/demo.ts`, em memória. O usuário demo (`Artur Lima`) é admin.
+Existe uma fixture Supabase local, `scripts/local-supabase.sh up`, com a API em `http://127.0.0.1:55421`. Ela roda no macbook-1, que tem Docker (OrbStack). O `rogstrix` nega acesso ao Docker para o usuário `matheus`. Contas, seed e cuidados estão na seção "Lane autenticada" de `verify-clube-do-jogo-web`. Para o app usá-la, `scripts/local-supabase.sh env` imprime `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` locais. No simulador iOS do mesmo Mac, `127.0.0.1` alcança o host. No emulador Android, é preciso `adb reverse tcp:55421 tcp:55421`. Em 25/11/2026 a web foi verificada contra a fixture, mas o app ainda não: o launcher daqui só compila em demo, então um run autenticado do app ainda é `not-run` até alguém construir e validar esse caminho. O caminho padrão sem credencial é o **modo demonstração**: o build não recebe `EXPO_PUBLIC_SUPABASE_*`, a tela de login oferece `Entrar no modo demonstração`, e os dados vêm de `packages/domain/src/demo.ts`, em memória. O usuário demo (`Artur Lima`) é admin.
 
 Consequências:
 
 - Demo não prova RLS, persistência, auth real, callback `clubedojogo://auth/callback` nem push. Marque essas lanes como `not-run` com esse motivo.
 - `login.yaml`, `logout.yaml`, `admin-*.yaml` e outros fluxos de `apps/mobile/.maestro/` assumem uma conta de fixture e dados de setembro de 2026. Eles não rodam em demo.
 - O launcher não sobe Next. O transporte da API mobile (`apps/mobile/src/platform/api.ts`) exige cliente e sessão Supabase, então uma API em `3103` não serve ao demo. Descoberta e mídia ficam fora do demo.
-- Nunca aponte `EXPO_PUBLIC_SUPABASE_URL` para o projeto de produção. Uma fixture futura usa só `http://127.0.0.1:55421`. O launcher e o doctor recusam um bundle que contenha host `*.supabase.co`.
+- Nunca aponte `EXPO_PUBLIC_SUPABASE_URL` para o projeto de produção. A fixture local usa só `http://127.0.0.1:55421`. O launcher e o doctor recusam um bundle que contenha host `*.supabase.co`.
 
 ## Aparelhos
 

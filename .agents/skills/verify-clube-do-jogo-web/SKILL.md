@@ -62,6 +62,37 @@ Exige manifesto, log, `doctor.json` aprovado, capturas e `drive-result.json` com
 
 Padrão de prova: caminho real de usuário, ação e estado resultante (não só a tela final), efeito colateral observado. Relatórios separam `unit`, `live` e `perf`; o que não rodou aparece como `not-run` com motivo. Demo é em memória: não prova RLS, auth real nem persistência.
 
+## Lane autenticada: Supabase local
+
+O demo não prova RLS, auth, persistência, realtime nem as rotas `/api/push/*`. Para isso existe uma fixture Supabase local, que nunca conecta em produção. Ela precisa de Docker (OrbStack no macbook-1) e Node, mas não de `psql` no host.
+
+```sh
+scripts/local-supabase.sh up     # ~20 s com imagens em cache; a 1ª vez baixa as imagens
+scripts/local-supabase.sh env    # URL 127.0.0.1:55421 e chaves locais
+```
+
+`up` sobe o projeto `cdj-local-fixture` nas portas 55420–55429, com um `config.jsonc` próprio em `.local-supabase/`. Ele aplica o SQL na ordem de `scripts/sql-steps.sh`, a mesma do gerador de tipos, e semeia três contas com senha `fixture-local-123`: `ana@example.com` (admin), `bruno@example.com` e `carla@example.com`. Também semeia cinco jogos `Fixture: …`, o ciclo do mês atual ativo, alguns votos para o mês seguinte e as recompensas já vistas. Rodar `up` de novo não repete nada. Para recomeçar do zero, use `down` e depois `up`. `down` apaga só os volumes desse projeto, e `psql` abre o banco local para conferir tabelas.
+
+O launcher do helper zera as variáveis Supabase de propósito. Nesta lane, a web sobe sem o helper:
+
+```sh
+{ scripts/local-supabase.sh env | grep -v ^EXPO; echo NEXT_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE=false; echo IGDB_OFFLINE_CATALOG=1; } > .env.local
+grep -c supabase.co .env.local   # tem que dar 0
+npm run dev -- --hostname 127.0.0.1 --port 3000
+```
+
+Os drivers em `supabase-local/` usam contas reais e conferem o resultado no banco. Eles também registram cada chamada a `/api/push/*` com a resposta e contam qualquer requisição a `*.supabase.co`, que precisa ser 0.
+
+```sh
+node .agents/skills/verify-clube-do-jogo-web/supabase-local/votes.mjs     # Jogaria, Neutro, Não com motivo, Outro + texto, trocar, retirar
+node .agents/skills/verify-clube-do-jogo-web/supabase-local/comments.mjs  # comentar, responder, reagir, segurar, apagar; realtime entre Ana e Bruno
+node .agents/skills/verify-clube-do-jogo-web/supabase-local/hold.mjs      # o toque depois de segurar uma reação alterna
+```
+
+`CDJ_WEB_URL` muda a URL (só loopback), e `OUT` muda a pasta de evidência (padrão `evidence/supabase-local/`). Cada linha começa com `OK`, `FAIL` ou `ACHADO`. `ACHADO` é um alvo coberto por outro elemento, salvo com captura. Sem VAPID local, as rotas de push respondem `configured: false` e não enviam nada.
+
+Pegadinhas: a votação rápida reabre a cada `focus` da janela, então com duas contas no mesmo browser feche-a antes de cada clique (`tap` já faz isso). Antes do PR #37, `comments.mjs` falha nas checagens "apagado sumiu" e `hold.mjs` falha no primeiro clique depois de segurar.
+
 ## Cleanup
 
 ```sh

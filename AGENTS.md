@@ -44,7 +44,7 @@ Direct `supabase.from('table')` is allowed only in `packages/data`, `src/app/api
 Do not edit these by hand.
 
 - `src/app/theme-tokens.generated.css`: `npm run themes:generate`. `npm run test:domain` fails if it is stale.
-- `packages/data/src/database.types.ts`: `scripts/generate-database-types.sh` (`--check` compares without writing). It applies the repo's SQL to a throwaway local Postgres and never connects to production; it needs `psql` and network access to download pinned tools. The SQL files and their order are the `SQL_STEPS` list in that script, so it only reflects SQL that is in the repo.
+- `packages/data/src/database.types.ts`: `scripts/generate-database-types.sh` (`--check` compares without writing). It applies the repo's SQL to a throwaway local Postgres and never connects to production; it needs `psql` and network access to download pinned tools. The SQL files and their order are `SQL_STEPS` in `scripts/sql-steps.sh`, so it only reflects SQL that is in the repo.
 
 ### Checks
 
@@ -58,5 +58,5 @@ From the root `package.json`:
 
 ### SQL
 
-- `schema.sql` is the base and the root `migration_*.sql` files are older migrations. The order in `README.md` is incomplete; the full order the type generator uses is `SQL_STEPS` in `scripts/generate-database-types.sh`.
-- Every SQL file added since September 2026 is in `supabase/migrations/` as `YYYYMMDDHHMMSS_description.sql`. Put new migrations there with a later timestamp, add the file to the end of `SQL_STEPS`, and regenerate `database.types.ts`. Follow "Production data safety" above when applying it.
+- `schema.sql` is the base and the root `migration_*.sql` files are older migrations. The order in `README.md` is incomplete; the full order is `SQL_STEPS` in `scripts/sql-steps.sh`, shared by the type generator and the local Supabase fixture (`scripts/local-supabase.sh`).
+- Every SQL file added since September 2026 is in `supabase/migrations/` as `YYYYMMDDHHMMSS_description.sql`. Put new migrations there with a later timestamp, add the file to the end of `SQL_STEPS` in `scripts/sql-steps.sh`, and regenerate `database.types.ts`. Follow "Production data safety" above when applying it.
