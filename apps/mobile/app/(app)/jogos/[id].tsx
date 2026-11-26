@@ -384,7 +384,6 @@ export default function GameDetailScreen() {
           title={game.title}
           posterUrl={gameCoverUrl(game.image_url)}
           suspended={trailerOpen}
-          onExpand={() => setTrailerOpen(true)}
         />
       ) : (
         <Pressable onPress={hasCover ? () => setGalleryIndex(0) : undefined} disabled={!hasCover} accessibilityRole={hasCover ? 'button' : 'image'} accessibilityLabel={hasCover ? `Ampliar capa de ${game.title}` : `Capa de ${game.title}`}>
