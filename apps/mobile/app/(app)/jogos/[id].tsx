@@ -383,6 +383,7 @@ export default function GameDetailScreen() {
           url={game.trailer_url}
           title={game.title}
           posterUrl={gameCoverUrl(game.image_url)}
+          suspended={trailerOpen}
           onExpand={() => setTrailerOpen(true)}
         />
       ) : (

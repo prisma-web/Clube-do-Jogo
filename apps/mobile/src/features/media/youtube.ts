@@ -49,6 +49,37 @@ export function youtubeEmbedderOrigin(siteOrigin: string | null | undefined, app
   return /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/.test(id) ? `https://${id}` : 'https://clubedojogo.app';
 }
 
+export const PAUSE_PLAYER_SCRIPT = 'window.clubeTrailerPause && window.clubeTrailerPause(); true;';
+
+const PLAYER_BRIDGE = `(function () {
+  var frame = document.getElementById('player');
+  var origin = new URL(frame.src).origin;
+  var last = null;
+  function post(message) {
+    if (frame.contentWindow) frame.contentWindow.postMessage(JSON.stringify(message), origin);
+  }
+  function command(func, args) {
+    post({ event: 'command', func: func, args: args, id: 'player', channel: 'widget' });
+  }
+  frame.addEventListener('load', function () {
+    post({ event: 'listening', id: 'player', channel: 'widget' });
+    command('addEventListener', ['onStateChange']);
+  });
+  window.addEventListener('message', function (event) {
+    if (event.origin !== origin || event.source !== frame.contentWindow || typeof event.data !== 'string') return;
+    var data;
+    try { data = JSON.parse(event.data); } catch (error) { return; }
+    var state = !data ? null
+      : data.event === 'onStateChange' ? data.info
+      : data.event === 'infoDelivery' && data.info ? data.info.playerState
+      : null;
+    if (typeof state !== 'number' || state === last || !window.ReactNativeWebView) return;
+    last = state;
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'youtube-state', state: state }));
+  });
+  window.clubeTrailerPause = function () { command('pauseVideo', []); };
+})();`;
+
 function escapeHtmlAttribute(value: string) {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -58,12 +89,14 @@ export function youtubePlayerSource(embedUrl: string | null | undefined, embedde
   const src = new URL(embedUrl);
   if (options.autoplay) src.searchParams.set('autoplay', '1');
   src.searchParams.set('origin', embedderOrigin);
+  src.searchParams.set('enablejsapi', '1');
   const html = '<!DOCTYPE html><html><head><meta charset="utf-8">'
     + '<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">'
     + '<meta name="referrer" content="strict-origin-when-cross-origin">'
     + '<style>html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden}iframe{border:0;width:100%;height:100%;display:block}</style>'
     + '</head><body>'
-    + `<iframe src="${escapeHtmlAttribute(src.toString())}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
+    + `<iframe id="player" src="${escapeHtmlAttribute(src.toString())}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
+    + `<script>${PLAYER_BRIDGE}</script>`
     + '</body></html>';
   return { html, baseUrl: `${embedderOrigin}/` };
 }

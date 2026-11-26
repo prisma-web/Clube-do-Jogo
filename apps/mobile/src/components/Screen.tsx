@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode, type RefObject } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, RefreshControl, ScrollView, View, type ScrollViewProps } from 'react-native';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react';
+import { Keyboard, KeyboardAvoidingView, Platform, RefreshControl, ScrollView, View, type LayoutChangeEvent, type ScrollViewProps } from 'react-native';
+import { useAnimatedRef, useScrollOffset, useSharedValue, type SharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { spacing, themedStyles, useNativeTheme } from '@/theme';
 import { useGotyBadgeClearance } from '@/features/goty/GotyFloatingBadge';
@@ -10,6 +11,18 @@ const KEYBOARD_GAP = spacing.md;
 type FormTarget = RefObject<View | null>;
 
 const KeyboardFormContext = createContext<(form: FormTarget | null) => void>(() => {});
+
+export type ScreenScroll = {
+  offset: SharedValue<number>;
+  viewportHeight: SharedValue<number>;
+  scrollTo: (y: number) => void;
+};
+
+const ScreenScrollContext = createContext<ScreenScroll | null>(null);
+
+export function useScreenScroll(): ScreenScroll | null {
+  return useContext(ScreenScrollContext);
+}
 
 export function useKeepFormAboveKeyboard(form: FormTarget) {
   const setFocusedForm = useContext(KeyboardFormContext);
@@ -29,6 +42,7 @@ export function Screen({ children, scroll = true, contentContainerStyle, onRefre
   const badgeClearance = useGotyBadgeClearance();
   const safeArea = [styles.safeArea, theme.scene !== 'none' && styles.safeAreaScenic];
   const { scrollRef, contentRef, setFocusedForm, onScrollLayout } = useFormAboveKeyboard();
+  const { attachScroll, screenScroll, onViewportLayout } = useScreenScrollState(scrollRef);
   const shapeKey = `${theme.shape.font}-${theme.shape.decor ? 'decor' : 'plain'}`;
 
   if (!scroll) {
@@ -42,19 +56,44 @@ export function Screen({ children, scroll = true, contentContainerStyle, onRefre
     <SafeAreaView key={shapeKey} style={safeArea} edges={edges ?? ['top']}>
       <KeyboardAvoidingView style={styles.keyboardArea} behavior="height" enabled={Platform.OS === 'android'}>
         <ScrollView
-          ref={scrollRef}
+          ref={attachScroll}
           innerViewRef={contentRef}
-          onLayout={() => void onScrollLayout()}
+          onLayout={event => {
+            onViewportLayout(event);
+            void onScrollLayout();
+          }}
+          scrollEventThrottle={16}
           contentContainerStyle={[styles.content, { paddingBottom: Math.max(SCROLL_BOTTOM_PADDING, badgeClearance) }, contentContainerStyle as object]}
           refreshControl={onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={theme.colors.violet400} /> : undefined}
           automaticallyAdjustKeyboardInsets
           keyboardShouldPersistTaps="handled"
         >
-          <KeyboardFormContext.Provider value={setFocusedForm}>{children}</KeyboardFormContext.Provider>
+          <ScreenScrollContext.Provider value={screenScroll}>
+            <KeyboardFormContext.Provider value={setFocusedForm}>{children}</KeyboardFormContext.Provider>
+          </ScreenScrollContext.Provider>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+}
+
+function useScreenScrollState(scrollRef: RefObject<ScrollView | null>) {
+  const animatedRef = useAnimatedRef<ScrollView>();
+  const offset = useScrollOffset(animatedRef);
+  const viewportHeight = useSharedValue(0);
+  const attachScroll = useCallback((node: ScrollView | null) => {
+    scrollRef.current = node;
+    animatedRef(node);
+  }, [animatedRef, scrollRef]);
+  const screenScroll = useMemo<ScreenScroll>(() => ({
+    offset,
+    viewportHeight,
+    scrollTo: y => scrollRef.current?.scrollTo({ y, animated: true }),
+  }), [offset, scrollRef, viewportHeight]);
+  const onViewportLayout = useCallback((event: LayoutChangeEvent) => {
+    viewportHeight.set(event.nativeEvent.layout.height);
+  }, [viewportHeight]);
+  return { attachScroll, screenScroll, onViewportLayout };
 }
 
 type Box = { y: number; height: number };
