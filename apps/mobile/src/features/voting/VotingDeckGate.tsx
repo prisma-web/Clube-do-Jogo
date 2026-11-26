@@ -19,6 +19,7 @@ import { radii, spacing, themedStyles, typography, useThemeColors } from '@/them
 import { apiRoutes, type ApiRequestBody } from '@clube-do-jogo/data';
 import { createMobileApiTransport, getMobileSupabaseClient } from '@/platform';
 import { shiftMonth } from '@/lib/format';
+import { useAutoModalTurn } from '@/features/auto-modal-turn';
 import { recentVotingItems } from './voting-deck';
 
 const swipeThreshold = 88;
@@ -39,7 +40,7 @@ export function VotingDeckGate() {
     [dismissedGameIds, ranking.data],
   );
   const card = cards[0];
-  const visible = !closed && !isHistorical && ranking.isSuccess && Boolean(card);
+  const visible = useAutoModalTurn('voting-deck', !closed && !isHistorical && ranking.isSuccess && Boolean(card));
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => {
