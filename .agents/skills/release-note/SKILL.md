@@ -5,7 +5,7 @@ description: Escreve a nota de novidade (updates/notes/<slug>.json) que todo PR 
 
 # Nota de novidade
 
-Cada nota em `updates/notes/` vira um passo das Novidades que o membro vê no site e no app. Quando uma tag `vX.Y.Z` é publicada, `scripts/release-notes.mjs assemble` junta as notas **adicionadas** desde o último release publicado, na ordem dos commits, e anexa o `product-update.json` ao release. O site mostra as do release mais recente; o app Android, as da versão instalada. Os dois baixam o arquivo direto do release, sem a API do GitHub.
+Cada nota em `updates/notes/` vira um passo das Novidades que o membro vê no site e no app. Quando uma tag `vX.Y.Z` é publicada, `scripts/release-notes.mjs assemble` junta as notas **adicionadas** desde o último release publicado, na ordem dos commits, e anexa o `product-update.json` ao release, junto com o `product-updates.json`, que traz também as notas dos releases anteriores. O site e o app Android mostram as notas de todas as versões publicadas depois da última que o membro viu. Os dois baixam o arquivo direto do release, sem a API do GitHub.
 
 Editar uma nota já publicada não a mostra de novo. Renomear também não: com o conteúdo igual ou quase igual (`git mv`), o git vê uma renomeação e a nota segue como já anunciada. Reescrever a nota inteira sob outro nome conta como nota nova.
 

@@ -3,12 +3,24 @@ import { test } from 'node:test';
 import {
   androidProductUpdate,
   assembleProductUpdate,
+  compareReleaseTags,
   downloadProductUpdate,
+  downloadProductUpdateHistory,
+  githubReleasesUrl,
+  moreProductUpdatesLabel,
   parseProductUpdate,
+  parseProductUpdateHistory,
   parseReleaseNote,
+  productUpdateDigest,
+  productUpdateHistoryTags,
+  productUpdatePages,
+  productUpdateSeenTag,
+  productUpdateSteps,
   productUpdateStorageKey,
-  productUpdateUrl,
+  productUpdateTitle,
+  releaseAssetUrl,
   type ProductUpdate,
+  type ProductUpdateHistory,
 } from './product-updates';
 
 const REPO = 'prisma-web/Clube-do-Jogo';
@@ -54,6 +66,13 @@ const update: ProductUpdate = {
 
 test('productUpdateStorageKey scopes the key by update id', () => {
   assert.equal(productUpdateStorageKey('v1.2.0'), 'clube-do-jogo:product-update:v1.2.0:completed');
+});
+
+test('a seen key gives back its release tag, and other keys give nothing', () => {
+  assert.equal(productUpdateSeenTag(productUpdateStorageKey('v1.10.0')), 'v1.10.0');
+  for (const key of [productUpdateStorageKey('v1.1'), productUpdateStorageKey('v01.2.0'), `${productUpdateStorageKey('v1.2.0')}/account/x`, 'clube-do-jogo:theme']) {
+    assert.equal(productUpdateSeenTag(key), null, key);
+  }
 });
 
 test('a complete release note parses into its typed value', () => {
@@ -177,8 +196,109 @@ test('the android update swaps in the android copy and keeps the rest', () => {
 });
 
 test('notes live in the release download URL, which has no API rate limit', () => {
-  assert.equal(productUpdateUrl(REPO, 'v1.2.0'), 'https://github.com/prisma-web/Clube-do-Jogo/releases/download/v1.2.0/product-update.json');
-  assert.equal(productUpdateUrl(REPO, 'latest'), 'https://github.com/prisma-web/Clube-do-Jogo/releases/latest/download/product-update.json');
+  const releases = githubReleasesUrl(REPO);
+  assert.equal(releaseAssetUrl(releases, 'v1.2.0', 'product-updates.json'), 'https://github.com/prisma-web/Clube-do-Jogo/releases/download/v1.2.0/product-updates.json');
+  assert.equal(releaseAssetUrl(releases, 'latest', 'product-update.json'), 'https://github.com/prisma-web/Clube-do-Jogo/releases/latest/download/product-update.json');
+});
+
+test('release tags compare as versions, not as text', () => {
+  assert.deepEqual(['v1.10.0', 'v1.2.0', 'v1.9.3', 'v2.0.0', 'v1.9.10'].sort(compareReleaseTags), ['v1.2.0', 'v1.9.3', 'v1.9.10', 'v1.10.0', 'v2.0.0']);
+});
+
+function release(tag: string, notes = 1): ProductUpdate {
+  return {
+    id: tag,
+    version: tag,
+    title: `Novidades da ${tag}`,
+    steps: Array.from({ length: notes }, (_, index) => ({ eyebrow: 'RANKING', title: `${tag} nota ${index + 1}`, body: 'Texto.' })),
+  };
+}
+
+const realHistory: ProductUpdateHistory = {
+  id: 'v1.3.6',
+  releases: [
+    release('v1.3.6'), release('v1.3.5'), release('v1.3.4'), release('v1.3.3'), release('v1.3.2'),
+    release('v1.3.1', 2), release('v1.3.0', 4), release('v1.2.0', 5),
+  ],
+};
+const ids = (releases: readonly ProductUpdate[]) => releases.map(item => item.id);
+
+test('the history parses newest first, drops invalid or later releases and repeated versions', () => {
+  const json = { id: 'v1.3.0', releases: [release('v1.2.0'), release('v1.10.0'), { ...release('v1.2.1'), steps: [] }, release('v1.3.0'), release('v1.2.0', 2)] };
+  const parsed = parseProductUpdateHistory(JSON.parse(JSON.stringify(json)));
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(parsed.ok && ids(parsed.value.releases), ['v1.3.0', 'v1.2.0']);
+});
+
+test('a history without a tag id or without any valid release is invalid', () => {
+  assert.equal(parseProductUpdateHistory({ releases: [release('v1.2.0')] }).ok, false);
+  assert.equal(parseProductUpdateHistory({ id: 'v1.2.0', releases: [] }).ok, false);
+  assert.equal(parseProductUpdateHistory({ id: 'v1.2.0', releases: [release('v1.3.0')] }).ok, false);
+  assert.equal(parseProductUpdateHistory(release('v1.2.0')).ok, false);
+});
+
+test('the history file is not a product-update.json, so older apps never mistake one for the other', () => {
+  assert.equal(parseProductUpdate(realHistory).ok, false);
+});
+
+test('the tags whose seen flag tells where the member stopped are the history tags', () => {
+  assert.deepEqual(productUpdateHistoryTags({ id: 'v1.3.7', releases: [release('v1.3.6'), release('v1.3.5')] }), ['v1.3.7', 'v1.3.6', 'v1.3.5']);
+});
+
+const pageIds = (pages: readonly ProductUpdate[][]) => pages.map(ids);
+
+test('coming from v1.2.0, the member sees every later version, newest first, ten notes of whole versions per page', () => {
+  const digest = productUpdateDigest(realHistory, { seen: ['v1.2.0'] });
+  assert.equal(digest.pending, true);
+  assert.deepEqual(pageIds(digest.pages), [['v1.3.6', 'v1.3.5', 'v1.3.4', 'v1.3.3', 'v1.3.2', 'v1.3.1'], ['v1.3.0']]);
+  assert.equal(productUpdateTitle(digest.pages[0]), 'Novidades da v1.3.1 à v1.3.6');
+  assert.equal(moreProductUpdatesLabel(digest.pages.slice(1)), 'Mais 4 novidades da v1.3.0');
+  assert.deepEqual(productUpdateSteps(digest.pages[0]).map(step => step.version), ['v1.3.6', 'v1.3.5', 'v1.3.4', 'v1.3.3', 'v1.3.2', 'v1.3.1', 'v1.3.1']);
+});
+
+test('the newest seen version wins, whatever order the flags come in', () => {
+  assert.deepEqual(pageIds(productUpdateDigest(realHistory, { seen: ['v1.3.4', 'v1.2.0', 'v1.1', 'v1.3.10-rc'] }).pages), [['v1.3.6', 'v1.3.5']]);
+});
+
+test('a fresh install, with no seen flag and no cached release, sees only the current version', () => {
+  const digest = productUpdateDigest(realHistory, { seen: [] });
+  assert.equal(digest.pending, true);
+  assert.deepEqual(pageIds(digest.pages), [['v1.3.6']]);
+  assert.equal(productUpdateTitle(digest.pages[0]), 'Novidades da v1.3.6');
+});
+
+test('a member who had a version installed but never closed its notes sees that version too', () => {
+  assert.deepEqual(pageIds(productUpdateDigest(realHistory, { seen: [], installedBefore: 'v1.3.4' }).pages), [['v1.3.6', 'v1.3.5', 'v1.3.4']]);
+  assert.deepEqual(pageIds(productUpdateDigest(realHistory, { seen: ['v1.3.5'], installedBefore: 'v1.3.4' }).pages), [['v1.3.6']]);
+  assert.deepEqual(pageIds(productUpdateDigest(realHistory, { seen: [], installedBefore: 'v1.3.6' }).pages), [['v1.3.6']]);
+});
+
+test('a member who saw everything has nothing pending, and settings replays the newest version, then the older ones', () => {
+  for (const seen of [['v1.3.6'], ['v1.4.0']]) {
+    const digest = productUpdateDigest(realHistory, { seen });
+    assert.equal(digest.pending, false);
+    assert.deepEqual(pageIds(digest.pages), [['v1.3.6'], ['v1.3.5', 'v1.3.4', 'v1.3.3', 'v1.3.2', 'v1.3.1', 'v1.3.0'], ['v1.2.0']]);
+  }
+});
+
+test('an installed version without notes still brings the notes the member skipped, and nothing on a fresh install', () => {
+  const history = { id: 'v1.3.7', releases: realHistory.releases };
+  assert.deepEqual(pageIds(productUpdateDigest(history, { seen: ['v1.3.4'] }).pages), [['v1.3.6', 'v1.3.5']]);
+  assert.equal(productUpdateDigest(history, { seen: [] }).pending, false);
+  assert.equal(productUpdateDigest(history, { seen: ['v1.3.7'] }).pending, false);
+});
+
+test('pages hold whole versions, in order, and a version larger than the limit gets a page of its own', () => {
+  const releases = [release('v1.4.0', 3), release('v1.3.0', 12), release('v1.2.0', 8), release('v1.1.0', 2), release('v1.0.0', 1)];
+  assert.deepEqual(pageIds(productUpdatePages(releases)), [['v1.4.0'], ['v1.3.0'], ['v1.2.0', 'v1.1.0'], ['v1.0.0']]);
+  assert.deepEqual(productUpdatePages([]), []);
+});
+
+test('the label of the remaining pages counts their notes and versions', () => {
+  const pages = productUpdatePages([release('v1.2.0', 8), release('v1.1.0', 1), release('v1.0.0', 5)]);
+  assert.equal(moreProductUpdatesLabel(pages), 'Mais 14 novidades de 3 versões anteriores (v1.0.0 à v1.2.0)');
+  assert.equal(moreProductUpdatesLabel([[release('v1.0.0')]]), 'Mais 1 novidade da v1.0.0');
+  assert.equal(moreProductUpdatesLabel([]), null);
 });
 
 function respond(body: unknown, status = 200) {
@@ -213,6 +333,14 @@ test('network errors, server errors and non-JSON bodies are failures worth retry
   assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', respond('Bad Gateway', 502)), { status: 'failed' });
   assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', respond({ message: 'Server Error' }, 500)), { status: 'failed' });
   assert.deepEqual(await downloadProductUpdate(URL_V12, 'v1.2.0', respond('<html>captive portal</html>')), { status: 'failed' });
+});
+
+test('downloads a history of the expected release and treats a single release file as missing', async () => {
+  const URL_HISTORY = 'https://github.com/prisma-web/Clube-do-Jogo/releases/download/v1.3.6/product-updates.json';
+  assert.deepEqual(await downloadProductUpdateHistory(URL_HISTORY, 'v1.3.6', respond(realHistory)), { status: 'found', update: realHistory });
+  assert.deepEqual(await downloadProductUpdateHistory(URL_HISTORY, 'v1.3.7', respond(realHistory)), { status: 'missing' });
+  assert.deepEqual(await downloadProductUpdateHistory(URL_HISTORY, null, respond(update)), { status: 'missing' });
+  assert.deepEqual(await downloadProductUpdateHistory(URL_HISTORY, null, respond('Bad Gateway', 502)), { status: 'failed' });
 });
 
 test('gives up on a server that never answers after 3 seconds', { timeout: 4000 }, async () => {

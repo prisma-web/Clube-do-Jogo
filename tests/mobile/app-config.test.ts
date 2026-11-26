@@ -8,7 +8,7 @@ const expoBin = fileURLToPath(new URL('../../node_modules/expo/bin/cli', import.
 
 function readConfig(variables: Record<string, string> = {}) {
   const env = { ...process.env };
-  for (const key of ['APP_VARIANT', 'APP_VERSION', 'EAS_BUILD_PROFILE', 'EXPO_APPLICATION_ID', 'EXPO_EAS_PROJECT_ID', 'EXPO_LOCAL_HTTP', 'EXPO_PUBLIC_SITE_URL']) {
+  for (const key of ['APP_VARIANT', 'APP_VERSION', 'EAS_BUILD_PROFILE', 'EXPO_APPLICATION_ID', 'EXPO_EAS_PROJECT_ID', 'EXPO_LOCAL_HTTP', 'EXPO_PRODUCT_UPDATES_RELEASES_URL', 'EXPO_PUBLIC_SITE_URL']) {
     delete env[key];
   }
   return spawnSync(process.execPath, [expoBin, 'config', '--type', 'public', '--json'], {
@@ -154,6 +154,23 @@ test('só a produção checa atualização do APK e pede permissão para instala
     assert.equal(other.extra?.apkUpdates, undefined);
     assert.ok(!(other.android.permissions ?? []).includes('android.permission.REQUEST_INSTALL_PACKAGES'));
   }
+});
+
+test('só um build de desenvolvimento aceita outro endereço para as Novidades, para testar com arquivos locais', () => {
+  const releases = 'http://127.0.0.1:8787/releases';
+  const development = readConfig({ EXPO_PRODUCT_UPDATES_RELEASES_URL: releases });
+  assert.equal(development.status, 0, development.stderr);
+  assert.deepEqual(JSON.parse(development.stdout).extra?.productUpdates, { releases });
+
+  const production = readDistributedConfig('production', { EXPO_PRODUCT_UPDATES_RELEASES_URL: releases });
+  assert.equal(production.status, 0, production.stderr);
+  const config = JSON.parse(production.stdout);
+  assert.equal(config.extra?.productUpdates, undefined);
+  assert.deepEqual(config.extra?.apkUpdates, { repo: 'prisma-web/Clube-do-Jogo' });
+
+  const plain = readConfig();
+  assert.equal(plain.status, 0, plain.stderr);
+  assert.equal(JSON.parse(plain.stdout).extra?.productUpdates, undefined);
 });
 
 function readIntrospectedSchemes(variables: Record<string, string>) {

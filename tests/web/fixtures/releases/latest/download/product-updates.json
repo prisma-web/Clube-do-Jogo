@@ -1,0 +1,103 @@
+{
+  "id": "v1.3.0",
+  "releases": [
+    {
+      "id": "v1.3.0",
+      "version": "v1.3.0",
+      "title": "Novidades da v1.3.0",
+      "steps": [
+        {
+          "eyebrow": "RANKING",
+          "title": "Empates dividem a posição",
+          "body": "Jogos com a mesma pontuação agora ficam lado a lado no ranking.",
+          "highlights": [
+            "Mesma pontuação, mesma posição."
+          ],
+          "image": {
+            "src": "https://raw.githubusercontent.com/prisma-web/Clube-do-Jogo/v1.1.0/public/updates/v1.1/ranking.webp",
+            "alt": "Ranking com dois jogos empatados na mesma posição.",
+            "width": 860,
+            "height": 500
+          }
+        },
+        {
+          "eyebrow": "PERFORMANCE",
+          "title": "Mais rápido, passo a passo",
+          "body": "O carregamento das telas principais ficou mais leve.",
+          "artwork": "performance",
+          "android": {
+            "body": "No app, as telas principais abrem mais rápido."
+          }
+        }
+      ]
+    },
+    {
+      "id": "v1.2.0",
+      "version": "v1.2.0",
+      "title": "Novidades da v1.2.0",
+      "steps": [
+        {
+          "eyebrow": "PERFIL",
+          "title": "Nota 1 da v1.2.0",
+          "body": "Uma novidade de uma versão anterior.",
+          "artwork": "overview"
+        },
+        {
+          "eyebrow": "PERFIL",
+          "title": "Nota 2 da v1.2.0",
+          "body": "Uma novidade de uma versão anterior.",
+          "artwork": "overview"
+        },
+        {
+          "eyebrow": "PERFIL",
+          "title": "Nota 3 da v1.2.0",
+          "body": "Uma novidade de uma versão anterior.",
+          "artwork": "overview"
+        }
+      ]
+    },
+    {
+      "id": "v1.1.0",
+      "version": "v1.1.0",
+      "title": "Novidades da v1.1.0",
+      "steps": [
+        {
+          "eyebrow": "PERFIL",
+          "title": "Nota 1 da v1.1.0",
+          "body": "Uma novidade de uma versão anterior.",
+          "artwork": "overview"
+        },
+        {
+          "eyebrow": "PERFIL",
+          "title": "Nota 2 da v1.1.0",
+          "body": "Uma novidade de uma versão anterior.",
+          "artwork": "overview"
+        },
+        {
+          "eyebrow": "PERFIL",
+          "title": "Nota 3 da v1.1.0",
+          "body": "Uma novidade de uma versão anterior.",
+          "artwork": "overview"
+        },
+        {
+          "eyebrow": "PERFIL",
+          "title": "Nota 4 da v1.1.0",
+          "body": "Uma novidade de uma versão anterior.",
+          "artwork": "overview"
+        },
+        {
+          "eyebrow": "PERFIL",
+          "title": "Nota 5 da v1.1.0",
+          "body": "Uma novidade de uma versão anterior.",
+          "artwork": "overview"
+        },
+        {
+          "eyebrow": "PERFIL",
+          "title": "Nota 6 da v1.1.0",
+          "body": "Uma novidade de uma versão anterior.",
+          "artwork": "overview"
+        }
+      ]
+    }
+  ]
+}

@@ -74,7 +74,8 @@ jobs:
         run: |
           released="$(gh release list --limit 1000 --json tagName,isDraft --jq '[.[] | select(.isDraft | not) | .tagName] | join(",")')"
           echo "Releases publicados: ${released:-nenhum}"
-          node scripts/release-notes.mjs assemble "$TAG" --released "$released" --out "$RUNNER_TEMP/product-update.json"
+          node scripts/release-notes.mjs assemble "$TAG" --released "$released" \
+            --out "$RUNNER_TEMP/product-update.json" --history-out "$RUNNER_TEMP/product-updates.json"
 
       - uses: actions/setup-java@v5
         with:
@@ -130,9 +131,11 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           assets=("$RUNNER_TEMP/clube-do-jogo-$TAG.apk")
-          if [[ -f "$RUNNER_TEMP/product-update.json" ]]; then
-            assets+=("$RUNNER_TEMP/product-update.json")
-          fi
+          for notes in product-update.json product-updates.json; do
+            if [[ -f "$RUNNER_TEMP/$notes" ]]; then
+              assets+=("$RUNNER_TEMP/$notes")
+            fi
+          done
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${assets[@]}" --clobber
           else

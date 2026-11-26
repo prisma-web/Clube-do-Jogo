@@ -1,13 +1,42 @@
 import { apiRoutes, type ApiResponse, type Unvalidated } from '@clube-do-jogo/data';
-import { parseProductUpdate, type ProductUpdate } from '@clube-do-jogo/domain';
+import {
+  parseProductUpdateHistory,
+  productUpdateDigest,
+  productUpdateSeenTag,
+  productUpdateStorageKey,
+  type ProductUpdateDigest,
+  type ProductUpdateHistory,
+} from '@clube-do-jogo/domain';
 
-export async function fetchLatestProductUpdate(): Promise<ProductUpdate | null> {
+export async function fetchProductUpdateHistory(): Promise<ProductUpdateHistory | null> {
   try {
     const response = await fetch(apiRoutes.productUpdate.path);
     if (!response.ok) return null;
-    const parsed = parseProductUpdate(((await response.json()) as Unvalidated<ApiResponse<'productUpdate'>>).update);
+    const parsed = parseProductUpdateHistory(((await response.json()) as Unvalidated<ApiResponse<'productUpdate'>>).history);
     return parsed.ok ? parsed.value : null;
   } catch {
     return null;
+  }
+}
+
+function seenTags(): string[] {
+  try {
+    return Object.keys(window.localStorage).flatMap(key => {
+      const tag = productUpdateSeenTag(key);
+      return tag && window.localStorage.getItem(key) === 'true' ? [tag] : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
+export function readProductUpdateDigest(history: ProductUpdateHistory): ProductUpdateDigest {
+  return productUpdateDigest(history, { seen: seenTags() });
+}
+
+export function markProductUpdateSeen(digest: ProductUpdateDigest) {
+  try {
+    window.localStorage.setItem(productUpdateStorageKey(digest.id), 'true');
+  } catch {
   }
 }

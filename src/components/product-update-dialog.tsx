@@ -7,12 +7,15 @@ import { AnimatePresence, motion } from 'motion/react';
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Compass, Gamepad2, Library, Sparkles, Star, Trophy, X, Zap } from 'lucide-react';
 import {
   gameCoverUrl,
-  productUpdateStorageKey,
-  type ProductUpdate,
+  moreProductUpdatesLabel,
+  productUpdateSteps,
+  productUpdateTitle,
   type ProductUpdateArtwork,
+  type ProductUpdateDigest,
   type ProductUpdateImage,
 } from '@clube-do-jogo/domain';
 import { demoGames } from '@/lib/demo-data';
+import { markProductUpdateSeen } from '@/lib/product-update-release';
 import { cn } from '@/lib/utils';
 
 const AUTO_OPEN_PRODUCT_UPDATE = process.env.NEXT_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE !== 'false';
@@ -22,14 +25,20 @@ export function openProductUpdate() {
   window.dispatchEvent(new Event(PRODUCT_UPDATE_EVENT));
 }
 
-export function ProductUpdateDialog({ update }: { update: ProductUpdate }) {
+export function ProductUpdateDialog({ digest }: { digest: ProductUpdateDigest }) {
   const [open, setOpen] = useState(false);
+  const [pageIndex, setPageIndex] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
-  const storageKey = productUpdateStorageKey(update.id);
-  const step = update.steps[stepIndex];
-  const finalStep = stepIndex === update.steps.length - 1;
+  const page = digest.pages[Math.min(pageIndex, digest.pages.length - 1)];
+  const steps = productUpdateSteps(page);
+  const title = productUpdateTitle(page);
+  const step = steps[Math.min(stepIndex, steps.length - 1)];
+  const finalStep = stepIndex >= steps.length - 1;
+  const more = finalStep ? moreProductUpdatesLabel(digest.pages.slice(pageIndex + 1)) : null;
+  const firstPageSteps = digest.pages[0].reduce((total, release) => total + release.steps.length, 0);
 
   const showUpdate = useCallback(() => {
+    setPageIndex(0);
     setStepIndex(0);
     setOpen(true);
   }, []);
@@ -37,37 +46,39 @@ export function ProductUpdateDialog({ update }: { update: ProductUpdate }) {
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const requestedUpdate = searchParams.get('novidades');
-    if (requestedUpdate === update.id || requestedUpdate === 'atual') {
+    if (requestedUpdate === digest.id || requestedUpdate === 'atual') {
       const requestedStep = Number(searchParams.get('passo'));
       const initialStep = Number.isInteger(requestedStep) && requestedStep > 0
-        ? Math.min(update.steps.length - 1, requestedStep - 1)
+        ? Math.min(firstPageSteps - 1, requestedStep - 1)
         : 0;
       queueMicrotask(() => {
+        setPageIndex(0);
         setStepIndex(initialStep);
         setOpen(true);
       });
-    } else if (AUTO_OPEN_PRODUCT_UPDATE && window.localStorage.getItem(storageKey) !== 'true') {
+    } else if (AUTO_OPEN_PRODUCT_UPDATE && digest.pending) {
       queueMicrotask(showUpdate);
     }
     window.addEventListener(PRODUCT_UPDATE_EVENT, showUpdate);
     return () => window.removeEventListener(PRODUCT_UPDATE_EVENT, showUpdate);
-  }, [showUpdate, storageKey, update.id, update.steps.length]);
+  }, [showUpdate, digest.id, digest.pending, firstPageSteps]);
 
   useEffect(() => {
     if (!open) return;
-    update.steps.forEach(item => {
+    steps.forEach(item => {
       const snapshot = document.createElement('img');
       if (item.image) snapshot.src = item.image.src;
     });
-  }, [open, update.steps]);
+  }, [open, steps]);
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
-    if (nextOpen) return;
-    try {
-      window.localStorage.setItem(storageKey, 'true');
-    } catch {
-    }
+    if (!nextOpen) markProductUpdateSeen(digest);
+  }
+
+  function showMore() {
+    setPageIndex(index => index + 1);
+    setStepIndex(0);
   }
 
   function finishUpdate() {
@@ -79,23 +90,23 @@ export function ProductUpdateDialog({ update }: { update: ProductUpdate }) {
       <Dialog.Portal>
         <Dialog.Overlay className="update-notes-overlay animated-overlay fixed inset-0 z-[380] bg-black/80 backdrop-blur-md" />
         <Dialog.Content className="update-notes-dialog fixed left-1/2 top-1/2 z-[381] flex max-h-[min(92dvh,820px)] w-[calc(100%-1rem)] max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[30px] border border-white/10 bg-zinc-950 shadow-[0_32px_100px_rgba(0,0,0,.72)] outline-none sm:w-[calc(100%-2rem)]">
-          <Dialog.Title className="sr-only">{update.title}</Dialog.Title>
+          <Dialog.Title className="sr-only">{title}</Dialog.Title>
           <Dialog.Description className="sr-only">Conheça as novidades desta versão do Clube do Jogo.</Dialog.Description>
 
           <header className="update-notes-header flex shrink-0 items-center gap-3 border-b border-white/8 px-4 py-3 sm:px-6">
             <div className="update-notes-mark grid size-9 shrink-0 place-items-center rounded-xl bg-violet-500/15 text-violet-300"><Gamepad2 className="size-4.5" /></div>
             <div className="min-w-0 flex-1">
-              <strong className="block truncate text-xs font-black text-zinc-100">{update.title}</strong>
+              <strong className="block truncate text-xs font-black text-zinc-100">{title}</strong>
               <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-[.16em] text-zinc-600">Novidades do Clube do Jogo</span>
             </div>
-            <span className="hidden text-[10px] font-extrabold tabular-nums text-zinc-500 min-[390px]:block">{stepIndex + 1} de {update.steps.length}</span>
+            <span className="hidden text-[10px] font-extrabold tabular-nums text-zinc-500 min-[390px]:block">{stepIndex + 1} de {steps.length}</span>
             <Dialog.Close aria-label="Fechar novidades" className="grid size-9 shrink-0 place-items-center rounded-full bg-white/5 text-zinc-500 outline-none transition hover:bg-white/10 hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-violet-400/45 active:scale-95"><X className="size-4" /></Dialog.Close>
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
-                key={stepIndex}
+                key={`${pageIndex}-${stepIndex}`}
                 initial={{ opacity: 0, x: 18 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -14 }}
@@ -103,10 +114,10 @@ export function ProductUpdateDialog({ update }: { update: ProductUpdate }) {
                 className="grid min-h-full lg:grid-cols-[1.12fr_.88fr]"
               >
                 <div className="update-notes-visual-wrap min-h-[240px] p-3 sm:min-h-[310px] sm:p-5 lg:min-h-[510px] lg:p-6">
-                  {step.image ? <UpdateSnapshot image={step.image} /> : <UpdateArtwork artwork={step.artwork || 'overview'} version={update.version} />}
+                  {step.image ? <UpdateSnapshot image={step.image} /> : <UpdateArtwork artwork={step.artwork || 'overview'} version={step.version} />}
                 </div>
                 <div className="update-notes-copy flex flex-col justify-center px-5 pb-7 pt-4 sm:px-8 sm:pb-9 lg:px-9 lg:py-12">
-                  <span className="text-[10px] font-black uppercase tracking-[.18em] text-violet-300">{step.eyebrow}</span>
+                  <span className="text-[10px] font-black uppercase tracking-[.18em] text-violet-300"><span className="normal-case text-zinc-500">{step.version}</span> · {step.eyebrow}</span>
                   <h2 className="mt-2.5 text-balance text-2xl font-black leading-[1.08] tracking-[-0.035em] text-zinc-50 sm:text-3xl">{step.title}</h2>
                   <p className="mt-4 text-sm leading-6 text-zinc-400">{step.body}</p>
                   {step.highlights && (
@@ -125,24 +136,27 @@ export function ProductUpdateDialog({ update }: { update: ProductUpdate }) {
           </div>
 
           <footer className="update-notes-footer shrink-0 border-t border-white/8 px-4 pb-[max(.85rem,env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
-            <div className="mb-3 flex gap-1" aria-label={`Passo ${stepIndex + 1} de ${update.steps.length}`}>
-              {update.steps.map((item, index) => (
+            <div className="mb-3 flex gap-1" aria-label={`Passo ${stepIndex + 1} de ${steps.length}`}>
+              {steps.map((item, index) => (
                 <button
-                  key={`${item.eyebrow}-${index}`}
+                  key={`${pageIndex}-${index}`}
                   type="button"
                   onClick={() => setStepIndex(index)}
-                  aria-label={`Ir para o passo ${index + 1}: ${item.eyebrow}`}
+                  aria-label={`Ir para o passo ${index + 1}: ${item.version}, ${item.eyebrow}`}
                   aria-current={index === stepIndex ? 'step' : undefined}
                   className={cn('update-notes-progress h-1 flex-1 rounded-full transition', index <= stepIndex ? 'bg-violet-400' : 'bg-white/8')}
                 />
               ))}
             </div>
+            {more && (
+              <button type="button" onClick={showMore} className="mb-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-white/8 px-3 text-xs font-extrabold text-violet-200 transition hover:bg-white/5 hover:text-violet-100">{more}<ArrowRight className="size-4" /></button>
+            )}
             <div className="flex items-center justify-between gap-3">
               <button type="button" disabled={stepIndex === 0} onClick={() => setStepIndex(index => Math.max(0, index - 1))} className="inline-flex h-11 items-center gap-2 rounded-xl px-3 text-xs font-extrabold text-zinc-400 transition hover:bg-white/5 hover:text-zinc-100 disabled:pointer-events-none disabled:opacity-0"><ArrowLeft className="size-4" />Anterior</button>
               {finalStep ? (
-                <button type="button" onClick={finishUpdate} className="update-notes-primary inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 text-xs font-black text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 active:scale-[.98] sm:px-5">Explorar a {update.version}<Check className="size-4" /></button>
+                <button type="button" onClick={finishUpdate} className="update-notes-primary inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 text-xs font-black text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 active:scale-[.98] sm:px-5">Explorar a {digest.id}<Check className="size-4" /></button>
               ) : (
-                <button type="button" onClick={() => setStepIndex(index => Math.min(update.steps.length - 1, index + 1))} className="update-notes-primary inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 text-xs font-black text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 active:scale-[.98]">Próximo<ArrowRight className="size-4" /></button>
+                <button type="button" onClick={() => setStepIndex(index => Math.min(steps.length - 1, index + 1))} className="update-notes-primary inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 text-xs font-black text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500 active:scale-[.98]">Próximo<ArrowRight className="size-4" /></button>
               )}
             </div>
           </footer>
