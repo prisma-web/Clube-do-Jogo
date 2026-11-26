@@ -503,6 +503,101 @@ test('assemble rejects a tag that is not vX.Y.Z', () => {
   assert.equal(assemble(dir, 'v1.0').status, 1);
 });
 
+function assembleHistory(dir, tag, released = git(dir, 'tag', '--list').split('\n')) {
+  const out = join(dir, 'out');
+  rmSync(out, { recursive: true, force: true });
+  mkdirSync(out);
+  const result = run(dir, 'assemble', tag, '--released', released.join(','), '--out', join(out, 'product-update.json'), '--history-out', join(out, 'product-updates.json'));
+  const read = name => (existsSync(join(out, name)) ? JSON.parse(readFileSync(join(out, name), 'utf8')) : null);
+  return { ...result, update: read('product-update.json'), history: read('product-updates.json') };
+}
+
+const versions = history => history?.releases.map(release => `${release.id}:${titles({ update: release }).join('+')}`);
+
+test('the history holds every published release, newest first, each with the notes it announced', () => {
+  const dir = createRepo();
+  commit(dir, { 'updates/notes/um.json': note('um') }, 'one');
+  git(dir, 'tag', 'v1.0.0');
+  commit(dir, { 'updates/notes/dois.json': withImage('dois'), 'updates/notes/dois.webp': fixture('lossy.webp') }, 'two');
+  commit(dir, { 'updates/notes/tres.json': note('tres') }, 'three');
+  git(dir, 'tag', 'v1.1.0');
+  commit(dir, { 'updates/notes/um.json': note('um', { body: 'Editada depois.' }), 'updates/notes/quatro.json': note('quatro') }, 'four');
+  git(dir, 'tag', 'v1.2.0');
+
+  const result = assembleHistory(dir, 'v1.2.0');
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(versions(result.history), ['v1.2.0:quatro', 'v1.1.0:dois+tres', 'v1.0.0:um']);
+  assert.equal(result.history.id, 'v1.2.0');
+  assert.deepEqual(result.history.releases[0], result.update);
+  assert.deepEqual(result.history.releases[1], assemble(dir, 'v1.1.0').update);
+  assert.equal(result.history.releases[1].steps[0].image.src, 'https://raw.githubusercontent.com/prisma-web/Clube-do-Jogo/v1.1.0/updates/notes/dois.webp');
+  assert.equal(result.history.releases[2].steps[0].body, note('um').body);
+});
+
+test('the history follows the published releases, so a tag whose build failed passes its notes to the next one', () => {
+  const dir = createRepo();
+  commit(dir, { 'updates/notes/um.json': note('um') }, 'one');
+  git(dir, 'tag', 'v1.0.0');
+  commit(dir, { 'updates/notes/falhou.json': note('falhou') }, 'failed build');
+  git(dir, 'tag', 'v1.0.1');
+  commit(dir, { 'updates/notes/dois.json': note('dois') }, 'two');
+  git(dir, 'tag', 'v1.0.2');
+  commit(dir, { 'src/a.ts': 'x' }, 'infra');
+  git(dir, 'tag', 'v1.0.3');
+  commit(dir, { 'updates/notes/tres.json': note('tres') }, 'three');
+  git(dir, 'tag', 'v1.1.0');
+  assert.deepEqual(versions(assembleHistory(dir, 'v1.1.0', ['v1.0.0', 'v1.0.2', 'v1.0.3']).history), ['v1.1.0:tres', 'v1.0.2:falhou+dois', 'v1.0.0:um']);
+});
+
+test('a release without notes still gets a history, so its members see the notes they skipped', () => {
+  const dir = createRepo();
+  commit(dir, { 'updates/notes/um.json': note('um') }, 'one');
+  git(dir, 'tag', 'v1.0.0');
+  commit(dir, { 'src/a.ts': 'x' }, 'infra');
+  git(dir, 'tag', 'v1.0.1');
+  const result = assembleHistory(dir, 'v1.0.1');
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.update, null);
+  assert.deepEqual({ id: result.history.id, versions: versions(result.history) }, { id: 'v1.0.1', versions: ['v1.0.0:um'] });
+});
+
+test('no history is written when no release has notes', () => {
+  const dir = createRepo();
+  git(dir, 'tag', 'v1.0.0');
+  const result = assembleHistory(dir, 'v1.0.0');
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.history, null);
+});
+
+test('the history keeps the 25 newest releases with notes', () => {
+  const dir = createRepo();
+  for (let patch = 0; patch < 30; patch += 1) {
+    commit(dir, patch === 10 ? { 'src/a.ts': 'x' } : { [`updates/notes/n${patch}.json`]: note(`n${patch}`) }, `release ${patch}`);
+    git(dir, 'tag', `v1.0.${patch}`);
+  }
+  const { history } = assembleHistory(dir, 'v1.0.29');
+  assert.equal(history.releases.length, 25);
+  assert.deepEqual([history.releases[0].id, history.releases.at(-1).id], ['v1.0.29', 'v1.0.4']);
+});
+
+test('an older release whose notes no longer validate stays out of the history, and the current one still fails', () => {
+  const dir = createRepo();
+  commit(dir, { 'updates/notes/antiga.json': note('antiga', { eyebrow: 'minúsculas' }) }, 'old invalid');
+  git(dir, 'tag', 'v1.0.0');
+  commit(dir, { 'updates/notes/nova.json': note('nova') }, 'new');
+  git(dir, 'tag', 'v1.1.0');
+  const ok = assembleHistory(dir, 'v1.1.0');
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.deepEqual(versions(ok.history), ['v1.1.0:nova']);
+  assert.match(ok.stderr, /v1\.0\.0 fica fora do histórico/);
+
+  commit(dir, { 'updates/notes/quebrada.json': note('quebrada', { eyebrow: 'minúsculas' }) }, 'current invalid');
+  git(dir, 'tag', 'v1.2.0');
+  const failed = assembleHistory(dir, 'v1.2.0');
+  assert.equal(failed.status, 1);
+  assert.equal(failed.history, null);
+});
+
 function runOnNode(version, dir, ...args) {
   const preload = pathToFileURL(join(root, 'tests', 'fixtures', 'release-notes', 'pretend-node.mjs')).href;
   return runWith({ NODE_OPTIONS: `--import=${preload}`, PRETEND_NODE_VERSION: version }, dir, ...args);

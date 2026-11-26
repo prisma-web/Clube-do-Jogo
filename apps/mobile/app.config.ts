@@ -47,6 +47,8 @@ if (isDistributed && !requestedVersion) {
 }
 const { version, versionCode } = requestedVersion ?? parseVersion(DEFAULT_VERSION)!;
 const apkUpdates = variant === 'production' ? { repo: 'prisma-web/Clube-do-Jogo' } : null;
+const productUpdatesReleases = variant === 'development' ? process.env.EXPO_PRODUCT_UPDATES_RELEASES_URL : undefined;
+const productUpdates = productUpdatesReleases ? { releases: productUpdatesReleases } : null;
 
 const geistMonoWeights = [[400, '400Regular'], [500, '500Medium'], [600, '600SemiBold'], [700, '700Bold'], [800, '800ExtraBold'], [900, '900Black']] as const;
 const geistMonoFiles = geistMonoWeights.map(([weight, name]) => ({
@@ -92,7 +94,7 @@ const config: ExpoConfig = {
     ['expo-splash-screen', { backgroundColor: '#0c0a13', image: './assets/icon.png' }],
   ],
   experiments: { typedRoutes: true },
-  ...(apkUpdates && { extra: { apkUpdates } }),
+  ...((apkUpdates || productUpdates) && { extra: { ...(apkUpdates && { apkUpdates }), ...(productUpdates && { productUpdates }) } }),
 };
 
 export default config;

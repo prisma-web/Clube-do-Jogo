@@ -14,7 +14,14 @@ if (!process.features.typescript && !process.env[RELAUNCHED]) {
   process.exit(status ?? 1);
 }
 
-const { assembleProductUpdate, parseReleaseNote, RELEASE_TAG, RELEASES_REPO } = await import('../packages/domain/src/product-updates.ts');
+const {
+  assembleProductUpdate,
+  compareReleaseTags,
+  parseReleaseNote,
+  PRODUCT_UPDATE_HISTORY_RELEASES,
+  RELEASE_TAG,
+  RELEASES_REPO,
+} = await import('../packages/domain/src/product-updates.ts');
 
 const NOTES_DIR = 'updates/notes';
 const NOTE_FILE = /^updates\/notes\/([^/]+)\.(json|webp)$/;
@@ -128,12 +135,6 @@ function check(base, head, optOut) {
   return 0;
 }
 
-function compareTags(a, b) {
-  const [, ...left] = RELEASE_TAG.exec(a).map(Number);
-  const [, ...right] = RELEASE_TAG.exec(b).map(Number);
-  return left[0] - right[0] || left[1] - right[1] || left[2] - right[2];
-}
-
 function addedSlugs(range) {
   const paths = [];
   const log = git(['log', '--topo-order', '--reverse', '--find-renames', '--diff-filter=AR', '--name-status', '--format=', range, '--', NOTES_DIR]);
@@ -145,35 +146,60 @@ function addedSlugs(range) {
   return paths.map(path => NOTE_FILE.exec(path)).filter(match => match?.[2] === 'json').map(match => match[1]);
 }
 
-function previousRelease(tag, released) {
+function earlierReleases(tag, released) {
   return git(['tag', '--merged', tag, '--list', 'v*'])
     .split('\n')
-    .filter(candidate => released.includes(candidate) && RELEASE_TAG.test(candidate) && compareTags(candidate, tag) < 0)
-    .sort(compareTags)
-    .at(-1);
+    .filter(candidate => released.includes(candidate) && RELEASE_TAG.test(candidate) && compareReleaseTags(candidate, tag) < 0)
+    .sort(compareReleaseTags);
 }
 
-function assemble(tag, released, out) {
+function releaseUpdate(tag, released) {
+  const previous = earlierReleases(tag, released).at(-1);
+  const slugs = addedSlugs(previous ? `${previous}..${tag}` : tag).filter(slug => exists(tag, `${NOTES_DIR}/${slug}.json`));
+  const since = previous ? `desde o release ${previous}` : 'no histórico';
+  if (slugs.length === 0) return { since, slugs, update: null, errors: [] };
+  const results = slugs.map(slug => readNote(tag, slug));
+  const errors = results.flatMap(result => result.errors ?? []);
+  if (errors.length) return { since, slugs, update: null, errors };
+  const update = assembleProductUpdate(tag, results.map(result => result.note), process.env.GITHUB_REPOSITORY || RELEASES_REPO);
+  return { since, slugs, update, errors };
+}
+
+function writeJson(path, value) {
+  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function assemble(tag, released, out, historyOut) {
   if (!RELEASE_TAG.test(tag)) {
     console.error(`A tag ${tag} não é vX.Y.Z.`);
     return 1;
   }
-  const previous = previousRelease(tag, released);
-  const slugs = addedSlugs(previous ? `${previous}..${tag}` : tag).filter(slug => exists(tag, `${NOTES_DIR}/${slug}.json`));
-  const since = previous ? `desde o release ${previous}` : 'no histórico';
-  if (slugs.length === 0) {
-    console.log(`Nenhuma nota adicionada ${since} até ${tag}. ${out} não foi gerado.`);
-    return 0;
-  }
-  const results = slugs.map(slug => readNote(tag, slug));
-  const errors = results.flatMap(result => result.errors ?? []);
-  if (errors.length) {
-    console.error(errors.join('\n'));
+  const current = releaseUpdate(tag, released);
+  if (current.errors.length) {
+    console.error(current.errors.join('\n'));
     return 1;
   }
-  const update = assembleProductUpdate(tag, results.map(result => result.note), process.env.GITHUB_REPOSITORY || RELEASES_REPO);
-  writeFileSync(out, `${JSON.stringify(update, null, 2)}\n`);
-  console.log(`${out}: ${slugs.length} nota(s) adicionada(s) ${since} até ${tag}: ${slugs.join(', ')}.`);
+  if (current.update) {
+    writeJson(out, current.update);
+    console.log(`${out}: ${current.slugs.length} nota(s) adicionada(s) ${current.since} até ${tag}: ${current.slugs.join(', ')}.`);
+  } else {
+    console.log(`Nenhuma nota adicionada ${current.since} até ${tag}. ${out} não foi gerado.`);
+  }
+  if (!historyOut) return 0;
+  const releases = [current.update];
+  for (const earlier of earlierReleases(tag, released).reverse()) {
+    if (releases.filter(Boolean).length >= PRODUCT_UPDATE_HISTORY_RELEASES) break;
+    const { update, errors } = releaseUpdate(earlier, released);
+    if (errors.length) console.warn(`${earlier} fica fora do histórico, porque as notas dele não passam mais na validação:\n${errors.join('\n')}`);
+    releases.push(update);
+  }
+  const history = { id: tag, releases: releases.filter(Boolean) };
+  if (history.releases.length === 0) {
+    console.log(`Nenhum release até ${tag} tem notas. ${historyOut} não foi gerado.`);
+    return 0;
+  }
+  writeJson(historyOut, history);
+  console.log(`${historyOut}: ${history.releases.map(release => `${release.id} (${release.steps.length})`).join(', ')}.`);
   return 0;
 }
 
@@ -186,9 +212,10 @@ function main([command, ...args]) {
   if (command === 'check' && args.length >= 2) return check(args[0], args[1], args.includes('--opt-out'));
   const released = option(args, '--released');
   if (command === 'assemble' && args.length >= 1 && released !== undefined) {
-    return assemble(args[0], released.split(',').map(tag => tag.trim()).filter(Boolean), option(args, '--out') ?? 'product-update.json');
+    const tags = released.split(',').map(tag => tag.trim()).filter(Boolean);
+    return assemble(args[0], tags, option(args, '--out') ?? 'product-update.json', option(args, '--history-out'));
   }
-  console.error('Uso: release-notes.mjs check <base-sha> <head-sha> [--opt-out] | assemble <tag> --released <tags> [--out <arquivo>]');
+  console.error('Uso: release-notes.mjs check <base-sha> <head-sha> [--opt-out] | assemble <tag> --released <tags> [--out <arquivo>] [--history-out <arquivo>]');
   return 2;
 }
 

@@ -1,4 +1,4 @@
-import type { DiscoverItem, DiscoverSource, Game, GameMugshot, GotySearchGameResult, ProductUpdate } from '@clube-do-jogo/domain';
+import type { DiscoverItem, DiscoverSource, Game, GameMugshot, GotySearchGameResult, ProductUpdate, ProductUpdateHistory } from '@clube-do-jogo/domain';
 
 export type ApiMethod = 'GET' | 'POST' | 'DELETE';
 
@@ -160,6 +160,7 @@ export interface NativePushUnlinkResponse {
 }
 
 export interface ProductUpdateResponse {
+  history: ProductUpdateHistory | null;
   update: ProductUpdate | null;
 }
 

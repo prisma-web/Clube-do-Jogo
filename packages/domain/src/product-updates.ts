@@ -42,10 +42,18 @@ export interface ProductUpdate {
   steps: ProductUpdateStep[];
 }
 
+export interface ProductUpdateHistory {
+  id: string;
+  releases: ProductUpdate[];
+}
+
 export type Parsed<T> = { ok: true; value: T } | { ok: false; errors: string[] };
 
 export const RELEASES_REPO = 'prisma-web/Clube-do-Jogo';
 export const PRODUCT_UPDATE_ASSET = 'product-update.json';
+export const PRODUCT_UPDATE_HISTORY_ASSET = 'product-updates.json';
+export const PRODUCT_UPDATE_HISTORY_RELEASES = 25;
+export const PRODUCT_UPDATE_STEP_LIMIT = 10;
 export const RELEASE_TAG = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 export const NOTE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -54,6 +62,19 @@ const ARTWORKS: readonly string[] = ['overview', 'performance'];
 
 export function productUpdateStorageKey(updateId: string) {
   return `clube-do-jogo:product-update:${updateId}:completed`;
+}
+
+const SEEN_KEY = /^clube-do-jogo:product-update:(v\d+\.\d+\.\d+):completed$/;
+
+export function productUpdateSeenTag(storageKey: string): string | null {
+  const tag = SEEN_KEY.exec(storageKey)?.[1];
+  return tag && RELEASE_TAG.test(tag) ? tag : null;
+}
+
+export function compareReleaseTags(a: string, b: string): number {
+  const left = RELEASE_TAG.exec(a)!.slice(1).map(Number);
+  const right = RELEASE_TAG.exec(b)!.slice(1).map(Number);
+  return left[0] - right[0] || left[1] - right[1] || left[2] - right[2];
 }
 
 type Fields = Record<string, unknown>;
@@ -190,6 +211,18 @@ export function parseProductUpdate(json: unknown): Parsed<ProductUpdate> {
   return reader.result({ id: fields.id as string, version, title, steps: parsedSteps as ProductUpdateStep[] });
 }
 
+export function parseProductUpdateHistory(json: unknown): Parsed<ProductUpdateHistory> {
+  const fields = typeof json === 'object' && json !== null && !Array.isArray(json) ? json as Fields : {};
+  const { id, releases } = fields;
+  if (typeof id !== 'string' || !RELEASE_TAG.test(id)) return { ok: false, errors: ['"id" precisa ser uma tag vX.Y.Z.'] };
+  const parsed = (Array.isArray(releases) ? releases : [])
+    .map(parseProductUpdate)
+    .flatMap(result => result.ok && compareReleaseTags(result.value.id, id) <= 0 ? [result.value] : [])
+    .sort((a, b) => compareReleaseTags(b.id, a.id))
+    .filter((release, index, sorted) => index === 0 || sorted[index - 1].id !== release.id);
+  return parsed.length ? { ok: true, value: { id, releases: parsed } } : { ok: false, errors: ['"releases" precisa ter pelo menos uma novidade válida.'] };
+}
+
 export function releaseNoteImageUrl(repo: string, tag: string, file: string) {
   return `https://raw.githubusercontent.com/${repo}/${tag}/updates/notes/${file}`;
 }
@@ -214,16 +247,92 @@ export function androidProductUpdate(update: ProductUpdate): ProductUpdate {
   };
 }
 
-export function productUpdateUrl(repo: string, tag: string | 'latest') {
-  return tag === 'latest'
-    ? `https://github.com/${repo}/releases/latest/download/${PRODUCT_UPDATE_ASSET}`
-    : `https://github.com/${repo}/releases/download/${tag}/${PRODUCT_UPDATE_ASSET}`;
+export function githubReleasesUrl(repo: string) {
+  return `https://github.com/${repo}/releases`;
+}
+
+export function releaseAssetUrl(releases: string, tag: string | 'latest', asset: string) {
+  return tag === 'latest' ? `${releases}/latest/download/${asset}` : `${releases}/download/${tag}/${asset}`;
+}
+
+export interface ProductUpdateDigest {
+  id: string;
+  pending: boolean;
+  pages: ProductUpdate[][];
+}
+
+export function productUpdateHistoryTags(history: ProductUpdateHistory): string[] {
+  return [...new Set([history.id, ...history.releases.map(release => release.id)])];
+}
+
+function newestTag(tags: Iterable<string | null | undefined>, below?: string): string | null {
+  let newest: string | null = null;
+  for (const tag of tags) {
+    if (!tag || !RELEASE_TAG.test(tag) || (below && compareReleaseTags(tag, below) >= 0)) continue;
+    if (!newest || compareReleaseTags(tag, newest) > 0) newest = tag;
+  }
+  return newest;
+}
+
+export function productUpdatePages(releases: readonly ProductUpdate[], limit = PRODUCT_UPDATE_STEP_LIMIT): ProductUpdate[][] {
+  const pages: ProductUpdate[][] = [];
+  let steps = 0;
+  for (const release of releases) {
+    const page = pages.at(-1);
+    if (page && steps + release.steps.length <= limit) {
+      page.push(release);
+      steps += release.steps.length;
+    } else {
+      pages.push([release]);
+      steps = release.steps.length;
+    }
+  }
+  return pages;
+}
+
+export function productUpdateDigest(
+  history: ProductUpdateHistory,
+  { seen, installedBefore = null }: { seen: Iterable<string>; installedBefore?: string | null },
+  limit = PRODUCT_UPDATE_STEP_LIMIT,
+): ProductUpdateDigest {
+  const lastSeen = newestTag(seen);
+  const cameFrom = newestTag([installedBefore], history.id);
+  const unseen = history.releases.filter(({ id }) => {
+    if (lastSeen) return compareReleaseTags(id, lastSeen) > 0;
+    if (cameFrom) return compareReleaseTags(id, cameFrom) >= 0;
+    return id === history.id;
+  });
+  if (unseen.length > 0) return { id: history.id, pending: true, pages: productUpdatePages(unseen, limit) };
+  const [latest, ...older] = history.releases;
+  return { id: history.id, pending: false, pages: [[latest], ...productUpdatePages(older, limit)] };
+}
+
+export function productUpdateVersions(releases: readonly ProductUpdate[]): string {
+  const newest = releases[0].version;
+  const oldest = releases[releases.length - 1].version;
+  return newest === oldest ? newest : `${oldest} à ${newest}`;
+}
+
+export function productUpdateTitle(releases: readonly ProductUpdate[]): string {
+  return `Novidades da ${productUpdateVersions(releases)}`;
+}
+
+export function productUpdateSteps(releases: readonly ProductUpdate[]): (ProductUpdateStep & { version: string })[] {
+  return releases.flatMap(release => release.steps.map(step => ({ ...step, version: release.version })));
+}
+
+export function moreProductUpdatesLabel(pages: readonly ProductUpdate[][]): string | null {
+  const releases = pages.flat();
+  if (releases.length === 0) return null;
+  const notes = releases.reduce((total, release) => total + release.steps.length, 0);
+  const versions = releases.length === 1 ? `da ${releases[0].version}` : `de ${releases.length} versões anteriores (${productUpdateVersions(releases)})`;
+  return `Mais ${notes} ${notes === 1 ? 'novidade' : 'novidades'} ${versions}`;
 }
 
 const PRODUCT_UPDATE_TIMEOUT_MS = 3000;
 
-export type ProductUpdateDownload =
-  | { status: 'found'; update: ProductUpdate }
+export type Download<T> =
+  | { status: 'found'; update: T }
   | { status: 'missing' }
   | { status: 'failed' };
 
@@ -233,7 +342,20 @@ export type FetchProductUpdate = (url: string, init: { signal: AbortSignal }) =>
   json(): Promise<unknown>;
 }>;
 
-export async function downloadProductUpdate(url: string, expectedId: string | null, fetchImpl: FetchProductUpdate): Promise<ProductUpdateDownload> {
+export function downloadProductUpdate(url: string, expectedId: string | null, fetchImpl: FetchProductUpdate): Promise<Download<ProductUpdate>> {
+  return download(url, expectedId, fetchImpl, parseProductUpdate);
+}
+
+export function downloadProductUpdateHistory(url: string, expectedId: string | null, fetchImpl: FetchProductUpdate): Promise<Download<ProductUpdateHistory>> {
+  return download(url, expectedId, fetchImpl, parseProductUpdateHistory);
+}
+
+async function download<T extends { id: string }>(
+  url: string,
+  expectedId: string | null,
+  fetchImpl: FetchProductUpdate,
+  parse: (json: unknown) => Parsed<T>,
+): Promise<Download<T>> {
   let json: unknown;
   try {
     const response = await fetchImpl(url, { signal: AbortSignal.timeout(PRODUCT_UPDATE_TIMEOUT_MS) });
@@ -243,6 +365,6 @@ export async function downloadProductUpdate(url: string, expectedId: string | nu
   } catch {
     return { status: 'failed' };
   }
-  const parsed = parseProductUpdate(json);
+  const parsed = parse(json);
   return parsed.ok && (expectedId === null || parsed.value.id === expectedId) ? { status: 'found', update: parsed.value } : { status: 'missing' };
 }

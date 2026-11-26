@@ -1,17 +1,27 @@
 import { useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
-import type { ProductUpdate } from '@clube-do-jogo/domain';
+import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 import { updateSource } from '@/features/app-update/apk-update';
 import { nativeStorage } from '@/platform/storage';
-import { createInstalledProductUpdateStore, loadInstalledProductUpdate } from './release-product-update';
+import {
+  createInstalledProductUpdateStore,
+  loadInstalledProductUpdates,
+  resolveProductUpdateSource,
+  type InstalledProductUpdates,
+} from './release-product-update';
 
-const source = updateSource;
+const source = resolveProductUpdateSource({
+  updateSource,
+  extra: Constants.expoConfig?.extra,
+  installedVersion: Application.nativeApplicationVersion,
+});
 const store = source
-  ? createInstalledProductUpdateStore(() => loadInstalledProductUpdate(source, { storage: nativeStorage, fetch }), AppState)
+  ? createInstalledProductUpdateStore(() => loadInstalledProductUpdates(source, { storage: nativeStorage, fetch }), AppState)
   : null;
-const noUpdate = () => null;
+const nothing = () => null;
 const noSubscription = () => () => {};
 
-export function useInstalledProductUpdate(): ProductUpdate | null {
-  return useSyncExternalStore(store?.subscribe ?? noSubscription, store?.get ?? noUpdate, store?.get ?? noUpdate);
+export function useInstalledProductUpdates(): InstalledProductUpdates | null {
+  return useSyncExternalStore(store?.subscribe ?? noSubscription, store?.get ?? nothing, store?.get ?? nothing);
 }

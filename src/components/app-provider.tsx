@@ -1,11 +1,11 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
-import { fetchLatestProductUpdate } from '@/lib/product-update-release';
+import { fetchProductUpdateHistory, markProductUpdateSeen, readProductUpdateDigest } from '@/lib/product-update-release';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import type { ProductUpdate } from '@clube-do-jogo/domain';
+import type { ProductUpdateDigest } from '@clube-do-jogo/domain';
 import { AnimatePresence, motion } from 'motion/react';
 import { CheckCircle2, CircleAlert, LoaderCircle, X } from 'lucide-react';
 import { apiRoutes, type ApiRequestBody, type DataClient } from '@clube-do-jogo/data';
@@ -48,7 +48,7 @@ interface AppContextValue {
   runOperation: <T>(label: string, operation: () => PromiseLike<T>) => Promise<T>;
   runOptimistic: (label: string, apply: () => void, rollback: () => void, operation: () => PromiseLike<unknown>) => Promise<boolean>;
   notify: (message: string) => void;
-  productUpdate: ProductUpdate | null;
+  productUpdate: ProductUpdateDigest | null;
 }
 
 export interface ClubUndoPreview {
@@ -128,7 +128,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [operations, setOperations] = useState<{ id: string; label: string }[]>([]);
   const [toasts, setToasts] = useState<{ id: string; message: string }[]>([]);
   const [notices, setNotices] = useState<{ id: string; message: string }[]>([]);
-  const [productUpdate, setProductUpdate] = useState<ProductUpdate | null>(null);
+  const [productUpdate, setProductUpdate] = useState<ProductUpdateDigest | null>(null);
   const demoClubUndos = useRef(new Map<string, { beforeCycles: ClubCycle[]; beforeMonth: string; afterCycles: ClubCycle[]; afterMonth: string; previousEventId?: string; revertedAt?: number }>());
   const demoLatestClubEvent = useRef<string | undefined>(undefined);
 
@@ -230,7 +230,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void fetchLatestProductUpdate().then(setProductUpdate);
+    void fetchProductUpdateHistory().then(history => {
+      const digest = history && readProductUpdateDigest(history);
+      if (digest && !digest.pending) markProductUpdateSeen(digest);
+      setProductUpdate(digest);
+    });
   }, []);
 
   useEffect(() => {
@@ -511,7 +515,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={value}>
       {children}
-      {user && !authLoading && productUpdate && <ProductUpdateDialog update={productUpdate} />}
+      {user && !authLoading && productUpdate && <ProductUpdateDialog digest={productUpdate} />}
       {pendingReward && (
         <RewardCelebration
           key={pendingReward.id}
