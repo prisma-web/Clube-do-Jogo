@@ -21,13 +21,13 @@ import { youtubeEmbedUrl } from './youtube';
 import { YoutubePlayer, type YoutubePlayerHandle } from './YoutubePlayer';
 
 const FLOAT_ANIMATION_MS = 220;
+const CONTROL_SIZE = 32;
 
-export function InlineTrailer({ url, title, posterUrl, suspended, onExpand }: {
+export function InlineTrailer({ url, title, posterUrl, suspended }: {
   url: string | null | undefined;
   title: string;
   posterUrl: string;
   suspended: boolean;
-  onExpand: () => void;
 }) {
   const colors = useThemeColors();
   const styles = useStyles();
@@ -73,27 +73,16 @@ export function InlineTrailer({ url, title, posterUrl, suspended, onExpand }: {
         )}
       </View>
       {playing && anchor && anchor.width > 0 ? (
-        <PlayingTrailer
-          embedUrl={embedUrl}
-          title={title}
-          anchor={anchor}
-          onMinimize={stop}
-          onExpand={() => {
-            stop();
-            onExpand();
-          }}
-        />
+        <PlayingTrailer embedUrl={embedUrl} title={title} anchor={anchor} />
       ) : null}
     </>
   );
 }
 
-function PlayingTrailer({ embedUrl, title, anchor, onMinimize, onExpand }: {
+function PlayingTrailer({ embedUrl, title, anchor }: {
   embedUrl: string;
   title: string;
   anchor: LayoutRectangle;
-  onMinimize: () => void;
-  onExpand: () => void;
 }) {
   const styles = useStyles();
   const { reduceMotion } = useNativeTheme();
@@ -138,9 +127,7 @@ function PlayingTrailer({ embedUrl, title, anchor, onMinimize, onExpand }: {
   const controlsStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: (offset.get() + FLOATING_TRAILER_MARGIN - y) * progress.get() }],
   }), [y]);
-  const controlsFrame = floating
-    ? { left: x + width - small.width, top: y, width: small.width, height: small.height }
-    : { left: x, top: y, width, height };
+  const controlsFrame = { left: x + width - small.width - CONTROL_SIZE - spacing.xs, top: y };
 
   function restore() {
     if (!screenScroll) return;
@@ -165,21 +152,12 @@ function PlayingTrailer({ embedUrl, title, anchor, onMinimize, onExpand }: {
         />
         <Animated.View pointerEvents="none" style={[styles.floatingBorder, borderStyle]} />
       </Animated.View>
-      <Animated.View pointerEvents="box-none" style={[styles.controlsLayer, controlsFrame, controlsStyle]}>
-        <View style={styles.controls}>
-          {floating ? (
-            <>
-              <ControlButton icon="arrow-undo-outline" label="Voltar ao trailer" onPress={restore} />
-              <ControlButton icon="close" label="Fechar trailer" onPress={close} />
-            </>
-          ) : (
-            <>
-              <ControlButton icon="contract-outline" label="Minimizar trailer" onPress={onMinimize} />
-              <ControlButton icon="expand-outline" label="Abrir trailer em tela cheia" onPress={onExpand} />
-            </>
-          )}
-        </View>
-      </Animated.View>
+      {floating ? (
+        <Animated.View pointerEvents="box-none" style={[styles.controls, controlsFrame, controlsStyle]}>
+          <ControlButton icon="arrow-undo-outline" label="Voltar ao trailer" onPress={restore} />
+          <ControlButton icon="close" label="Fechar trailer" onPress={close} />
+        </Animated.View>
+      ) : null}
     </>
   );
 }
@@ -202,8 +180,7 @@ const useStyles = themedStyles(colors => ({
   posterLabel: { position: 'absolute', left: spacing.md, bottom: spacing.md, color: colors.white, fontSize: 12, fontWeight: '800' },
   player: { position: 'absolute', zIndex: 20, borderRadius: radii.xl, overflow: 'hidden', backgroundColor: colors.black },
   floatingBorder: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: radii.xl, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
-  controlsLayer: { position: 'absolute', zIndex: 21 },
   webview: { flex: 1, backgroundColor: colors.black },
-  controls: { position: 'absolute', top: spacing.sm, right: spacing.sm, flexDirection: 'row', gap: spacing.xs },
-  controlButton: { width: 32, height: 32, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.65)' },
+  controls: { position: 'absolute', zIndex: 21, gap: spacing.xs },
+  controlButton: { width: CONTROL_SIZE, height: CONTROL_SIZE, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.65)' },
 }));

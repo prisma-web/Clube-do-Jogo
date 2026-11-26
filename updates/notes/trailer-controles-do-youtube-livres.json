@@ -1,0 +1,10 @@
+{
+  "eyebrow": "PÁGINA DO JOGO",
+  "title": "O trailer devolveu os controles ao YouTube",
+  "body": "No app, os nossos botões saíram de cima do vídeo. Som, legenda e configurações do YouTube ficam livres para tocar, no trailer da página e na janelinha.",
+  "highlights": [
+    "Para ver em tela cheia, toque em “Tela cheia” logo abaixo do trailer.",
+    "Na janelinha, “Voltar ao trailer” e “Fechar trailer” ficam ao lado do vídeo."
+  ],
+  "image": { "file": "trailer-controles-do-youtube-livres.webp", "alt": "Trailer de Hades na janelinha do app, com os controles do YouTube à mostra e os botões de voltar e fechar ao lado do vídeo.", "width": 860, "height": 500, "position": "center" }
+}
