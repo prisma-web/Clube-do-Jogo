@@ -556,7 +556,8 @@ test('launch refuses a listening port whose owner cannot be inspected', () => {
     const bin = join(f.root, 'bin');
     mkdirSync(bin);
     writeFileSync(join(bin, 'ss'), '#!/bin/sh\nprintf "LISTEN 0 511 127.0.0.1:3102 0.0.0.0:*\\n"\n', { mode: 0o755 });
-    writeFileSync(join(bin, 'netstat'), '#!/bin/sh\nprintf "tcp4 0 0 127.0.0.1.3102 *.* LISTEN 0 0 131072 131072\\n"\n', { mode: 0o755 });
+    writeFileSync(join(bin, 'lsof'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+    writeFileSync(join(bin, 'nc'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
     const result = f.runEnv({ ...process.env, PATH: `${bin}:${process.env.PATH}` }, 'launch', '--port', '3102');
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Não foi possível inspecionar a porta/);
