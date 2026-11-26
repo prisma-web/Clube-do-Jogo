@@ -7,33 +7,49 @@ appId: com.clubedojogo.mobile.dev
     timeout: 30000
 - tapOn: Entrar no modo demonstração
 - extendedWaitUntil:
-    visible: Fechar votação rápida
+    visible: 'Fechar votação rápida|Fechar e marcar como vista'
     timeout: 30000
-- tapOn: Fechar votação rápida
+- repeat:
+    times: 2
+    commands:
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible: Agora não
+          commands:
+            - tapOn: Agora não
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible: Fechar votação rápida
+          commands:
+            - tapOn: Fechar votação rápida
 - waitForAnimationToEnd
+- assertNotVisible: Fechar votação rápida
+- assertNotVisible: Agora não
 - tapOn:
     text: 'Ranking(, tab, 2 of 5)?'
     index: 0
 - scrollUntilVisible:
-    element: Cocoon
+    element: Ver detalhes de Cocoon
     direction: DOWN
 - takeScreenshot: antes-do-voto
 - tapOn:
-    text: Não
+    text: Não jogaria
     enabled: true
-    below: Cocoon
+    below: Ver detalhes de Cocoon
     index: 0
 - assertVisible: Por que você não jogaria?
 - tapOn: Não consigo rodar
 - tapOn: Confirmar Não
-- extendedWaitUntil:
-    visible: 'Meu motivo: Não consigo rodar'
-    timeout: 10000
+- scrollUntilVisible:
+    element: 'Meu motivo: Não consigo rodar'
+    direction: DOWN
 - takeScreenshot: depois-do-voto
 - tapOn:
-    text: Não
+    text: Não jogaria
     enabled: true
-    above: 'Meu motivo: Não consigo rodar'
+    below: Ver detalhes de Cocoon
     index: 0
 - assertNotVisible: 'Meu motivo: Não consigo rodar'
 - takeScreenshot: voto-removido

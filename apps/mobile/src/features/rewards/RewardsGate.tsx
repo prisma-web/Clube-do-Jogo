@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useRewardGrants } from '@/state/reward-queries';
+import { useAutoModalTurn } from '@/features/auto-modal-turn';
 import { RewardCelebration } from './RewardCelebration';
 
 export function RewardsGate() {
@@ -11,7 +12,8 @@ export function RewardsGate() {
   }, []);
 
   const grant = (grants.data ?? []).find(item => !item.seen_at && !dismissed.includes(item.id));
-  if (!grant) return null;
+  const turn = useAutoModalTurn('reward', Boolean(grant));
+  if (!grant || !turn) return null;
 
   return <RewardCelebration key={grant.id} grant={grant} onClose={() => dismiss(grant.id)} />;
 }

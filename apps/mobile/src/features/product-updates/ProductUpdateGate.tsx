@@ -3,6 +3,7 @@ import { productUpdateStorageKey, type ProductUpdate } from '@clube-do-jogo/doma
 import { usePersistentState } from '@/hooks/use-persistent-state';
 import { useApp } from '@/state/app-provider';
 import { isProductUpdateAutoOpenEnabled } from '@/platform/config';
+import { useAutoModalTurn } from '@/features/auto-modal-turn';
 import { getProductUpdateReopenSignal, subscribeProductUpdateReopen } from './product-update-bus';
 import { shouldShowProductUpdate } from './product-update-visibility';
 import { useInstalledProductUpdate } from './use-installed-product-update';
@@ -20,13 +21,13 @@ function ProductUpdatePrompt({ update }: { update: ProductUpdate }) {
   const reopenSignal = useSyncExternalStore(subscribeProductUpdateReopen, getProductUpdateReopenSignal, getProductUpdateReopenSignal);
   const [closedSignal, setClosedSignal] = useState(-1);
 
-  const visible = shouldShowProductUpdate({
+  const visible = useAutoModalTurn('product-update', shouldShowProductUpdate({
     loading: status.loading,
     seen,
     reopenSignal,
     closedSignal,
     autoOpenEnabled: isProductUpdateAutoOpenEnabled(),
-  });
+  }));
 
   const dismiss = () => {
     setSeen(true);

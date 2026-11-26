@@ -34,7 +34,7 @@ Se o pool falhar, cite o erro e tente uma vez. Em 23/11/2026 o `device_open` de 
 
 O helper roda no Mac que compila. O `doctor` inspeciona o simulador com `xcrun simctl`, então só enxerga simuladores deste Mac. Um emulador Android ou um iOS em outro Mac não passa pelo doctor. Esse caminho fica sem prova até alguém compilar o APK no `rogstrix` (`npx expo run:android --variant release --no-bundler`, ver [docs/mobile-release.md](../../../docs/mobile-release.md)).
 
-Um aparelho tem um só escritor. Nunca rode dois fluxos no mesmo aparelho ao mesmo tempo, nem da mesma sessão. Um fluxo pode passar só porque o outro levou o app à tela que ele esperava. O `drive` pega um lock atômico (`mkdir`) em `${XDG_STATE_HOME:-~/.local/state}/clube-do-jogo/device-locks/<UDID>/`, fora do checkout, então threads do T3 em worktrees diferentes se enxergam. O arquivo `owner` guarda PID, início do processo, `RUN_ID` e worktree. Um lock cujo dono está vivo faz o `drive` recusar. Um lock cujo PID morreu (um `kill -9`, um turno derrubado) é quebrado pelo próximo `drive`, que avisa no stderr. O `cleanup` solta o lock órfão do próprio run e recusa se um drive do run ainda estiver vivo.
+Um aparelho tem um só escritor. Nunca rode dois fluxos no mesmo aparelho ao mesmo tempo, nem da mesma sessão. Um fluxo pode passar só porque o outro levou o app à tela que ele esperava. O `drive` pega um lock atômico (`mkdir`) em `${XDG_STATE_HOME:-~/.local/state}/clube-do-jogo/device-locks/<UDID>/`, fora do checkout, então threads do T3 em worktrees diferentes se enxergam. O arquivo `owner` guarda PID, início do processo, `RUN_ID` e worktree. Um lock cujo dono está vivo faz o `drive` recusar. Um lock cujo PID morreu (um `kill -9`, um turno derrubado) é quebrado pelo próximo `drive`, que avisa no stderr. O `cleanup` solta o lock órfão do próprio run e recusa se um drive do run ainda estiver vivo. A quebra de lock órfão tem uma janela de corrida teórica entre três processos (não reproduzida em 12 rodadas); trate o lock como proteção forte, não absoluta.
 
 ## Launch
 
@@ -78,7 +78,7 @@ Regras de autoria de fluxo:
 
 - **Nunca presuma a tela inicial.** Com Supabase, o app restaura a sessão e pula o login. Force o estado: `logout.yaml` sai e espera `Boas-vindas de volta`, e depois vem `login.yaml`. Em demo, `clearState` basta, porque o modo demonstração não é restaurado.
 - **Convirja ao mesmo estado final em toda execução.** Normalize no começo, na tela onde o controle existe. Desfaça a mutação no último passo, ou aja sobre algo que o próprio fluxo criou. Um fluxo que só passa na primeira execução dá `PASS` por sorte.
-- **Votação rápida.** Logo depois do login, o app abre a `Votação rápida` (um `Modal` em `apps/mobile/src/features/voting/VotingDeckGate.tsx`) por cima das abas, com os jogos recentes sem voto. Ela também reabre quando o app volta ao primeiro plano. Todo fluxo que passa do login precisa lidar com ela.
+- **Votação rápida.** Logo depois do login, o app abre a `Votação rápida` (um `Modal` em `apps/mobile/src/features/voting/VotingDeckGate.tsx`) por cima das abas, com os jogos recentes sem voto. Ela também reabre quando o app volta ao primeiro plano. Todo fluxo que passa do login precisa lidar com ela e com a celebração de recompensa do demo, que pode vir antes ou depois dela.
 - **Abas no iOS** expõem `Ranking, tab, 2 of 5`. Use `text: 'Ranking(, tab, 2 of 5)?'` com `index: 0`.
 - **Novidades:** o build fixa `EXPO_PUBLIC_AUTO_OPEN_PRODUCT_UPDATE=false`. Só o valor exato `'false'` desliga a abertura automática (`apps/mobile/src/platform/config.ts`). A reabertura manual em Configurações continua funcionando.
 
@@ -102,23 +102,17 @@ O T3 apaga o worktree da thread quando ela é arquivada ou mergeada, e a evidên
 
 Apaga o estado do run, solta o lock órfão do run, mantém o build em cache e a evidência, e falha se a evidência sumir. O `--run-id` passa pela mesma validação do launch, e o estado precisa ser uma pasta real dentro de `state/verify-clube-do-jogo-mobile/` (sem symlink), senão nada é apagado. O helper não deixa processo vivo: o build e cada drive terminam dentro do próprio comando, então não há o que encerrar. Depois devolva o aparelho com `device_close` e `shutdown: true`. Não mate Metro, Next ou simulador de outra sessão por nome. O cache de build (DerivedData incluído) passa de 5 GB em `state/verify-clube-do-jogo-mobile/builds/`; apague-o quando terminar de verificar o branch.
 
-## Observação reproduzida, sem controle humano: a tela não responde depois da Votação rápida
+## Resolvido: a tela parava de responder depois da Votação rápida (iOS)
 
-Status: reproduzido em simulador iOS com toques do agent-device, com um mecanismo observado no UIKit. Ainda não confirmado com toque humano, em outro iOS, no Android nem pelo Maestro direto. Não declare corrigido nem "falha da automação" sem rodar esses controles.
+Causa, confirmada em 25/11/2026 no iPhone 18 Pro com iOS 27.2 (build demo de `fdf76da`): no login do demo, a celebração de recompensa (`RewardCelebration`, tema Floresta de Nibel) e a `Votação rápida` pediam apresentação no mesmo instante. O UIKit apresentou uma e recusou a outra (`Attempt to present <RCTFabricModalHostViewController> … while a presentation is in progress`). O `RCTModalHostViewComponentView` marca o modal recusado como apresentado (`_isPresented = YES`) e nunca tenta de novo, e o `Modal` do RN no iOS só desmonta o host quando o nativo emite `onDismiss`, que nunca chega. O host vazio de 402×874 ficava por cima das abas e engolia todo toque.
 
-Observado em 23/11/2026 com o build demo de `c3117bb` (bundle `f8258095…`) num iPhone 18 Pro com iOS 27.2 e SimSlim máximo:
+Correção: os modais que abrem sozinhos (recompensa, novidades, votação rápida) esperam a vez em `apps/mobile/src/features/auto-modal-turn.ts`. Quem está aberto fica até fechar; depois entra o próximo por prioridade. Depois do login do demo aparecem os dois, em ordem que depende de qual consulta termina antes, e os fluxos fecham o que estiver na frente (`Agora não` e `Fechar votação rápida`). Um modal novo que se abra sozinho entra nessa fila; montado à parte, ele recria a falha. Para conferir no log do simulador:
 
-- Em cada processo do app observado, o log registra `[com.apple.UIKit:Presentation] Attempt to present <RCTFabricModalHostViewController> on <UIViewController> (from <RNSScreen>) while a presentation is in progress.` Foram 12 ocorrências, de 12 processos distintos (o número de logins não foi contado), entre 18:45 e 19:38, inclusive a do run que falhou no Ranking. Um segundo `Modal` tenta se apresentar enquanto a `Votação rápida` ainda está entrando, e o UIKit recusa.
-- Com o deck aberto, a árvore crua (`snapshot --raw`) tem dois `RCTModalHostViewComponentView` de tela cheia (402×874) como irmãos da pilha de abas. Depois de `Fechar votação rápida`, um deles continua lá, `hittable`, por cima das abas. (Com o deck aberto, os dois hosts também não têm filhos na árvore crua, então isso sozinho não os distingue.)
-- Com esse host sobrando, `press` na aba `Ranking` (logo depois de fechar e de novo 15 s depois), `press` em `Notas` e `fill` no campo de comentário não mudam a tela. O screenshot mostra a tela principal normal, com a barra de abas.
+```sh
+xcrun simctl spawn <UDID> log stream --predicate 'composedMessage CONTAINS "presentation is in progress"'
+```
 
-Leitura provável (inferida, não provada): o React Native marca o modal recusado como apresentado (`_isPresented = YES` em `RCTModalHostViewComponentView.mm`) e nunca tenta de novo, então o placeholder de tela cheia fica montado e engole os toques. A recusa acontece no login, antes de qualquer toque na tela principal, mas o próprio login foi tocado pelo agent-device, então o gatilho não está isolado da automação. Qual é o segundo `Modal` não foi identificado: o demo de hoje não tem recompensa pendente e o build desliga a abertura automática de Novidades. Um build Debug com React DevTools responde isso.
-
-A quebra de lock órfão tem uma janela de corrida teórica entre três processos (não reproduzida em 12 rodadas); trate o lock como proteção forte, não absoluta.
-
-Controles que faltam: toque humano no painel Device do T3, outro modelo de iPhone ou iOS, emulador Android e o `~/.maestro/bin/maestro` direto. A evidência dessa investigação fica em `evidence/verify-clube-do-jogo-mobile/fix-20261123T192809/investigacao-toque/` (snapshots `A*`, `B*`, `C*`, árvores cruas `E0`–`E2` e `uikit-attempt-to-present.log`). A primeira falha no Ranking fica em `evidence/verify-clube-do-jogo-mobile/proof-20261123T191429/drive-demo-ranking-vote/`, não em `final-…`. As duas pastas vivem no worktree desta thread e somem com ele.
-
-Até isso ser resolvido, toda receita que precisa das abas depois do login para nesse ponto. `flows/demo-ranking-vote.yaml` fica como fluxo de regressão: hoje ele falha ao procurar `Cocoon` no Ranking.
+Zero linhas depois do login é o esperado. `flows/demo-ranking-vote.yaml` é o fluxo de regressão e passa.
 
 ## Gotcha: Pressable acessível engole o filho
 

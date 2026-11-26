@@ -7,6 +7,14 @@ appId: com.clubedojogo.mobile.dev
     timeout: 30000
 - tapOn: Entrar no modo demonstração
 - extendedWaitUntil:
+    visible: 'Qual jogo você quer no clube\?|Fechar e marcar como vista'
+    timeout: 30000
+- runFlow:
+    when:
+      visible: Agora não
+    commands:
+      - tapOn: Agora não
+- extendedWaitUntil:
     visible: Qual jogo você quer no clube?
     timeout: 30000
 - assertVisible: Cocoon, jogo 1 de 5
