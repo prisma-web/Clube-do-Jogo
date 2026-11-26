@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -16,12 +16,17 @@ import { ProgressConfirmSheet } from '@/components/ProgressConfirmSheet';
 import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
 import { Timeline } from '@/features/timeline/Timeline';
 import { PrivateNotes } from '@/features/notes/PrivateNotes';
+import { FilterView } from '@/features/themes/FilterView';
+import type { ImageFilter } from '@/features/themes/blend-filter';
 import { useApp } from '@/state/app-provider';
 import { useGameOfMonth, useProgress, useSetProgress } from '@/state/queries';
 import { useSetRating } from '@/state/library-queries';
 import { formatMonth } from '@/lib/format';
 import { controlTextStyle, decorInk, decorInkText, decorOutline, decorPanel, themedStyles, useThemeColors, useThemeDecor, radii, spacing, typography } from '@/theme';
 import { gameCoverUrl, gameDescriptionPreview, type ProgressStatus, type RatingDetails, type RatingMode } from '@clube-do-jogo/domain';
+
+const backdropFilter: ImageFilter = [{ grayscale: 1 }, { brightness: 1.3 }, { contrast: 0.8 }];
+const coverFilter: ImageFilter = [{ grayscale: 0.25 }, { sepia: 0.12 }];
 
 const statusOrder: ProgressStatus[] = ['not_started', 'started', 'finished'];
 
@@ -112,9 +117,9 @@ export default function GameOfMonthScreen() {
             style={styles.hero}
           >
             <View style={styles.heroBackdrop} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-              <View style={styles.heroBackdropFilter}>
+              <FilterView filter={decor ? backdropFilter : null} style={styles.heroBackdropFilter}>
                 <Image source={{ uri: gameCoverUrl(game.image_url) }} style={styles.heroBackdropImage} contentFit="cover" blurRadius={18} />
-              </View>
+              </FilterView>
               <View style={styles.heroShade} />
             </View>
             {decor ? <View style={styles.heroFrame} pointerEvents="none" /> : null}
@@ -124,9 +129,9 @@ export default function GameOfMonthScreen() {
             </View>
             {decor ? (
               <View style={styles.cover} accessible accessibilityRole="image" accessibilityLabel={`Capa de ${game.title}`}>
-                <View style={styles.coverFilter}>
+                <FilterView filter={coverFilter} style={styles.coverFilter}>
                   <Image source={{ uri: gameCoverUrl(game.image_url) }} style={styles.coverImage} contentFit="cover" />
-                </View>
+                </FilterView>
               </View>
             ) : (
               <Image source={{ uri: gameCoverUrl(game.image_url) }} style={styles.cover} contentFit="cover" accessibilityLabel={`Capa de ${game.title}`} />
@@ -280,8 +285,8 @@ const useStyles = themedStyles((colors, { decor, button }) => ({
   },
   heroFrame: { position: 'absolute', top: 9, left: 9, right: 9, bottom: 9, borderWidth: 1, borderColor: 'rgba(75,65,61,0.24)' },
   heroBackdrop: { position: 'absolute', top: -24, left: -24, right: -24, bottom: -24 },
-  heroBackdropFilter: { ...StyleSheet.absoluteFill, ...(decor && { filter: [{ grayscale: 1 }, { brightness: 1.3 }, { contrast: 0.8 }] }) },
-  heroBackdropImage: { width: '100%', height: '100%', opacity: decor ? 0.19 : 0.9 },
+  heroBackdropFilter: { ...StyleSheet.absoluteFill, ...(decor && Platform.OS === 'ios' && { opacity: 0.19 }) },
+  heroBackdropImage: { width: '100%', height: '100%', opacity: decor ? (Platform.OS === 'ios' ? 1 : 0.19) : 0.9 },
   heroShade: {
     position: 'absolute',
     top: 0,
@@ -313,7 +318,7 @@ const useStyles = themedStyles((colors, { decor, button }) => ({
     marginBottom: spacing.md,
     ...(decor && { borderRadius: 0, borderWidth: 4, borderColor: decor.onInk, boxShadow: decor.shadows.cover }),
   },
-  coverFilter: { flex: 1, filter: [{ grayscale: 0.25 }, { sepia: 0.12 }] },
+  coverFilter: { flex: 1 },
   coverImage: { width: '100%', height: '100%' },
   title: {
     ...typography.h1,
