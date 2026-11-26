@@ -1,0 +1,7 @@
+{
+  "eyebrow": "PROGRESSO E ANOTAÇÕES",
+  "title": "O teclado não esconde mais o que você escreve",
+  "body": "Ao tocar no campo de anotação ou de comentário, a tela agora rola até o campo inteiro ficar acima do teclado, com o botão de enviar à vista. Vale para as Notas e a Timeline do jogo do mês e para as Anotações na página do jogo.",
+  "highlights": ["Nada de rolar à mão para achar o botão de enviar.", "Responder e editar comentários também ficam à vista."],
+  "image": { "file": "anotacao-acima-do-teclado.webp", "alt": "Campo de anotação com os botões de imagem e enviar logo acima do teclado aberto.", "width": 860, "height": 500, "position": "center" }
+}
