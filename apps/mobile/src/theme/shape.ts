@@ -1,5 +1,5 @@
 import type { ImageStyle, TextStyle, ViewStyle } from 'react-native';
-import type { ThemeControlText, ThemeFont, ThemeShape } from '@clube-do-jogo/domain';
+import type { ThemeControlText, ThemeFont, ThemeShape, ThemeTitleText } from '@clube-do-jogo/domain';
 import { decorPanel } from './decor';
 import type { ThemeColors } from './palette';
 import { radii } from './tokens';
@@ -65,6 +65,10 @@ export function controlTextStyle(control: ThemeControlText | null, fontSize: num
   if (!control) return {};
   const size = control.fontSize ?? fontSize;
   return { fontSize: size, textTransform: 'uppercase', letterSpacing: control.letterSpacingEm * size };
+}
+
+export function titleTextStyle(title: ThemeTitleText | null): TextStyle {
+  return title ? { fontSize: title.fontSize, letterSpacing: title.letterSpacingEm * title.fontSize } : {};
 }
 
 export function themeFontStyle(shape: ThemeShape): TextStyle {

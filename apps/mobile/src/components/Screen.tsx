@@ -3,6 +3,7 @@ import { Keyboard, KeyboardAvoidingView, Platform, RefreshControl, ScrollView, V
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { spacing, themedStyles, useNativeTheme } from '@/theme';
 import { useGotyBadgeClearance } from '@/features/goty/GotyFloatingBadge';
+import { NierBackdrop } from '@/features/themes/NierBackdrop';
 
 const SCROLL_BOTTOM_PADDING = spacing.xxxl * 2;
 const KEYBOARD_GAP = spacing.md;
@@ -30,16 +31,19 @@ export function Screen({ children, scroll = true, contentContainerStyle, onRefre
   const safeArea = [styles.safeArea, theme.scene !== 'none' && styles.safeAreaScenic];
   const { scrollRef, contentRef, setFocusedForm, onScrollLayout } = useFormAboveKeyboard();
   const shapeKey = `${theme.shape.font}-${theme.shape.decor ? 'decor' : 'plain'}`;
+  const backdrop = theme.id === 'nier' ? <NierBackdrop /> : null;
 
   if (!scroll) {
     return (
       <SafeAreaView key={shapeKey} style={safeArea} edges={edges ?? ['top']}>
+        {backdrop}
         <View style={[styles.content, contentContainerStyle as object]}>{children}</View>
       </SafeAreaView>
     );
   }
   return (
     <SafeAreaView key={shapeKey} style={safeArea} edges={edges ?? ['top']}>
+      {backdrop}
       <KeyboardAvoidingView style={styles.keyboardArea} behavior="height" enabled={Platform.OS === 'android'}>
         <ScrollView
           ref={scrollRef}
