@@ -44,6 +44,7 @@ import { readApiJson, type ApiTransport } from './api';
 import { apiRoutes, normalizeSearchQuery, type ApiResponse, type Unvalidated } from './api-contracts';
 import { DemoStore, type DemoVote } from './demo';
 import { DataError, requireValue, withDataErrors } from './errors';
+import { GotyDataClient } from './goty';
 import type { GameMediaQuery } from './media';
 import type {
   PlatformSearchQuery,
@@ -669,6 +670,7 @@ function commentTimelineFromRows(
 
 export class DataClient {
   readonly demo: DemoStore;
+  readonly goty: GotyDataClient;
   readonly rankingFormula: RankingFormula;
   private readonly supabase: DataSupabaseClient | null;
   private readonly api: ApiTransport | null;
@@ -677,6 +679,7 @@ export class DataClient {
     this.supabase = options.supabase || null;
     this.api = options.api || null;
     this.demo = options.demo || new DemoStore();
+    this.goty = new GotyDataClient(this.supabase, this.demo);
     this.rankingFormula = options.rankingFormula || 'preference';
   }
 

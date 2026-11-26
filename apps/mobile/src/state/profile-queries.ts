@@ -112,6 +112,7 @@ export function useUpdateProfile(): UseMutationResult<Profile, Error, ProfileVar
       if (!context.isSessionCurrent(epoch)) return;
       void context.queryClient.invalidateQueries({ queryKey: rollback?.queryKey || key });
       void context.queryClient.invalidateQueries({ queryKey: ['library', context.sessionEpoch] });
+      void context.queryClient.invalidateQueries({ queryKey: ['goty-2026', context.sessionEpoch] });
     },
   });
 }

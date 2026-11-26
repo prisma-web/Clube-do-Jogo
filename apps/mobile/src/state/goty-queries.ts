@@ -21,7 +21,7 @@ import {
   type GotyFullState,
   type GotySearchGameResult,
 } from '@clube-do-jogo/domain';
-import { getMobileApiTransport, getMobileSupabaseClient } from '@/platform';
+import { getMobileApiTransport } from '@/platform';
 import {
   applyBolaoConfirmation,
   applyBolaoVote,
@@ -43,15 +43,7 @@ type AppContext = ReturnType<typeof useAppInternal>;
 
 const GOTY_MUTATION_KEY = ['goty-2026-mutation'] as const;
 
-let liveGotyClient: GotyDataClient | undefined;
-const demoGotyClient = new GotyDataClient(null);
 let lastDemoEpoch: number | null = null;
-
-function getGotyClient(isDemo: boolean): GotyDataClient {
-  if (isDemo) return demoGotyClient;
-  liveGotyClient ||= new GotyDataClient(getMobileSupabaseClient());
-  return liveGotyClient;
-}
 
 function requireUser(userId: string | null): string {
   if (!userId) throw new Error('Entre na sua conta para continuar.');
@@ -92,7 +84,7 @@ async function requestResolveCovers(limit: number): Promise<{ updated?: number; 
 }
 
 export function useGotyState(): UseQueryResult<GotyFullState, Error> {
-  const { ready, userId, isDemo, sessionEpoch, isSessionCurrent } = useAppInternal();
+  const { ready, userId, isDemo, sessionEpoch, isSessionCurrent, dataClient } = useAppInternal();
   const key = useMemo(() => gotyQueryKey(sessionEpoch, userId, isDemo), [isDemo, sessionEpoch, userId]);
   return useQuery<GotyFullState, Error>({
     queryKey: key,
@@ -105,7 +97,7 @@ export function useGotyState(): UseQueryResult<GotyFullState, Error> {
         resetDemoGotyState();
         lastDemoEpoch = epoch;
       }
-      const state = await getGotyClient(isDemo).readFullState({
+      const state = await dataClient.goty.readFullState({
         userId: requireUser(userId),
         isDemo,
         editionYear: GOTY_2026_EDITION_YEAR,
@@ -152,7 +144,7 @@ function useOptimisticGotyMutation<TVariables, TResult>(
     mutationKey: GOTY_MUTATION_KEY,
     mutationFn: async variables => {
       if (!isSessionCurrent(sessionEpoch)) throw staleSessionError();
-      const result = await run(getGotyClient(isDemo), { userId: requireUser(userId), isDemo }, variables);
+      const result = await run(context.dataClient.goty, { userId: requireUser(userId), isDemo }, variables);
       if (!isSessionCurrent(sessionEpoch)) throw staleSessionError();
       return result;
     },

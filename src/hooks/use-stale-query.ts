@@ -23,6 +23,12 @@ export async function prefetchStaleQuery<T>(key: string, fetcher: () => Promise<
   }
 }
 
+export function invalidateStaleQueries(keyPrefix: string) {
+  for (const key of [...cache.keys()]) {
+    if (key.startsWith(keyPrefix)) cache.delete(key);
+  }
+}
+
 export function useStaleQuery<T>(
   key: string,
   fetcher: () => Promise<T>,

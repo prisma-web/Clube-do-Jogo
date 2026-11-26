@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { configureGotyDemoStorage, GotyDataClient, resetDemoGotyState } from '@clube-do-jogo/data';
+import { configureGotyDemoStorage, createDataClient, GotyDataClient, resetDemoGotyState } from '@clube-do-jogo/data';
 import { computeBolaoLeaderboard, GOTY_2026_CURATED_CATALOG } from '@clube-do-jogo/domain';
 
 test('GotyDataClient demo mode enforces bolao lock while keeping Seu GOTY independent', async () => {
@@ -102,6 +102,36 @@ test('GotyDataClient demo mode persists through an injected storage and supports
     assert.equal(afterClear.personalPicks.some(pick => pick.user_id === 'demo-user'), false);
   } finally {
     configureGotyDemoStorage(undefined);
+    resetDemoGotyState();
+  }
+});
+
+test('o Placar do GOTY demo mostra o perfil atual do demo, não um snapshot antigo', async () => {
+  resetDemoGotyState();
+  const client = createDataClient();
+  const scope = { userId: 'demo-user', isDemo: true };
+  try {
+    const before = await client.goty.readFullState(scope);
+    const oldAvatar = before.profiles.find(profile => profile.id === 'demo-user')?.avatar_url;
+    assert.ok(oldAvatar);
+
+    await client.updateProfile({
+      userId: 'demo-user',
+      isDemo: true,
+      patch: { name: 'Artur Novo', avatar_url: 'https://example.test/novo.jpg' },
+    });
+
+    const after = await client.goty.readFullState(scope);
+    const me = after.profiles.find(profile => profile.id === 'demo-user');
+    assert.equal(me?.avatar_url, 'https://example.test/novo.jpg');
+    assert.equal(me?.name, 'Artur Novo');
+    const others = after.profiles.filter(profile => profile.id !== 'demo-user').map(profile => profile.id);
+    assert.deepEqual(others, before.profiles.filter(profile => profile.id !== 'demo-user').map(profile => profile.id));
+
+    client.resetDemo();
+    const reset = await client.goty.readFullState(scope);
+    assert.equal(reset.profiles.find(profile => profile.id === 'demo-user')?.avatar_url, oldAvatar);
+  } finally {
     resetDemoGotyState();
   }
 });

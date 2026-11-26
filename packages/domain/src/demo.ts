@@ -12,7 +12,7 @@ export const demoProfiles: Profile[] = [
 
 export const demoGames: Game[] = [
   {
-    id: 'hades', igdb_id: 114795, title: 'Hades', duration_hours: 22, average_rating: 93, release_year: 2020,
+    id: 'hades', igdb_id: 113112, title: 'Hades', duration_hours: 22, average_rating: 93, release_year: 2020,
     image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co39vc.jpg',
     description: 'Desafie o deus dos mortos enquanto batalha para sair do submundo neste roguelike de ação dos criadores de Bastion e Transistor.',
     screenshot_urls: [
@@ -29,19 +29,19 @@ export const demoGames: Game[] = [
     platform_ids: [130, 6, 167, 169],
   },
   {
-    id: 'hollow-knight', igdb_id: 113112, title: 'Hollow Knight', duration_hours: 27, average_rating: 91, release_year: 2017,
+    id: 'hollow-knight', igdb_id: 14593, title: 'Hollow Knight', duration_hours: 27, average_rating: 91, release_year: 2017,
     image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co93cr.jpg',
     description: 'Explore cavernas sinuosas, cidades antigas e ermos mortais em um reino vasto e interligado, cheio de criaturas e segredos.',
     screenshot_urls: ['https://images.igdb.com/igdb/image/upload/t_screenshot_big/sc6y2k.jpg'],
     trailer_url: 'https://www.youtube.com/watch?v=UAO2urG23S4',
   },
   {
-    id: 'cocoon', title: 'Cocoon', duration_hours: 5, average_rating: 88, release_year: 2023,
-    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co4rvv.jpg', description: 'Uma aventura de quebra-cabeças sobre mundos dentro de mundos, criada pelo designer de Limbo e Inside.',
+    id: 'cocoon', igdb_id: 204627, title: 'Cocoon', duration_hours: 5, average_rating: 88, release_year: 2023,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co4v2z.jpg', description: 'Uma aventura de quebra-cabeças sobre mundos dentro de mundos, criada pelo designer de Limbo e Inside.',
     screenshot_urls: [], trailer_url: 'https://www.youtube.com/watch?v=ybLUe8aYV6A',
   },
   {
-    id: 'outer-wilds', title: 'Outer Wilds', duration_hours: 17, average_rating: 92, release_year: 2019,
+    id: 'outer-wilds', igdb_id: 11737, title: 'Outer Wilds', duration_hours: 17, average_rating: 92, release_year: 2019,
     image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co65ac.jpg', description: 'Um mistério de mundo aberto sobre um sistema solar preso em um loop temporal infinito.',
     screenshot_urls: [], trailer_url: 'https://www.youtube.com/watch?v=d6LGnVCL1_A',
     genres: ['Adventure', 'Puzzle'],
@@ -49,43 +49,43 @@ export const demoGames: Game[] = [
     platform_ids: [130, 6, 48, 49],
   },
   {
-    id: 'celeste', title: 'Celeste', duration_hours: 8, average_rating: 91, release_year: 2018,
+    id: 'celeste', igdb_id: 26226, title: 'Celeste', duration_hours: 8, average_rating: 91, release_year: 2018,
     image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co3byy.jpg', description: 'Ajude Madeline a enfrentar seus demônios interiores em sua jornada até o topo da Montanha Celeste.',
     screenshot_urls: [], trailer_url: 'https://www.youtube.com/watch?v=70d9irlxiB4',
   },
   {
-    id: 'inscryption', title: 'Inscryption', duration_hours: 12, average_rating: 87, release_year: 2021,
-    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co4h7v.jpg', description: 'Uma odisseia sombria baseada em cartas que mistura roguelike, puzzles e terror psicológico.',
+    id: 'inscryption', igdb_id: 139090, title: 'Inscryption', duration_hours: 12, average_rating: 87, release_year: 2021,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co401c.jpg', description: 'Uma odisseia sombria baseada em cartas que mistura roguelike, puzzles e terror psicológico.',
     screenshot_urls: [], trailer_url: 'https://www.youtube.com/watch?v=RN5GSIWIN1k',
   },
   {
-    id: 'tunic', title: 'Tunic', duration_hours: 13, average_rating: 85, release_year: 2022,
-    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co5p5b.jpg', description: 'Explore uma terra repleta de lendas perdidas, poderes ancestrais e monstros ferozes.',
+    id: 'tunic', igdb_id: 23733, title: 'Tunic', duration_hours: 13, average_rating: 85, release_year: 2022,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/td1t8kb33gyo8mvhl2pc.jpg', description: 'Explore uma terra repleta de lendas perdidas, poderes ancestrais e monstros ferozes.',
     screenshot_urls: [], trailer_url: null,
   },
   {
-    id: 'dredge', title: 'Dredge', duration_hours: 10, average_rating: 82, release_year: 2023,
-    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co6d4z.jpg', description: 'Pesque em um arquipélago remoto e descubra por que algumas coisas deveriam permanecer esquecidas.',
+    id: 'dredge', igdb_id: 164867, title: 'Dredge', duration_hours: 10, average_rating: 82, release_year: 2023,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co9kyk.jpg', description: 'Pesque em um arquipélago remoto e descubra por que algumas coisas deveriam permanecer esquecidas.',
     screenshot_urls: [], trailer_url: null,
   },
   {
-    id: 'sea-of-stars', title: 'Sea of Stars', duration_hours: 28, average_rating: 86, release_year: 2023,
-    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co6n21.jpg', description: 'Um RPG por turnos inspirado nos clássicos, com exploração, combate e uma história cheia de coração.',
+    id: 'sea-of-stars', igdb_id: 131890, title: 'Sea of Stars', duration_hours: 28, average_rating: 86, release_year: 2023,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co215b.jpg', description: 'Um RPG por turnos inspirado nos clássicos, com exploração, combate e uma história cheia de coração.',
     screenshot_urls: [], trailer_url: null,
   },
   {
-    id: 'animal-well', title: 'Animal Well', duration_hours: 7, average_rating: 88, release_year: 2024,
-    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co8e0o.jpg', description: 'Explore um labirinto surreal e denso em segredos, iluminando velas e resolvendo mistérios.',
+    id: 'animal-well', igdb_id: 191435, title: 'Animal Well', duration_hours: 7, average_rating: 88, release_year: 2024,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co4hdh.jpg', description: 'Explore um labirinto surreal e denso em segredos, iluminando velas e resolvendo mistérios.',
     screenshot_urls: [], trailer_url: null,
   },
   {
-    id: 'balatro', title: 'Balatro', duration_hours: 14, average_rating: 90, release_year: 2024,
-    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co7vse.jpg', description: 'Um construtor de baralho hipnótico inspirado em pôquer, cheio de combos e possibilidades.',
+    id: 'balatro', igdb_id: 251833, title: 'Balatro', duration_hours: 14, average_rating: 90, release_year: 2024,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co9f4g.jpg', description: 'Um construtor de baralho hipnótico inspirado em pôquer, cheio de combos e possibilidades.',
     screenshot_urls: [], trailer_url: null,
   },
   {
-    id: 'gris', title: 'GRIS', duration_hours: 4, average_rating: 84, release_year: 2018,
-    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co1rb8.jpg', description: 'Uma experiência serena e evocativa sobre esperança, perda e um mundo que recupera suas cores.',
+    id: 'gris', igdb_id: 22917, title: 'GRIS', duration_hours: 4, average_rating: 84, release_year: 2018,
+    image_url: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co1qv5.jpg', description: 'Uma experiência serena e evocativa sobre esperança, perda e um mundo que recupera suas cores.',
     screenshot_urls: [], trailer_url: null,
   },
 ];
