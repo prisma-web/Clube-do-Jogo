@@ -1,0 +1,11 @@
+{
+  "eyebrow": "PÁGINA DO JOGO",
+  "title": "O trailer vai com você pela página",
+  "body": "No app, o trailer que está tocando na página do jogo vira uma janelinha no topo quando você rola para ler o resto, e continua do ponto em que estava. Ele volta ao lugar sozinho quando você sobe de novo.",
+  "highlights": [
+    "“Voltar ao trailer” leva você de volta ao vídeo.",
+    "“Fechar trailer” pausa o vídeo e tira a janelinha da frente.",
+    "Pausado ou no fim, o trailer não flutua."
+  ],
+  "image": { "file": "trailer-flutuante-no-app.webp", "alt": "Página de Hades no app com o trailer tocando numa janelinha no topo, sobre a pontuação do clube.", "width": 860, "height": 500, "position": "center" }
+}

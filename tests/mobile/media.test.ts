@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { youtubeEmbedUrl, isAllowedYoutubeOrigin, isAllowedPlayerNavigation, youtubeEmbedderOrigin, youtubePlayerSource } from '../../apps/mobile/src/features/media/youtube';
+import vm from 'node:vm';
+import { youtubeEmbedUrl, isAllowedYoutubeOrigin, playerNavigation, youtubeEmbedderOrigin, youtubePlayerSource, PAUSE_PLAYER_SCRIPT } from '../../apps/mobile/src/features/media/youtube';
 
 test('trailers accept YouTube links and never carry input credentials or query parameters', () => {
   for (const url of ['https://youtu.be/dQw4w9WgXcQ?token=private', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'https://www.youtube.com/embed/dQw4w9WgXcQ']) {
@@ -44,15 +45,72 @@ test('trailers identify the embedder to YouTube so the player does not fail with
   const embed = youtubeEmbedUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')!;
   const source = youtubePlayerSource(embed, 'https://clube.example', { autoplay: true })!;
   assert.equal(source.baseUrl, 'https://clube.example/');
-  assert.match(source.html, /<iframe src="https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?[^"]*autoplay=1/);
+  assert.match(source.html, /<iframe id="player" src="https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?[^"]*autoplay=1/);
   assert.match(source.html, /origin=https%3A%2F%2Fclube\.example/);
   assert.match(source.html, /referrerpolicy="strict-origin-when-cross-origin"/);
   assert.ok(!youtubePlayerSource(embed, 'https://clube.example')!.html.includes('autoplay=1'));
   assert.equal(youtubePlayerSource('https://example.test/embed/x', 'https://clube.example'), null);
 
-  assert.equal(isAllowedPlayerNavigation('https://clube.example/', 'https://clube.example'), true);
-  assert.equal(isAllowedPlayerNavigation('about:blank', 'https://clube.example'), true);
-  assert.equal(isAllowedPlayerNavigation(embed, 'https://clube.example'), true);
-  assert.equal(isAllowedPlayerNavigation('https://clube.example/jogos', 'https://clube.example'), false);
-  assert.equal(isAllowedPlayerNavigation('https://evil.test/', 'https://clube.example'), false);
+});
+
+function runPlayerBridge(html: string) {
+  const script = html.match(/<script>([\s\S]*)<\/script>/)?.[1];
+  assert.ok(script, 'player page has the bridge script');
+  const src = html.match(/<iframe id="player" src="([^"]+)"/)![1].replace(/&amp;/g, '&');
+  const toPlayer: Array<{ message: unknown; targetOrigin: string }> = [];
+  const toNative: unknown[] = [];
+  const listeners: Record<string, (event: unknown) => void> = {};
+  const contentWindow = { postMessage: (message: string, targetOrigin: string) => toPlayer.push({ message: JSON.parse(message), targetOrigin }) };
+  const frame = { src, contentWindow, addEventListener: (name: string, listener: () => void) => { listeners[`frame:${name}`] = listener; } };
+  const window: Record<string, unknown> = {
+    addEventListener: (name: string, listener: (event: unknown) => void) => { listeners[`window:${name}`] = listener; },
+    ReactNativeWebView: { postMessage: (message: string) => toNative.push(JSON.parse(message)) },
+  };
+  vm.runInNewContext(script, { window, document: { getElementById: (id: string) => (id === 'player' ? frame : null) }, URL, JSON });
+  return {
+    load: () => listeners['frame:load']({}),
+    receive: (origin: string, data: unknown, source: unknown = contentWindow) => listeners['window:message']({ origin, data, source }),
+    pause: () => vm.runInNewContext(PAUSE_PLAYER_SCRIPT, { window }),
+    toPlayer,
+    toNative,
+  };
+}
+
+test('the player page relays YouTube player states to the app and accepts only a pause command back', () => {
+  const embed = youtubeEmbedUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')!;
+  const source = youtubePlayerSource(embed, 'https://clube.example', { autoplay: true })!;
+  assert.match(source.html, /enablejsapi=1/);
+  const bridge = runPlayerBridge(source.html);
+  const youtubeOrigin = 'https://www.youtube-nocookie.com';
+
+  bridge.load();
+  assert.deepEqual(bridge.toPlayer.map(entry => entry.targetOrigin), [youtubeOrigin, youtubeOrigin]);
+  assert.deepEqual(bridge.toPlayer.map(entry => (entry.message as { event: string }).event), ['listening', 'command']);
+
+  bridge.receive(youtubeOrigin, JSON.stringify({ event: 'onStateChange', info: 1 }));
+  bridge.receive(youtubeOrigin, JSON.stringify({ event: 'infoDelivery', info: { playerState: 1, currentTime: 3 } }));
+  bridge.receive(youtubeOrigin, JSON.stringify({ event: 'infoDelivery', info: { playerState: 2 } }));
+  bridge.receive('https://evil.test', JSON.stringify({ event: 'onStateChange', info: 0 }));
+  bridge.receive(youtubeOrigin, JSON.stringify({ event: 'onStateChange', info: 0 }), {});
+  bridge.receive(youtubeOrigin, '{not json');
+  assert.deepEqual(bridge.toNative, [{ type: 'youtube-state', state: 1 }, { type: 'youtube-state', state: 2 }]);
+
+  bridge.pause();
+  assert.deepEqual(bridge.toPlayer.at(-1), { message: { event: 'command', func: 'pauseVideo', args: [], id: 'player', channel: 'widget' }, targetOrigin: youtubeOrigin });
+});
+
+test('the player page stays on the embed; YouTube links that would replace it open outside the app', () => {
+  const embed = youtubeEmbedUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')!;
+  const site = 'https://clube.example';
+  assert.equal(playerNavigation('https://clube.example/', site, true), 'load');
+  assert.equal(playerNavigation('about:blank', site, true), 'load');
+  assert.equal(playerNavigation(embed, site, false), 'load');
+  assert.equal(playerNavigation('https://www.youtube.com/', site, true), 'open-outside');
+  assert.equal(playerNavigation('https://www.youtube.com/', site, undefined), 'open-outside');
+  assert.equal(playerNavigation('https://clube.example/', site, undefined), 'load');
+  assert.equal(playerNavigation('https://www.youtube.com/watch?v=dQw4w9WgXcQ', site, true), 'open-outside');
+  assert.equal(playerNavigation('https://clube.example/jogos', site, true), 'block');
+  assert.equal(playerNavigation('https://evil.test/', site, true), 'block');
+  assert.equal(playerNavigation('https://evil.test/', site, false), 'block');
+  assert.equal(playerNavigation('javascript:alert(1)', site, true), 'block');
 });
