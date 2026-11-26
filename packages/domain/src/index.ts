@@ -15,7 +15,7 @@ export * from './labels';
 export { DEFAULT_THEME, getSelectableThemes, isThemeId, themes, THEME_STORAGE_KEY } from './themes';
 export type { ThemeAvailability, ThemeDefinition, ThemeId, ThemeScheme } from './themes';
 export { renderThemeShapeCss, themeShapes } from './theme-shapes';
-export type { ThemeControlText, ThemeCorners, ThemeDecor, ThemeDecorShadows, ThemeFont, ThemeShape } from './theme-shapes';
+export type { ThemeControlText, ThemeCorners, ThemeDecor, ThemeDecorShadows, ThemeFont, ThemeShape, ThemeTitleText } from './theme-shapes';
 export {
   formatThemeColor,
   parseThemeColor,

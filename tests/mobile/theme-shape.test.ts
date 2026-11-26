@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import normalizeColor from '@react-native/normalize-colors';
 import { themes, themeShapes } from '@clube-do-jogo/domain';
-import { applyThemeShape, controlTextStyle } from '../../apps/mobile/src/theme/shape';
+import { applyThemeShape, controlTextStyle, titleTextStyle } from '../../apps/mobile/src/theme/shape';
 import { themePalettes } from '../../apps/mobile/src/theme/palette';
 import { radii } from '../../apps/mobile/src/theme/tokens';
 
@@ -53,6 +53,13 @@ test('botão do NieR fica em caixa alta com espaçamento proporcional ao tamanho
   assert.deepEqual(controlTextStyle(nier.button, 12), { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.54 });
   assert.deepEqual(controlTextStyle(nier.tab, 14), { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.12 });
   assert.deepEqual(controlTextStyle(themeShapes.original.button, 12), {});
+});
+
+test('título de página do NieR usa o tamanho e o espaçamento do h1 da web no celular', () => {
+  const title = titleTextStyle(nier.title);
+  assert.equal(title.fontSize, 24);
+  assert.equal(title.letterSpacing?.toFixed(2), '-0.60');
+  for (const theme of themes.filter(item => item.id !== 'nier')) assert.deepEqual(titleTextStyle(themeShapes[theme.id].title), {}, theme.id);
 });
 
 test('toda cor e sombra do NieR é entendida pelo React Native', () => {

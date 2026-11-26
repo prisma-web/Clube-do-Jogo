@@ -1,0 +1,16 @@
+{
+  "eyebrow": "TEMAS",
+  "title": "A YoRHa reorganizou o seu app",
+  "body": "No tema NieR: Automata, o app ganhou a grade de fundo que já aparecia no site, e os títulos das telas agora cabem numa linha só, como \"Votação para Dezembro\". A capa do Jogo do mês também ganhou o tom envelhecido do site.",
+  "highlights": [
+    "Os títulos das telas do NieR ficaram do mesmo tamanho dos títulos do site no celular.",
+    "Os outros temas não mudaram."
+  ],
+  "image": {
+    "file": "nier-titulos-e-grade.webp",
+    "alt": "Ranking no app com o tema NieR: Automata: o título Votação para Dezembro numa linha só, sobre a grade de fundo com losangos e cruzes.",
+    "width": 860,
+    "height": 500,
+    "position": "top"
+  }
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -112,7 +112,9 @@ export default function GameOfMonthScreen() {
             style={styles.hero}
           >
             <View style={styles.heroBackdrop} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-              <Image source={{ uri: gameCoverUrl(game.image_url) }} style={styles.heroBackdropImage} contentFit="cover" blurRadius={18} />
+              <View style={styles.heroBackdropFilter}>
+                <Image source={{ uri: gameCoverUrl(game.image_url) }} style={styles.heroBackdropImage} contentFit="cover" blurRadius={18} />
+              </View>
               <View style={styles.heroShade} />
             </View>
             {decor ? <View style={styles.heroFrame} pointerEvents="none" /> : null}
@@ -120,7 +122,15 @@ export default function GameOfMonthScreen() {
               <Ionicons name="ribbon" size={13} color={decor?.onInk ?? colors.amber300} />
               <Text style={styles.monthChipText}>Jogo de {formatMonth(selectedMonth, { includeYear: false })}</Text>
             </View>
-            <Image source={{ uri: gameCoverUrl(game.image_url) }} style={styles.cover} contentFit="cover" accessibilityLabel={`Capa de ${game.title}`} />
+            {decor ? (
+              <View style={styles.cover} accessible accessibilityRole="image" accessibilityLabel={`Capa de ${game.title}`}>
+                <View style={styles.coverFilter}>
+                  <Image source={{ uri: gameCoverUrl(game.image_url) }} style={styles.coverImage} contentFit="cover" />
+                </View>
+              </View>
+            ) : (
+              <Image source={{ uri: gameCoverUrl(game.image_url) }} style={styles.cover} contentFit="cover" accessibilityLabel={`Capa de ${game.title}`} />
+            )}
             <Text style={styles.title}>{game.title}</Text>
             <View style={styles.metaRow}>
               <View style={styles.metaChip}>
@@ -270,6 +280,7 @@ const useStyles = themedStyles((colors, { decor, button }) => ({
   },
   heroFrame: { position: 'absolute', top: 9, left: 9, right: 9, bottom: 9, borderWidth: 1, borderColor: 'rgba(75,65,61,0.24)' },
   heroBackdrop: { position: 'absolute', top: -24, left: -24, right: -24, bottom: -24 },
+  heroBackdropFilter: { ...StyleSheet.absoluteFill, ...(decor && { filter: [{ grayscale: 1 }, { brightness: 1.3 }, { contrast: 0.8 }] }) },
   heroBackdropImage: { width: '100%', height: '100%', opacity: decor ? 0.19 : 0.9 },
   heroShade: {
     position: 'absolute',
@@ -302,6 +313,8 @@ const useStyles = themedStyles((colors, { decor, button }) => ({
     marginBottom: spacing.md,
     ...(decor && { borderRadius: 0, borderWidth: 4, borderColor: decor.onInk, boxShadow: decor.shadows.cover }),
   },
+  coverFilter: { flex: 1, filter: [{ grayscale: 0.25 }, { sepia: 0.12 }] },
+  coverImage: { width: '100%', height: '100%' },
   title: {
     ...typography.h1,
     color: colors.white,

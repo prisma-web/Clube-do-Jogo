@@ -7,6 +7,11 @@ export interface ThemeControlText {
   readonly letterSpacingEm: number;
 }
 
+export interface ThemeTitleText {
+  readonly fontSize: number;
+  readonly letterSpacingEm: number;
+}
+
 export interface ThemeCorners {
   readonly from: number;
   readonly radius: number;
@@ -40,10 +45,11 @@ export interface ThemeShape {
   readonly corners: ThemeCorners | null;
   readonly button: ThemeControlText | null;
   readonly tab: ThemeControlText | null;
+  readonly title: ThemeTitleText | null;
   readonly decor: ThemeDecor | null;
 }
 
-const standardShape: ThemeShape = { font: 'sans', corners: null, button: null, tab: null, decor: null };
+const standardShape: ThemeShape = { font: 'sans', corners: null, button: null, tab: null, title: null, decor: null };
 
 function inkShadow(offset: number, alpha: number): string {
   return `${offset}px ${offset}px 0 rgba(75, 65, 61, ${alpha / 100})`;
@@ -57,6 +63,7 @@ export const themeShapes: Record<ThemeId, ThemeShape> = {
     corners: { from: 12, radius: 2 },
     button: { letterSpacingEm: 0.045 },
     tab: { fontSize: 10, letterSpacingEm: 0.012 },
+    title: { fontSize: 24, letterSpacingEm: -0.025 },
     decor: {
       ink: '#4b413d',
       onInk: '#e3deca',
