@@ -1,0 +1,10 @@
+{
+  "eyebrow": "NOVIDADES",
+  "title": "Pulou algumas versões? Nada fica para trás",
+  "body": "Quando você atualiza depois de um tempo, as Novidades mostram tudo o que saiu desde a última versão que você viu, da mais nova para a mais antiga. Cada passo diz em que versão aquilo chegou.",
+  "highlights": [
+    "Até 10 novidades por vez; “Mais N novidades” abre as versões anteriores.",
+    "Em Configurações, “Ver novamente” repete as Novidades e deixa você voltar às versões anteriores."
+  ],
+  "image": { "file": "novidades-de-versoes-puladas.webp", "alt": "Novidades da v1.3.1 à v1.3.6 no último passo, com o botão “Mais 4 novidades da v1.3.0”.", "width": 860, "height": 685, "position": "center" }
+}
