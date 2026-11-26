@@ -9,6 +9,7 @@ import { themedStyles, useThemeColors, radii, spacing } from '@/theme';
 import {
   FLOATING_TRAILER_MARGIN,
   floatingTrailerSize,
+  floatingTrailerTransform,
   isTrailerInPlace,
   nextTrailerPlayback,
   shouldFloatTrailer,
@@ -111,7 +112,7 @@ function PlayingTrailer({ embedUrl, title, anchor, onMinimize, onExpand }: {
   const dispatch = useCallback((event: TrailerEvent) => setPlayback(current => nextTrailerPlayback(current, event)), []);
 
   useAnimatedReaction(
-    () => viewportHeight.value <= 0 || isTrailerInPlace(offset.value, viewportHeight.value, y, height),
+    () => viewportHeight.get() <= 0 || isTrailerInPlace(offset.get(), viewportHeight.get(), y, height),
     (next, previous) => {
       if (next !== previous) runOnJS(setInPlace)(next);
     },
@@ -122,20 +123,28 @@ function PlayingTrailer({ embedUrl, title, anchor, onMinimize, onExpand }: {
     progress.set(withTiming(floating ? 1 : 0, { duration: FLOAT_ANIMATION_MS }));
   }, [floating, progress]);
 
-  const frameStyle = useAnimatedStyle(() => {
-    const p = progress.get();
-    return {
-      left: x + (width - small.width) * p,
-      top: y,
-      width: width + (small.width - width) * p,
-      height: height + (small.height - height) * p,
-      transform: [{ translateY: (offset.value + FLOATING_TRAILER_MARGIN - y) * p }],
-    };
-  }, [x, y, width, height, small.width, small.height]);
+  useEffect(() => {
+    if (!screenScroll || !floating) return undefined;
+    screenScroll.setFocusScrollPaused(true);
+    return () => screenScroll.setFocusScrollPaused(false);
+  }, [floating, screenScroll]);
+
+  const floatingScale = small.width / width;
+  const windowStyle = useAnimatedStyle(() => {
+    const { scale, translateX, translateY } = floatingTrailerTransform(width, height, y, offset.get(), floatingScale, progress.get());
+    return { transform: [{ translateX }, { translateY }, { scale }] };
+  }, [width, height, y, floatingScale]);
+  const borderStyle = useAnimatedStyle(() => ({ opacity: progress.get() }));
+  const controlsStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: (offset.get() + FLOATING_TRAILER_MARGIN - y) * progress.get() }],
+  }), [y]);
+  const controlsFrame = floating
+    ? { left: x + width - small.width, top: y, width: small.width, height: small.height }
+    : { left: x, top: y, width, height };
 
   function restore() {
     if (!screenScroll) return;
-    screenScroll.scrollTo(trailerRestoreScrollY(y, height, viewportHeight.value));
+    screenScroll.scrollTo(trailerRestoreScrollY(y, height, viewportHeight.get()));
   }
 
   function close() {
@@ -144,29 +153,34 @@ function PlayingTrailer({ embedUrl, title, anchor, onMinimize, onExpand }: {
   }
 
   return (
-    <Animated.View style={[styles.player, floating && styles.playerFloating, frameStyle]}>
-      <YoutubePlayer
-        ref={player}
-        embedUrl={embedUrl}
-        title={title}
-        autoplay
-        style={styles.webview}
-        onPlayerState={state => dispatch({ type: 'youtube', state })}
-      />
-      <View style={styles.controls}>
-        {floating ? (
-          <>
-            <ControlButton icon="arrow-undo-outline" label="Voltar ao trailer" onPress={restore} />
-            <ControlButton icon="close" label="Fechar trailer" onPress={close} />
-          </>
-        ) : (
-          <>
-            <ControlButton icon="contract-outline" label="Minimizar trailer" onPress={onMinimize} />
-            <ControlButton icon="expand-outline" label="Abrir trailer em tela cheia" onPress={onExpand} />
-          </>
-        )}
-      </View>
-    </Animated.View>
+    <>
+      <Animated.View style={[styles.player, { left: x, top: y, width, height }, windowStyle]}>
+        <YoutubePlayer
+          ref={player}
+          embedUrl={embedUrl}
+          title={title}
+          autoplay
+          style={styles.webview}
+          onPlayerState={state => dispatch({ type: 'youtube', state })}
+        />
+        <Animated.View pointerEvents="none" style={[styles.floatingBorder, borderStyle]} />
+      </Animated.View>
+      <Animated.View pointerEvents="box-none" style={[styles.controlsLayer, controlsFrame, controlsStyle]}>
+        <View style={styles.controls}>
+          {floating ? (
+            <>
+              <ControlButton icon="arrow-undo-outline" label="Voltar ao trailer" onPress={restore} />
+              <ControlButton icon="close" label="Fechar trailer" onPress={close} />
+            </>
+          ) : (
+            <>
+              <ControlButton icon="contract-outline" label="Minimizar trailer" onPress={onMinimize} />
+              <ControlButton icon="expand-outline" label="Abrir trailer em tela cheia" onPress={onExpand} />
+            </>
+          )}
+        </View>
+      </Animated.View>
+    </>
   );
 }
 
@@ -187,7 +201,8 @@ const useStyles = themedStyles(colors => ({
   playBadge: { position: 'absolute', top: '50%', left: '50%', marginTop: -28, marginLeft: -28, width: 56, height: 56, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(139,92,246,0.85)' },
   posterLabel: { position: 'absolute', left: spacing.md, bottom: spacing.md, color: colors.white, fontSize: 12, fontWeight: '800' },
   player: { position: 'absolute', zIndex: 20, borderRadius: radii.xl, overflow: 'hidden', backgroundColor: colors.black },
-  playerFloating: { borderRadius: radii.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', elevation: 12 },
+  floatingBorder: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: radii.xl, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' },
+  controlsLayer: { position: 'absolute', zIndex: 21 },
   webview: { flex: 1, backgroundColor: colors.black },
   controls: { position: 'absolute', top: spacing.sm, right: spacing.sm, flexDirection: 'row', gap: spacing.xs },
   controlButton: { width: 32, height: 32, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.65)' },

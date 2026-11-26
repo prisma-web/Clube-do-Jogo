@@ -101,8 +101,11 @@ export function youtubePlayerSource(embedUrl: string | null | undefined, embedde
   return { html, baseUrl: `${embedderOrigin}/` };
 }
 
-export function isAllowedPlayerNavigation(url: string, embedderOrigin: string): boolean {
-  if (url === 'about:blank' || url === 'about:srcdoc') return true;
-  if (url === embedderOrigin || url === `${embedderOrigin}/`) return true;
-  return isAllowedYoutubeOrigin(url);
+export type PlayerNavigation = 'load' | 'open-outside' | 'block';
+
+export function playerNavigation(url: string, embedderOrigin: string, isTopFrame: boolean): PlayerNavigation {
+  if (url === 'about:blank' || url === 'about:srcdoc') return 'load';
+  if (!isTopFrame) return isAllowedYoutubeOrigin(url) ? 'load' : 'block';
+  if (url === embedderOrigin || url === `${embedderOrigin}/`) return 'load';
+  return isAllowedYoutubeOrigin(url) ? 'open-outside' : 'block';
 }

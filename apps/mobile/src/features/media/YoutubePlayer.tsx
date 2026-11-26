@@ -1,10 +1,11 @@
 import { useImperativeHandle, useMemo, useRef, type Ref } from 'react';
-import type { StyleProp, ViewStyle } from 'react-native';
+import { Linking, type StyleProp, type ViewStyle } from 'react-native';
 import * as Application from 'expo-application';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 import { getMobileSiteUrl } from '@/platform/config';
 import { parseTrailerPlayerMessage, type YoutubePlayerState } from './floating-trailer';
-import { isAllowedPlayerNavigation, PAUSE_PLAYER_SCRIPT, youtubeEmbedderOrigin, youtubePlayerSource } from './youtube';
+import { PAUSE_PLAYER_SCRIPT, playerNavigation, youtubeEmbedderOrigin, youtubePlayerSource } from './youtube';
 
 const ORIGIN_WHITELIST = ['*'];
 
@@ -24,6 +25,12 @@ export function YoutubePlayer({ embedUrl, title, autoplay, style, onPlayerState,
   useImperativeHandle(ref, () => ({ pause: () => webViewRef.current?.injectJavaScript(PAUSE_PLAYER_SCRIPT) }), []);
   if (!source) return null;
 
+  function handleNavigation(request: ShouldStartLoadRequest) {
+    const navigation = playerNavigation(request.url, embedderOrigin, request.isTopFrame);
+    if (navigation === 'open-outside') void Linking.openURL(request.url).catch(() => {});
+    return navigation === 'load';
+  }
+
   function handleMessage(event: WebViewMessageEvent) {
     const state = parseTrailerPlayerMessage(event.nativeEvent.data);
     if (state !== null) onPlayerState?.(state);
@@ -37,7 +44,7 @@ export function YoutubePlayer({ embedUrl, title, autoplay, style, onPlayerState,
       style={style}
       originWhitelist={ORIGIN_WHITELIST}
       onMessage={onPlayerState ? handleMessage : undefined}
-      onShouldStartLoadWithRequest={request => isAllowedPlayerNavigation(request.url, embedderOrigin)}
+      onShouldStartLoadWithRequest={handleNavigation}
       javaScriptEnabled
       allowsFullscreenVideo
       allowsInlineMediaPlayback

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Keyboard, KeyboardAvoidingView, Platform, RefreshControl, ScrollView, View, type LayoutChangeEvent, type ScrollViewProps } from 'react-native';
 import { useAnimatedRef, useScrollOffset, useSharedValue, type SharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +16,7 @@ export type ScreenScroll = {
   offset: SharedValue<number>;
   viewportHeight: SharedValue<number>;
   scrollTo: (y: number) => void;
+  setFocusScrollPaused: (paused: boolean) => void;
 };
 
 const ScreenScrollContext = createContext<ScreenScroll | null>(null);
@@ -42,7 +43,7 @@ export function Screen({ children, scroll = true, contentContainerStyle, onRefre
   const badgeClearance = useGotyBadgeClearance();
   const safeArea = [styles.safeArea, theme.scene !== 'none' && styles.safeAreaScenic];
   const { scrollRef, contentRef, setFocusedForm, onScrollLayout } = useFormAboveKeyboard();
-  const { attachScroll, screenScroll, onViewportLayout } = useScreenScrollState(scrollRef);
+  const { attachScroll, screenScroll, onViewportLayout, focusScrollPaused } = useScreenScrollState(scrollRef);
   const shapeKey = `${theme.shape.font}-${theme.shape.decor ? 'decor' : 'plain'}`;
 
   if (!scroll) {
@@ -63,6 +64,7 @@ export function Screen({ children, scroll = true, contentContainerStyle, onRefre
             void onScrollLayout();
           }}
           scrollEventThrottle={16}
+          scrollsChildToFocus={!focusScrollPaused}
           contentContainerStyle={[styles.content, { paddingBottom: Math.max(SCROLL_BOTTOM_PADDING, badgeClearance) }, contentContainerStyle as object]}
           refreshControl={onRefresh ? <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={theme.colors.violet400} /> : undefined}
           automaticallyAdjustKeyboardInsets
@@ -81,6 +83,7 @@ function useScreenScrollState(scrollRef: RefObject<ScrollView | null>) {
   const animatedRef = useAnimatedRef<ScrollView>();
   const offset = useScrollOffset(animatedRef);
   const viewportHeight = useSharedValue(0);
+  const [focusScrollPaused, setFocusScrollPaused] = useState(false);
   const attachScroll = useCallback((node: ScrollView | null) => {
     scrollRef.current = node;
     animatedRef(node);
@@ -89,11 +92,12 @@ function useScreenScrollState(scrollRef: RefObject<ScrollView | null>) {
     offset,
     viewportHeight,
     scrollTo: y => scrollRef.current?.scrollTo({ y, animated: true }),
+    setFocusScrollPaused,
   }), [offset, scrollRef, viewportHeight]);
   const onViewportLayout = useCallback((event: LayoutChangeEvent) => {
     viewportHeight.set(event.nativeEvent.layout.height);
   }, [viewportHeight]);
-  return { attachScroll, screenScroll, onViewportLayout };
+  return { attachScroll, screenScroll, onViewportLayout, focusScrollPaused };
 }
 
 type Box = { y: number; height: number };

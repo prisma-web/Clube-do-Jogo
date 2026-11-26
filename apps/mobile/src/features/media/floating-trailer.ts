@@ -55,6 +55,17 @@ export function floatingTrailerSize(anchorWidth: number): { width: number; heigh
   return { width, height: Math.round(width * 9 / 16) };
 }
 
+export function floatingTrailerTransform(anchorWidth: number, anchorHeight: number, anchorTop: number, scrollY: number, floatingScale: number, progress: number): { scale: number; translateX: number; translateY: number } {
+  'worklet';
+  const scale = 1 + (floatingScale - 1) * progress;
+  const shrink = 1 - scale;
+  return {
+    scale,
+    translateX: anchorWidth * shrink / 2,
+    translateY: (scrollY + FLOATING_TRAILER_MARGIN - anchorTop) * progress - anchorHeight * shrink / 2,
+  };
+}
+
 export function trailerRestoreScrollY(anchorTop: number, anchorHeight: number, viewportHeight: number): number {
   return Math.max(0, Math.round(anchorTop - Math.max(0, (viewportHeight - anchorHeight) / 2)));
 }

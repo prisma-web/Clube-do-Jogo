@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   floatingTrailerSize,
+  floatingTrailerTransform,
   isTrailerInPlace,
   nextTrailerPlayback,
   parseTrailerPlayerMessage,
@@ -70,4 +71,19 @@ test('"Voltar ao trailer" centers the trailer spot in the viewport', () => {
   assert.equal(trailerRestoreScrollY(500, 200, 600), 300);
   assert.equal(trailerRestoreScrollY(100, 200, 600), 0);
   assert.equal(trailerRestoreScrollY(500, 700, 600), 500);
+});
+
+test('the floating window keeps the player at its size and only scales it into the top-right corner of the viewport', () => {
+  const anchor = { left: 16, top: 120, width: 358, height: 201 };
+  const scrollY = 900;
+  const scale = floatingTrailerSize(anchor.width).width / anchor.width;
+  const docked = floatingTrailerTransform(anchor.width, anchor.height, anchor.top, scrollY, scale, 0);
+  assert.deepEqual(docked, { scale: 1, translateX: 0, translateY: 0 });
+
+  const floating = floatingTrailerTransform(anchor.width, anchor.height, anchor.top, scrollY, scale, 1);
+  const visualLeft = anchor.left + anchor.width * (1 - floating.scale) / 2 + floating.translateX;
+  const visualTop = anchor.top + anchor.height * (1 - floating.scale) / 2 + floating.translateY;
+  assert.equal(Math.round(visualLeft + anchor.width * floating.scale), anchor.left + anchor.width);
+  assert.equal(visualTop - scrollY, 8);
+  assert.equal(Math.round(anchor.width * floating.scale), 222);
 });

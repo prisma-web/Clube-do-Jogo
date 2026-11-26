@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
-import { youtubeEmbedUrl, isAllowedYoutubeOrigin, isAllowedPlayerNavigation, youtubeEmbedderOrigin, youtubePlayerSource, PAUSE_PLAYER_SCRIPT } from '../../apps/mobile/src/features/media/youtube';
+import { youtubeEmbedUrl, isAllowedYoutubeOrigin, playerNavigation, youtubeEmbedderOrigin, youtubePlayerSource, PAUSE_PLAYER_SCRIPT } from '../../apps/mobile/src/features/media/youtube';
 
 test('trailers accept YouTube links and never carry input credentials or query parameters', () => {
   for (const url of ['https://youtu.be/dQw4w9WgXcQ?token=private', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'https://www.youtube.com/embed/dQw4w9WgXcQ']) {
@@ -51,11 +51,6 @@ test('trailers identify the embedder to YouTube so the player does not fail with
   assert.ok(!youtubePlayerSource(embed, 'https://clube.example')!.html.includes('autoplay=1'));
   assert.equal(youtubePlayerSource('https://example.test/embed/x', 'https://clube.example'), null);
 
-  assert.equal(isAllowedPlayerNavigation('https://clube.example/', 'https://clube.example'), true);
-  assert.equal(isAllowedPlayerNavigation('about:blank', 'https://clube.example'), true);
-  assert.equal(isAllowedPlayerNavigation(embed, 'https://clube.example'), true);
-  assert.equal(isAllowedPlayerNavigation('https://clube.example/jogos', 'https://clube.example'), false);
-  assert.equal(isAllowedPlayerNavigation('https://evil.test/', 'https://clube.example'), false);
 });
 
 function runPlayerBridge(html: string) {
@@ -102,4 +97,18 @@ test('the player page relays YouTube player states to the app and accepts only a
 
   bridge.pause();
   assert.deepEqual(bridge.toPlayer.at(-1), { message: { event: 'command', func: 'pauseVideo', args: [], id: 'player', channel: 'widget' }, targetOrigin: youtubeOrigin });
+});
+
+test('the player page stays on the embed; YouTube links that would replace it open outside the app', () => {
+  const embed = youtubeEmbedUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')!;
+  const site = 'https://clube.example';
+  assert.equal(playerNavigation('https://clube.example/', site, true), 'load');
+  assert.equal(playerNavigation('about:blank', site, true), 'load');
+  assert.equal(playerNavigation(embed, site, false), 'load');
+  assert.equal(playerNavigation('https://www.youtube.com/', site, true), 'open-outside');
+  assert.equal(playerNavigation('https://www.youtube.com/watch?v=dQw4w9WgXcQ', site, true), 'open-outside');
+  assert.equal(playerNavigation('https://clube.example/jogos', site, true), 'block');
+  assert.equal(playerNavigation('https://evil.test/', site, true), 'block');
+  assert.equal(playerNavigation('https://evil.test/', site, false), 'block');
+  assert.equal(playerNavigation('javascript:alert(1)', site, true), 'block');
 });
