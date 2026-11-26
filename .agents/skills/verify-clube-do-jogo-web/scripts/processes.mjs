@@ -57,29 +57,38 @@ function linuxProcessInfo(pid) {
   }
 }
 
-function darwinCwd(pid) {
-  const result = run('lsof', ['-a', '-n', '-P', '-p', String(pid), '-d', 'cwd', '-Fn']);
-  const line = result?.stdout?.split('\n').find(value => value.startsWith('n/'));
-  if (!line) return null;
-  try { return realpathSync(line.slice(1)); } catch { return null; }
+export function parseLsofCwd(output) {
+  const line = output.split('\n').find(value => value.startsWith('n/'));
+  return line ? line.slice(1) : null;
 }
 
-function darwinProcessInfo(pid) {
-  const result = run('ps', ['-o', 'pgid=,stat=,lstart=,command=', '-p', String(pid)]);
-  const tokens = (result?.status === 0 ? result.stdout : '').trim().split(/\s+/).filter(Boolean);
-  if (tokens.length < 7) return { ...unknown, alive: signalable(pid) };
+function darwinCwd(pid) {
+  const result = run('lsof', ['-a', '-n', '-P', '-p', String(pid), '-d', 'cwd', '-Fn']);
+  const cwd = parseLsofCwd(result?.stdout || '');
+  if (!cwd) return null;
+  try { return realpathSync(cwd); } catch { return null; }
+}
+
+export function parseDarwinPs(output, boot) {
+  const tokens = output.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length < 7) return null;
   const pgid = Number(tokens[0]);
   const state = tokens[1];
   const startedAt = tokens.slice(2, 7).join(' ');
-  const boot = bootId();
   return {
     alive: !state.startsWith('Z'),
     state,
-    cwd: darwinCwd(pid),
     command: tokens.slice(7).join(' '),
     pgid: Number.isInteger(pgid) && pgid >= 2 ? pgid : null,
     identity: boot ? `${boot}:${startedAt}` : null,
   };
+}
+
+function darwinProcessInfo(pid) {
+  const result = run('ps', ['-o', 'pgid=,stat=,lstart=,command=', '-p', String(pid)]);
+  const parsed = parseDarwinPs(result?.status === 0 ? result.stdout : '', bootId());
+  if (!parsed) return { ...unknown, alive: signalable(pid) };
+  return { ...parsed, cwd: darwinCwd(pid) };
 }
 
 export function processInfo(pid) {
@@ -87,11 +96,9 @@ export function processInfo(pid) {
   return darwin ? darwinProcessInfo(pid) : linuxProcessInfo(pid);
 }
 
-export function processTable() {
-  const result = run('ps', ['-Ao', 'pid=,ppid=,pgid=,stat=']);
-  if (!result || result.status !== 0) return null;
+export function parsePsTable(output) {
   const table = new Map();
-  for (const line of result.stdout.split('\n').filter(Boolean)) {
+  for (const line of output.split('\n').filter(Boolean)) {
     const fields = line.trim().split(/\s+/);
     const numbers = fields.slice(0, 3).map(Number);
     if (numbers.length === 3 && numbers.every(Number.isInteger)) table.set(numbers[0], { ppid: numbers[1], pgid: numbers[2], state: fields[3] || null });
@@ -99,24 +106,48 @@ export function processTable() {
   return table;
 }
 
-function linuxPortPids(port) {
-  const result = run('ss', ['-Hltnp', `sport = :${port}`]);
+export function processTable() {
+  const result = run('ps', ['-Ao', 'pid=,ppid=,pgid=,stat=']);
   if (!result || result.status !== 0) return null;
-  const rows = result.stdout.split('\n').filter(line => line.trim());
+  return parsePsTable(result.stdout);
+}
+
+export function parseSsPids(output) {
+  const rows = output.split('\n').filter(line => line.trim());
   const owners = rows.map(line => [...line.matchAll(/pid=(\d+)/g)].map(match => Number(match[1])));
   if (owners.some(pids => pids.length === 0)) return null;
   return [...new Set(owners.flat())];
 }
 
-function darwinPortPids(port) {
-  const result = run('netstat', ['-anv', '-p', 'tcp']);
+function linuxPortPids(port) {
+  const result = run('ss', ['-Hltnp', `sport = :${port}`]);
   if (!result || result.status !== 0) return null;
-  const rows = result.stdout.split('\n')
-    .map(line => ({ line, fields: line.trim().split(/\s+/) }))
-    .filter(({ fields }) => fields[0]?.startsWith('tcp') && fields[5] === 'LISTEN' && fields[3]?.endsWith(`.${port}`));
-  const owners = rows.map(({ line }) => line.match(/:(\d+)\s+[0-9a-f]{5}\s+[0-9a-f]{8}\s/));
-  if (owners.some(match => !match)) return null;
-  return [...new Set(owners.map(match => Number(match[1])))];
+  return parseSsPids(result.stdout);
+}
+
+export function parseLsofPids(output) {
+  const pids = output.split('\n').filter(line => /^p\d+$/.test(line)).map(line => Number(line.slice(1)));
+  return [...new Set(pids)];
+}
+
+function loopbackAccepts(port) {
+  let unknown = false;
+  for (const host of ['127.0.0.1', '::1']) {
+    const result = run('nc', ['-z', '-w', '1', host, String(port)]);
+    if (!result || result.signal) unknown = true;
+    else if (result.status === 0) return true;
+  }
+  return unknown ? null : false;
+}
+
+function darwinPortPids(port) {
+  const accepts = loopbackAccepts(port);
+  const result = run('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-Fpn']);
+  if (!result) return null;
+  const owners = parseLsofPids(result.stdout);
+  if (owners.length) return owners;
+  if (result.status !== 0 && result.status !== 1) return null;
+  return accepts === false ? [] : null;
 }
 
 export function portPids(port) {

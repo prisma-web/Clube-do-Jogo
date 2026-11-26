@@ -5,7 +5,7 @@ description: Verificação reproduzível da web do Clube do Jogo (Next em modo d
 
 # Verify Clube do Jogo (web)
 
-Rode tudo a partir da raiz do checkout. A fonte é `.agents/skills/verify-clube-do-jogo-web`; Claude Code a encontra pelo symlink `.claude/skills/verify-clube-do-jogo-web`. Os helpers rodam em Linux (`/proc`, `ss`) e macOS (`ps`, `lsof`, `netstat`). A web roda em modo demo, sem credencial Supabase, e só nas portas `3102` e `3103`. Nunca aponte o modo autenticado para produção.
+Rode tudo a partir da raiz do checkout. A fonte é `.agents/skills/verify-clube-do-jogo-web`; Claude Code a encontra pelo symlink `.claude/skills/verify-clube-do-jogo-web`. Os helpers rodam em Linux (`/proc`, `ss`) e macOS (`ps`, `lsof`, `nc`). A web roda em modo demo, sem credencial Supabase, e só nas portas `3102` e `3103`. Nunca aponte o modo autenticado para produção.
 
 ```sh
 H=./.agents/skills/verify-clube-do-jogo-web/scripts/verify-clube-do-jogo-web
@@ -110,7 +110,7 @@ $H status --run-id <id>     # imprime o manifesto sem tocar no app
 node --test .agents/skills/verify-clube-do-jogo-web/tests/run-contract.test.mjs
 ```
 
-Os testes de contrato sobem servidores falsos na porta 3102; não os rode com uma instância sua viva em 3102. A inspeção de processos e portas por plataforma fica em `scripts/processes.mjs`.
+Os testes de contrato sobem servidores falsos na porta 3102; não os rode com uma instância sua viva em 3102. A inspeção de processos e portas por plataforma fica em `scripts/processes.mjs`. No macOS o dono da porta vem do `lsof`, não do `netstat`: `netstat -p tcp` devolve saída vazia, com status 0, quando o processo pai é node ou python (do shell funciona), e o helper tomaria uma porta ocupada por livre. O `lsof` só enxerga processos do mesmo usuário, então, se ele não vê dono mas `nc -z` conecta em `127.0.0.1` ou `::1`, a porta é tratada como de dono desconhecido. As fixtures de `tests/fixtures/` são saídas reais de `lsof`/`ps` (macbook-1, macOS 27.3) e `ss`/`ps` (Linux), com o nome de usuário trocado.
 
 ## Unit, live e performance
 
