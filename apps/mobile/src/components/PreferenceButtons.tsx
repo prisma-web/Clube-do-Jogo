@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUiSignal } from '@/features/themes/scene-context';
-import { radii, spacing, themedStyles, useThemeColors } from '@/theme';
+import { controlTextStyle, decorInk, decorOutline, radii, spacing, themedStyles, useThemeColors, useThemeDecor } from '@/theme';
 import type { VoteChoice } from '@clube-do-jogo/domain';
 import { voteChoiceOptions } from './vote-choice-options';
 
@@ -11,6 +11,7 @@ export function PreferenceButtons({ value, disabled, onChange }: {
   onChange: (choice: VoteChoice) => void;
 }) {
   const colors = useThemeColors();
+  const decor = useThemeDecor();
   const styles = useStyles();
   const playSignal = useUiSignal();
   return (
@@ -30,13 +31,13 @@ export function PreferenceButtons({ value, disabled, onChange }: {
             accessibilityState={{ selected: active, disabled }}
             style={({ pressed }) => [
               styles.button,
-              active && [styles.active, { borderColor: option.accent(colors) }],
+              active && [styles.active, { borderColor: decor?.ink ?? option.accent(colors) }],
               disabled && styles.disabled,
               pressed && !disabled && styles.pressed,
             ]}
           >
-            <Ionicons name={option.icon} size={15} color={active ? option.selected(colors) : colors.zinc400} />
-            <Text style={[styles.label, active && { color: option.selected(colors) }]}>{option.label}</Text>
+            <Ionicons name={option.icon} size={15} color={active ? decor?.onInk ?? option.selected(colors) : colors.zinc400} />
+            <Text style={[styles.label, active && { color: decor?.onInk ?? option.selected(colors) }]}>{option.label}</Text>
           </Pressable>
         );
       })}
@@ -44,7 +45,7 @@ export function PreferenceButtons({ value, disabled, onChange }: {
   );
 }
 
-const useStyles = themedStyles(colors => ({
+const useStyles = themedStyles((colors, { decor, button }) => ({
   row: { flexDirection: 'row', gap: spacing.sm },
   button: {
     flex: 1,
@@ -57,9 +58,10 @@ const useStyles = themedStyles(colors => ({
     borderWidth: 1,
     borderColor: colors.hairline,
     backgroundColor: colors.surfaceDeep,
+    ...decorOutline(decor),
   },
-  label: { fontSize: 11, fontWeight: '800', color: colors.zinc400 },
-  active: { backgroundColor: colors.surfaceSoft },
+  label: { fontSize: 11, fontWeight: '800', color: colors.zinc400, ...controlTextStyle(button, 11) },
+  active: { backgroundColor: colors.surfaceSoft, ...decorInk(decor) },
   disabled: { opacity: 0.5 },
   pressed: { opacity: 0.85 },
 }));

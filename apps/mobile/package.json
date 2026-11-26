@@ -14,6 +14,7 @@
   "dependencies": {
     "@clube-do-jogo/data": "0.1.0",
     "@clube-do-jogo/domain": "0.1.0",
+    "@expo-google-fonts/geist-mono": "0.4.3",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.110.7",

@@ -1,3 +1,4 @@
+import { relative } from 'node:path';
 import type { ExpoConfig } from 'expo/config';
 
 const variant = process.env.APP_VARIANT ?? 'development';
@@ -47,6 +48,12 @@ if (isDistributed && !requestedVersion) {
 const { version, versionCode } = requestedVersion ?? parseVersion(DEFAULT_VERSION)!;
 const apkUpdates = variant === 'production' ? { repo: 'prisma-web/Clube-do-Jogo' } : null;
 
+const geistMonoWeights = [[400, '400Regular'], [500, '500Medium'], [600, '600SemiBold'], [700, '700Bold'], [800, '800ExtraBold'], [900, '900Black']] as const;
+const geistMonoFiles = geistMonoWeights.map(([weight, name]) => ({
+  weight,
+  path: relative(__dirname, require.resolve(`@expo-google-fonts/geist-mono/${name}/GeistMono_${name}.ttf`)),
+}));
+
 const config: ExpoConfig = {
   name: 'Clube do Jogo',
   slug: 'clube-do-jogo',
@@ -78,6 +85,10 @@ const config: ExpoConfig = {
     ['expo-audio', { microphonePermission: false, recordAudioAndroid: false, enableBackgroundPlayback: false, enableBackgroundRecording: false }],
     ['expo-notifications', { defaultChannel: 'default', color: '#8b5cf6', enableBackgroundRemoteNotifications: false }],
     ['expo-image-picker', { photosPermission: 'Escolha imagens para suas anotações privadas.', cameraPermission: false, microphonePermission: false }],
+    ['expo-font', {
+      ios: { fonts: geistMonoFiles.map(file => file.path) },
+      android: { fonts: [{ fontFamily: 'Geist Mono', fontDefinitions: geistMonoFiles }] },
+    }],
     ['expo-splash-screen', { backgroundColor: '#0c0a13', image: './assets/icon.png' }],
   ],
   experiments: { typedRoutes: true },

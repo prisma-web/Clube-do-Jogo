@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useUiSignal } from '@/features/themes/scene-context';
-import { radii, spacing, themedStyles, typography, useThemeColors, type ThemeColors } from '@/theme';
+import { controlTextStyle, decorInk, decorInkText, decorOutline, radii, spacing, themedStyles, typography, useThemeColors, type ThemeColors } from '@/theme';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
@@ -54,7 +54,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, loading,
   );
 }
 
-const useStyles = themedStyles(colors => ({
+const useStyles = themedStyles((colors, shape) => ({
   base: {
     height: 48,
     borderRadius: radii.md,
@@ -63,14 +63,14 @@ const useStyles = themedStyles(colors => ({
     paddingHorizontal: spacing.lg,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  label: { ...typography.small, fontWeight: '800' },
+  label: { ...typography.small, fontWeight: '800', ...controlTextStyle(shape.button, typography.small.fontSize) },
   disabled: { opacity: 0.5 },
   pressed: { opacity: 0.85 },
-  primary: { backgroundColor: colors.violet600 },
-  secondary: { backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.hairline },
-  danger: { backgroundColor: colors.red600 },
+  primary: { backgroundColor: colors.violet600, ...decorInk(shape.decor, 'control') },
+  secondary: { backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.hairline, ...decorOutline(shape.decor) },
+  danger: { backgroundColor: colors.red600, ...(shape.decor && { borderRadius: 0 }) },
   ghost: { backgroundColor: 'transparent' },
-  primaryLabel: { color: colors.primaryOn },
+  primaryLabel: { color: colors.primaryOn, ...decorInkText(shape.decor) },
   secondaryLabel: { color: colors.zinc300 },
   dangerLabel: { color: colors.white },
   ghostLabel: { color: colors.violet300 },

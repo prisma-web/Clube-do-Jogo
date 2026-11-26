@@ -1,4 +1,5 @@
 import { resolveThemePalette, themeColorTokens, webThemeColorProperty } from './theme-palettes';
+import { renderThemeShapeCss } from './theme-shapes';
 import { DEFAULT_THEME, themes } from './themes';
 
 export const THEME_TOKENS_CSS_PATH = 'src/app/theme-tokens.generated.css';
@@ -13,7 +14,9 @@ export function renderThemeTokensCss(): string {
       const value = palette[token];
       if (value !== undefined) lines.push(`  ${webThemeColorProperty(token)}: ${value};`);
     }
-    return `${selector} {\n${lines.join('\n')}\n}\n`;
+    const shapeRules = renderThemeShapeCss(theme.id);
+    const shape = shapeRules.length ? `\n${shapeRules.join('\n')}\n` : '';
+    return `${selector} {\n${lines.join('\n')}\n}\n${shape}`;
   });
   return blocks.join('\n');
 }

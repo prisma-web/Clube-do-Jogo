@@ -101,6 +101,11 @@
   --primary-on: #f4efdc;
 }
 
+:root[data-theme='nier'] :where(.rounded-3xl, .rounded-2xl, .rounded-xl, .rounded-\[30px\], .rounded-\[32px\], .rounded-\[28px\]) { border-radius: 2px !important; }
+:root[data-theme='nier'] body { font-family: var(--font-geist-mono), monospace; }
+:root[data-theme='nier'] :where(button, [role='menuitem']) { text-transform: uppercase; letter-spacing: .045em; }
+:root[data-theme='nier'] [role='tab'] { font-size: 10px !important; text-transform: uppercase; letter-spacing: .012em; }
+
 :root[data-theme='crossing'] {
   color-scheme: light;
   --background: #d8edce;

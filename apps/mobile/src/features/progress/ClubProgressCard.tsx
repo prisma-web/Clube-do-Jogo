@@ -77,7 +77,7 @@ export function ClubProgressCard({ progress, isLoading, error, onRetry, style }:
   );
 }
 
-const useStyles = themedStyles(colors => ({
+const useStyles = themedStyles((colors, { decor }) => ({
   card: { borderRadius: radii.xxl, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surfaceSofter, padding: spacing.lg, gap: spacing.md, marginBottom: spacing.lg },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { ...typography.h3, color: colors.foreground },
@@ -86,7 +86,7 @@ const useStyles = themedStyles(colors => ({
   averageLabel: { ...typography.small, color: colors.zinc400, fontWeight: '800' },
   averageHint: { fontSize: 10, color: colors.zinc600, marginTop: 2 },
   list: { gap: spacing.sm },
-  memberRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radii.md, backgroundColor: colors.surfaceDeep, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  memberRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radii.md, backgroundColor: colors.surfaceDeep, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, ...(decor && { borderRadius: 0, backgroundColor: decor.panelDeep }) },
   memberInfo: { flex: 1, minWidth: 0, gap: 4 },
   memberNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   memberName: { ...typography.small, color: colors.zinc300, fontWeight: '800', flexShrink: 1 },

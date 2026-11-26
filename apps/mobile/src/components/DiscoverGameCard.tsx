@@ -2,7 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { gameCoverUrl, type DiscoverItem } from '@clube-do-jogo/domain';
-import { radii, spacing, themedStyles, useThemeColors } from '@/theme';
+import { decorAccentPanel, radii, spacing, themedStyles, useThemeColors } from '@/theme';
 import { RatingValue } from './RatingValue';
 
 export function peopleSummary(people: readonly string[] | undefined): string | null {
@@ -69,7 +69,7 @@ export function DiscoverGameCard({ item, onOpen, onOptions }: {
   );
 }
 
-const useStyles = themedStyles(colors => ({
+const useStyles = themedStyles((colors, { decor }) => ({
   card: {
     flex: 1,
     minWidth: 0,
@@ -78,8 +78,9 @@ const useStyles = themedStyles(colors => ({
     borderWidth: 1,
     borderColor: colors.hairline,
     backgroundColor: colors.surfaceSofter,
+    ...decorAccentPanel(decor),
   },
-  header: { minHeight: 40, justifyContent: 'center', paddingLeft: spacing.sm, paddingRight: 40, paddingVertical: 6 },
+  header: { minHeight: 40, justifyContent: 'center', paddingLeft: spacing.sm, paddingRight: 40, paddingVertical: 6, ...(decor && { backgroundColor: decor.panelDeep }) },
   title: { fontSize: 11, fontWeight: '800', color: colors.foreground },
   poster: { aspectRatio: 264 / 374, backgroundColor: colors.zinc900 },
   cover: { width: '100%', height: '100%' },

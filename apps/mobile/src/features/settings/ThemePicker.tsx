@@ -55,7 +55,7 @@ export function ThemePicker({ value, unlockedThemeIds, saving, onSelect }: {
   );
 }
 
-const useStyles = themedStyles(colors => ({
+const useStyles = themedStyles((colors, { decor }) => ({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   option: {
     flexGrow: 1,
@@ -68,7 +68,11 @@ const useStyles = themedStyles(colors => ({
     padding: spacing.md,
     gap: spacing.sm,
   },
-  optionSelected: { borderColor: colors.violet400, backgroundColor: colors.surface },
+  optionSelected: {
+    borderColor: colors.violet400,
+    backgroundColor: colors.surface,
+    ...(decor && { boxShadow: `inset ${decor.accentWidth}px 0 0 ${decor.ink}` }),
+  },
   optionLocked: { opacity: 0.55 },
   swatches: { flexDirection: 'row', gap: 5 },
   swatch: { width: 18, height: 18, borderRadius: 9, borderWidth: 1, borderColor: colors.hairlineSoft },

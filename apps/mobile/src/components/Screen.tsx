@@ -29,16 +29,17 @@ export function Screen({ children, scroll = true, contentContainerStyle, onRefre
   const badgeClearance = useGotyBadgeClearance();
   const safeArea = [styles.safeArea, theme.scene !== 'none' && styles.safeAreaScenic];
   const { scrollRef, contentRef, setFocusedForm, onScrollLayout } = useFormAboveKeyboard();
+  const shapeKey = `${theme.shape.font}-${theme.shape.decor ? 'decor' : 'plain'}`;
 
   if (!scroll) {
     return (
-      <SafeAreaView style={safeArea} edges={edges ?? ['top']}>
+      <SafeAreaView key={shapeKey} style={safeArea} edges={edges ?? ['top']}>
         <View style={[styles.content, contentContainerStyle as object]}>{children}</View>
       </SafeAreaView>
     );
   }
   return (
-    <SafeAreaView style={safeArea} edges={edges ?? ['top']}>
+    <SafeAreaView key={shapeKey} style={safeArea} edges={edges ?? ['top']}>
       <KeyboardAvoidingView style={styles.keyboardArea} behavior="height" enabled={Platform.OS === 'android'}>
         <ScrollView
           ref={scrollRef}

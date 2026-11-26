@@ -22,7 +22,7 @@ import {
   peekNavIntent,
 } from '@/lib/nav-intent';
 import { ThemeBackdrop, ThemeSceneProvider } from '@/features/themes';
-import { ThemeProvider, useNativeTheme } from '@/theme';
+import { ThemeProvider, themeFontStyle, useNativeTheme } from '@/theme';
 
 export default function RootLayout() {
   return (
@@ -70,8 +70,12 @@ function RootNavigator() {
   const scenic = theme.scene !== 'none';
   const navigationTheme = useMemo(() => {
     const base = theme.isLight ? DefaultTheme : DarkTheme;
+    const font = themeFontStyle(theme.shape);
     return {
       ...base,
+      ...(font.fontFamily && {
+        fonts: Object.fromEntries(Object.entries(base.fonts).map(([key, value]) => [key, { ...value, fontFamily: font.fontFamily }])) as typeof base.fonts,
+      }),
       dark: !theme.isLight,
       colors: {
         ...base.colors,

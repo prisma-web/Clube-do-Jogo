@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { gameCoverUrl, voteChoiceLabels, type VoteChoice } from '@clube-do-jogo/domain';
 import { useApp } from '@/state/app-provider';
 import { useRanking, useVote } from '@/state/queries';
-import { radii, spacing, themedStyles, typography, useThemeColors } from '@/theme';
+import { controlTextStyle, decorPanel, radii, spacing, themedStyles, typography, useThemeColors } from '@/theme';
 import { apiRoutes, type ApiRequestBody } from '@clube-do-jogo/data';
 import { createMobileApiTransport, getMobileSupabaseClient } from '@/platform';
 import { shiftMonth } from '@/lib/format';
@@ -238,7 +238,7 @@ function DeckButton({ accessibilityLabel, icon, label, color, onPress, disabled,
   );
 }
 
-const useStyles = themedStyles(colors => ({
+const useStyles = themedStyles((colors, { decor, button }) => ({
   backdrop: { flex: 1, justifyContent: 'center', padding: spacing.lg, backgroundColor: 'rgba(0,0,0,0.76)' },
   dialog: {
     maxWidth: 420,
@@ -249,6 +249,7 @@ const useStyles = themedStyles(colors => ({
     borderColor: colors.hairline,
     backgroundColor: colors.surface,
     padding: spacing.xl,
+    ...(decor && { ...decorPanel(decor, 'dialog'), borderLeftWidth: decor.dialogAccentWidth, borderLeftColor: decor.ink }),
   },
   close: { position: 'absolute', zIndex: 2, top: spacing.md, right: spacing.md, padding: spacing.xs },
   eyebrow: { ...typography.tiny, color: colors.violet300, marginRight: spacing.xxxl },
@@ -267,6 +268,7 @@ const useStyles = themedStyles(colors => ({
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
     elevation: 7,
+    ...(decor && { elevation: 0, shadowOpacity: 0 }),
   },
   coverPressable: { height: 238, backgroundColor: colors.surfaceDeep },
   cover: { width: '100%', height: '100%' },
@@ -277,7 +279,7 @@ const useStyles = themedStyles(colors => ({
   meta: { ...typography.small, color: colors.zinc400, marginTop: 3 },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   action: { flex: 1, minHeight: 54, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surfaceSoft, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  actionLabel: { fontSize: 11, fontWeight: '800' },
+  actionLabel: { fontSize: 11, fontWeight: '800', ...controlTextStyle(button, 11) },
   disabled: { opacity: 0.5 },
   pressed: { opacity: 0.8 },
   loading: { marginTop: spacing.md },

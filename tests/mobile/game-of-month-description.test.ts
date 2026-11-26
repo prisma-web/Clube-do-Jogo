@@ -22,7 +22,7 @@ mock.module('@expo/vector-icons', { exports: { Ionicons: none } });
 mock.module('expo-router', {
   exports: { useRouter: () => ({ push() {}, setParams() {} }), useLocalSearchParams: () => ({ section: 'timeline' }) },
 });
-mock.module('@/theme', { exports: { themedStyles: () => () => ({}), useThemeColors: () => ({}), radii: {}, spacing: {}, typography: {} } });
+mock.module('@/theme', { exports: { themedStyles: () => () => ({}), useThemeColors: () => ({}), useThemeDecor: () => null, controlTextStyle: () => ({}), decorInk: () => ({}), decorInkText: () => ({}), decorOutline: () => ({}), decorPanel: () => ({}), radii: {}, spacing: {}, typography: {} } });
 mock.module('@/lib/format', { exports: { formatMonth: (month: string) => month } });
 mock.module('@/components/Screen', { exports: { Screen: passthrough } });
 mock.module('@/components/AppHeader', { exports: { AppHeader: none } });
