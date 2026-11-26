@@ -61,3 +61,6 @@ apps/mobile/ios/
 # verification skill runs
 /evidence/
 /state/
+
+# fixture Supabase local (scripts/local-supabase.sh)
+/.local-supabase/

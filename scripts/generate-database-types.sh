@@ -7,38 +7,6 @@ PG_META_REPO="https://github.com/supabase/postgres-meta"
 PG_META_TAG="v0.96.6"
 PG_SOCKET_PORT="55439"
 
-SQL_STEPS=(
-  schema.sql
-  migration_remove_vote_month.sql
-  migration_add_completed_games.sql
-  migration_add_game_rating_release_year.sql
-  migration_add_igdb_id.sql
-  migration_monthly_club.sql
-  migration_add_game_taxonomy.sql
-  migration_add_user_platforms.sql
-  migration_admin_cycles_game_data.sql
-  migration_rewards.sql
-  seed:cycle-2026-07
-  migration_reward_ori.sql
-  migration_detailed_ratings.sql
-  migration_timeline_realtime.sql
-  migration_rating_scale_0_to_10.sql
-  migration_push_notifications.sql
-  migration_preferences_favorites.sql
-  supabase/migrations/20260801150000_rating_scale_preferences.sql
-  seed:cycle-2026-08
-  supabase/migrations/20260829160000_cosmic_campfire_reward.sql
-  supabase/migrations/20260829164500_reward_eligibility.sql
-  migration_push_notification_events.sql
-  migration_user_platforms_visibility.sql
-  migration_avatar_crop.sql
-  supabase/migrations/20260910143000_native_push_delivery.sql
-  supabase/migrations/20261027090000_vote_threshold_notifications.sql
-  supabase/migrations/20261123120000_votes_update_policy.sql
-  supabase/migrations/20261123180000_goty_2026_experience.sql
-  supabase/migrations/20261123200000_neutral_vote_choice.sql
-)
-
 MODE="write"
 case "${1:-}" in
   "") ;;
@@ -49,6 +17,8 @@ esac
 while IFS= read -r name; do unset "$name"; done < <(compgen -e | grep -E '^(PG|DATABASE_URL|SUPABASE_|POSTGRES)' || true)
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/sql-steps.sh
+source "$ROOT/scripts/sql-steps.sh"
 OUT="$ROOT/packages/data/src/database.types.ts"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/cdj-dbtypes-XXXXXX")"
 PGDATA_DIR="$WORK/pgdata"
@@ -124,37 +94,7 @@ GRANT USAGE ON SCHEMA public, auth, extensions TO anon, authenticated, service_r
 CREATE PUBLICATION supabase_realtime;
 SQL
 
-seed() {
-  case "$1" in
-    cycle-2026-07)
-      "${PSQL[@]}" <<'SQL'
-INSERT INTO public.games (id, title, duration_hours)
-VALUES ('00000000-0000-4000-a000-0000000000f1', 'Fixture local de geração de tipos', 1)
-ON CONFLICT DO NOTHING;
-INSERT INTO public.club_months (month, game_id, status, started_at)
-VALUES ('2026-07', '00000000-0000-4000-a000-0000000000f1', 'active', now());
-SQL
-      ;;
-    cycle-2026-08)
-      "${PSQL[@]}" <<'SQL'
-UPDATE public.club_months SET status = 'closed', closed_at = now() WHERE month = '2026-07';
-INSERT INTO public.club_months (month, game_id, status, started_at)
-VALUES ('2026-08', '00000000-0000-4000-a000-0000000000f1', 'active', now());
-SQL
-      ;;
-    *) echo "Seed desconhecido: $1" >&2; exit 1 ;;
-  esac
-}
-
-for step in "${SQL_STEPS[@]}"; do
-  if [[ "$step" == seed:* ]]; then
-    echo "> seed ${step#seed:}"
-    seed "${step#seed:}"
-  else
-    echo "> $step"
-    "${PSQL[@]}" -f "$ROOT/$step"
-  fi
-done
+apply_sql_steps "$ROOT" "${PSQL[@]}"
 
 echo "> Gerando tipos (schema public)"
 GENERATED="$WORK/generated.ts"
