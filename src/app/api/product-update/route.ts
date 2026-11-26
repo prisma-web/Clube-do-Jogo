@@ -27,8 +27,10 @@ async function latestHistory(): Promise<Download<ProductUpdateHistory>> {
 
 export async function GET() {
   const result = await latestHistory();
+  const history = result.status === 'found' ? result.update : null;
+  const update = history?.releases.find(release => release.id === history.id) ?? null;
   return Response.json(
-    { history: result.status === 'found' ? result.update : null } satisfies ApiResponse<'productUpdate'>,
+    { history, update } satisfies ApiResponse<'productUpdate'>,
     { headers: { 'Cache-Control': result.status === 'failed' ? FAILED : SETTLED } },
   );
 }

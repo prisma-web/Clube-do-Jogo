@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type { ProductUpdateDigest } from '@clube-do-jogo/domain';
 import { resolvePersistentStateKey } from '@/hooks/use-persistent-state';
 import { useApp } from '@/state/app-provider';
-import { getIdentitySnapshot, subscribeIdentity } from '@/state/identity-scope';
 import { nativeStorage } from '@/platform/storage';
 import { isProductUpdateAutoOpenEnabled } from '@/platform/config';
 import { useAutoModalTurn } from '@/features/auto-modal-turn';
@@ -13,17 +12,16 @@ import { markProductUpdateSeen, readProductUpdateDigest, type InstalledProductUp
 import { ProductUpdateSheet } from './ProductUpdateSheet';
 
 export function ProductUpdateGate() {
-  const { userId } = useApp();
+  const { userId, isDemo } = useApp();
   const installed = useInstalledProductUpdates();
   if (!userId || !installed) return null;
-  return <ProductUpdatePrompt installed={installed} />;
+  return <ProductUpdatePrompt installed={installed} userId={userId} isDemo={isDemo} />;
 }
 
-function ProductUpdatePrompt({ installed }: { installed: InstalledProductUpdates }) {
-  const identity = useSyncExternalStore(subscribeIdentity, getIdentitySnapshot, getIdentitySnapshot);
+function ProductUpdatePrompt({ installed, userId, isDemo }: { installed: InstalledProductUpdates; userId: string; isDemo: boolean }) {
   const seenKey = useCallback(
-    (key: string) => resolvePersistentStateKey(key, true, identity.userId, identity.isDemo, identity.sessionEpoch),
-    [identity],
+    (key: string) => resolvePersistentStateKey(key, true, userId, isDemo, 0),
+    [userId, isDemo],
   );
   const [digest, setDigest] = useState<ProductUpdateDigest | null>(null);
   const reopenSignal = useSyncExternalStore(subscribeProductUpdateReopen, getProductUpdateReopenSignal, getProductUpdateReopenSignal);
@@ -33,6 +31,7 @@ function ProductUpdatePrompt({ installed }: { installed: InstalledProductUpdates
     let active = true;
     void readProductUpdateDigest(installed, nativeStorage, seenKey).then(next => {
       if (!active) return;
+      if (!next.pending) void markProductUpdateSeen(next, nativeStorage, seenKey).catch(() => {});
       setDigest(next);
       publishProductUpdateDigest(next);
     });

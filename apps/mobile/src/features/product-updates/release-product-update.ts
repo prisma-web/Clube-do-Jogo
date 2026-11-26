@@ -21,6 +21,7 @@ import type { NativeStorage } from '../../platform/storage';
 export const PRODUCT_UPDATE_CACHE_KEY = 'clube-do-jogo:product-update:release';
 export const PRODUCT_UPDATE_HISTORY_CACHE_KEY = 'clube-do-jogo:product-update:history';
 export const PRODUCT_UPDATE_LAST_SEEN_KEY = 'clube-do-jogo:product-update:last-seen';
+export const PRODUCT_UPDATE_FROM_KEY = 'clube-do-jogo:product-update:from';
 
 export interface ProductUpdateSource {
   releases: string;
@@ -62,8 +63,12 @@ export async function loadInstalledProductUpdates(source: ProductUpdateSource, {
   storage: NativeStorage;
   fetch: FetchProductUpdate;
 }): Promise<Download<InstalledProductUpdates>> {
-  const installedBefore = (await readCache(storage, PRODUCT_UPDATE_CACHE_KEY, parseProductUpdate))?.id ?? null;
+  const legacy = (await readCache(storage, PRODUCT_UPDATE_CACHE_KEY, parseProductUpdate))?.id ?? null;
   const cached = await readCache(storage, PRODUCT_UPDATE_HISTORY_CACHE_KEY, parseProductUpdateHistory);
+  const from = await storage.getItem(PRODUCT_UPDATE_FROM_KEY).catch(() => null);
+  const previous = cached && cached.id !== source.installed ? cached.id : null;
+  const installedBefore = from ?? legacy ?? previous;
+  if (!from && installedBefore) await storage.setItem(PRODUCT_UPDATE_FROM_KEY, installedBefore).catch(() => {});
   if (cached?.id === source.installed) return { status: 'found', update: { history: androidHistory(cached), installedBefore } };
   const url = releaseAssetUrl(source.releases, source.installed, PRODUCT_UPDATE_HISTORY_ASSET);
   const result = await downloadProductUpdateHistory(url, source.installed, fetch);
@@ -90,6 +95,7 @@ export async function markProductUpdateSeen(digest: ProductUpdateDigest, storage
   await storage.setItem(seenKey(productUpdateStorageKey(digest.id)), 'true');
   await storage.setItem(seenKey(PRODUCT_UPDATE_LAST_SEEN_KEY), digest.id);
   await storage.removeItem(PRODUCT_UPDATE_CACHE_KEY);
+  await storage.removeItem(PRODUCT_UPDATE_FROM_KEY);
 }
 
 export interface AppStateEvents {

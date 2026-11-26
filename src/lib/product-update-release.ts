@@ -1,5 +1,6 @@
 import { apiRoutes, type ApiResponse, type Unvalidated } from '@clube-do-jogo/data';
 import {
+  parseProductUpdate,
   parseProductUpdateHistory,
   productUpdateDigest,
   productUpdateSeenTag,
@@ -12,8 +13,11 @@ export async function fetchProductUpdateHistory(): Promise<ProductUpdateHistory 
   try {
     const response = await fetch(apiRoutes.productUpdate.path);
     if (!response.ok) return null;
-    const parsed = parseProductUpdateHistory(((await response.json()) as Unvalidated<ApiResponse<'productUpdate'>>).history);
-    return parsed.ok ? parsed.value : null;
+    const body = (await response.json()) as Unvalidated<ApiResponse<'productUpdate'>>;
+    const history = parseProductUpdateHistory(body.history);
+    if (history.ok) return history.value;
+    const update = parseProductUpdate(body.update);
+    return update.ok ? { id: update.value.id, releases: [update.value] } : null;
   } catch {
     return null;
   }

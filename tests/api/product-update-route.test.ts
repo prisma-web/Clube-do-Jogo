@@ -42,7 +42,7 @@ async function answerOf(response: Response) {
 
 test('serves the history of the latest release, downloaded outside the Next data cache and bounded by a timeout', async () => {
   const calls = github({ [historyUrl]: () => Response.json(history) });
-  assert.deepEqual(await answerOf(await GET()), { status: 200, cacheControl: CDN_HOUR, body: { history } });
+  assert.deepEqual(await answerOf(await GET()), { status: 200, cacheControl: CDN_HOUR, body: { history, update: update('v1.3.7') } });
   assert.deepEqual(calls.map(call => call.url), [historyUrl]);
   assert.equal(calls[0].init?.cache, 'no-store');
   assert.equal((calls[0].init as { next?: unknown }).next, undefined);
@@ -51,14 +51,20 @@ test('serves the history of the latest release, downloaded outside the Next data
 
 test('a latest release published before the history existed is served as a history of its own notes', async () => {
   const calls = github({ [singleUrl]: () => Response.json(update('v1.3.6')) });
-  assert.deepEqual(await answerOf(await GET()), { status: 200, cacheControl: CDN_HOUR, body: { history: { id: 'v1.3.6', releases: [update('v1.3.6')] } } });
+  assert.deepEqual(await answerOf(await GET()), { status: 200, cacheControl: CDN_HOUR, body: { history: { id: 'v1.3.6', releases: [update('v1.3.6')] }, update: update('v1.3.6') } });
   assert.deepEqual(calls.map(call => call.url), [historyUrl, singleUrl]);
+});
+
+test('a latest release without notes of its own still serves the history, and no single update for older clients', async () => {
+  const withoutNotes = { id: 'v1.3.8', releases: history.releases };
+  github({ [historyUrl]: () => Response.json(withoutNotes) });
+  assert.deepEqual((await answerOf(await GET())).body, { history: withoutNotes, update: null });
 });
 
 test('a release without notes is cached by the CDN for an hour, like one with notes', async () => {
   for (const answers of [{}, { [historyUrl]: () => Response.json({ id: 'v1.3.7', releases: [] }) }, { [singleUrl]: () => Response.json({ ...update('v1.3.6'), steps: [] }) }]) {
     github(answers);
-    assert.deepEqual(await answerOf(await GET()), { status: 200, cacheControl: CDN_HOUR, body: { history: null } });
+    assert.deepEqual(await answerOf(await GET()), { status: 200, cacheControl: CDN_HOUR, body: { history: null, update: null } });
   }
 });
 
@@ -72,7 +78,7 @@ test('a GitHub failure answers no notes and is cached for a minute only', async 
   for (const failure of failures) {
     for (const answers of [{ [historyUrl]: failure }, { [singleUrl]: failure }]) {
       github(answers);
-      assert.deepEqual(await answerOf(await GET()), { status: 200, cacheControl: CDN_MINUTE, body: { history: null } });
+      assert.deepEqual(await answerOf(await GET()), { status: 200, cacheControl: CDN_MINUTE, body: { history: null, update: null } });
     }
   }
 });

@@ -31,13 +31,14 @@ export function ProductUpdateSheet({ digest, visible, onClose, onFinish }: {
     }
   }
 
-  const page = digest.pages[Math.min(pageIndex, digest.pages.length - 1)];
+  const lastPage = digest.pages.length - 1;
+  const page = digest.pages[Math.min(pageIndex, lastPage)];
   const steps = productUpdateSteps(page);
   const step = steps[Math.min(stepIndex, steps.length - 1)];
   const finalStep = stepIndex >= steps.length - 1;
   const more = finalStep ? moreProductUpdatesLabel(digest.pages.slice(pageIndex + 1)) : null;
   const showMore = () => {
-    setPageIndex(current => current + 1);
+    setPageIndex(current => Math.min(lastPage, current + 1));
     setStepIndex(0);
   };
 

@@ -6,6 +6,7 @@ import {
   loadInstalledProductUpdates,
   markProductUpdateSeen,
   PRODUCT_UPDATE_CACHE_KEY,
+  PRODUCT_UPDATE_FROM_KEY,
   PRODUCT_UPDATE_HISTORY_CACHE_KEY,
   PRODUCT_UPDATE_LAST_SEEN_KEY,
   readProductUpdateDigest,
@@ -118,6 +119,19 @@ test('the notes an older version cached tell which version the member came from'
   assert.ok(values.has(PRODUCT_UPDATE_CACHE_KEY), 'the old cache stays until the member closes the notes');
 });
 
+test('a member who upgrades between two new versions without closing the notes keeps the version they came from', async () => {
+  const { result, values } = await load({ [PRODUCT_UPDATE_HISTORY_CACHE_KEY]: JSON.stringify(history('v1.3.3')) });
+  assert.equal(result.status === 'found' && result.update.installedBefore, 'v1.3.3');
+  assert.equal(values.get(PRODUCT_UPDATE_FROM_KEY), 'v1.3.3');
+  const again = await loadInstalledProductUpdates(source, { storage: memoryStorage(Object.fromEntries(values)).storage, fetch: github({}).fetch });
+  assert.equal(again.status === 'found' && again.update.installedBefore, 'v1.3.3', 'the cache now holds v1.3.6, but where the member came from survives a restart');
+});
+
+test('the oldest version the member never closed wins over a newer cached one', async () => {
+  const { result } = await load({ ...legacyCache('v1.2.0'), [PRODUCT_UPDATE_HISTORY_CACHE_KEY]: JSON.stringify(history('v1.3.3')) });
+  assert.equal(result.status === 'found' && result.update.installedBefore, 'v1.2.0');
+});
+
 test('a failed download is a failure, and a release without history is missing and not cached', async () => {
   assert.deepEqual((await load({}, { [historyUrl]: new Error('offline') })).result, { status: 'failed' });
   for (const answers of [{}, { [historyUrl]: history('v1.3.5') }, { [historyUrl]: productUpdate('v1.3.6') }]) {
@@ -193,6 +207,7 @@ test('closing the notes marks the installed version as seen for the member and f
   assert.equal(values.get(seen('v1.3.6')), 'true');
   assert.equal(values.get(seenKey(PRODUCT_UPDATE_LAST_SEEN_KEY)), 'v1.3.6');
   assert.equal(values.has(PRODUCT_UPDATE_CACHE_KEY), false);
+  assert.equal(values.has(PRODUCT_UPDATE_FROM_KEY), false);
   const next = await readProductUpdateDigest({ history: history(), installedBefore: null }, storage, seenKey);
   assert.equal(next.pending, false);
   assert.deepEqual(pageIds(next.pages)[0], ['v1.3.6']);

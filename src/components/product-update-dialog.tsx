@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, Check, CheckCircle2, Compass, Gamepad2, Library,
 import {
   gameCoverUrl,
   moreProductUpdatesLabel,
+  productUpdateStorageKey,
   productUpdateSteps,
   productUpdateTitle,
   type ProductUpdateArtwork,
@@ -29,7 +30,8 @@ export function ProductUpdateDialog({ digest }: { digest: ProductUpdateDigest })
   const [open, setOpen] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
-  const page = digest.pages[Math.min(pageIndex, digest.pages.length - 1)];
+  const lastPage = digest.pages.length - 1;
+  const page = digest.pages[Math.min(pageIndex, lastPage)];
   const steps = productUpdateSteps(page);
   const title = productUpdateTitle(page);
   const step = steps[Math.min(stepIndex, steps.length - 1)];
@@ -56,7 +58,7 @@ export function ProductUpdateDialog({ digest }: { digest: ProductUpdateDigest })
         setStepIndex(initialStep);
         setOpen(true);
       });
-    } else if (AUTO_OPEN_PRODUCT_UPDATE && digest.pending) {
+    } else if (AUTO_OPEN_PRODUCT_UPDATE && digest.pending && window.localStorage.getItem(productUpdateStorageKey(digest.id)) !== 'true') {
       queueMicrotask(showUpdate);
     }
     window.addEventListener(PRODUCT_UPDATE_EVENT, showUpdate);
@@ -65,11 +67,11 @@ export function ProductUpdateDialog({ digest }: { digest: ProductUpdateDigest })
 
   useEffect(() => {
     if (!open) return;
-    steps.forEach(item => {
+    page.flatMap(release => release.steps).forEach(item => {
       const snapshot = document.createElement('img');
       if (item.image) snapshot.src = item.image.src;
     });
-  }, [open, steps]);
+  }, [open, page]);
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -77,7 +79,7 @@ export function ProductUpdateDialog({ digest }: { digest: ProductUpdateDigest })
   }
 
   function showMore() {
-    setPageIndex(index => index + 1);
+    setPageIndex(index => Math.min(lastPage, index + 1));
     setStepIndex(0);
   }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
-import { fetchProductUpdateHistory, readProductUpdateDigest } from '@/lib/product-update-release';
+import { fetchProductUpdateHistory, markProductUpdateSeen, readProductUpdateDigest } from '@/lib/product-update-release';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
@@ -230,7 +230,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void fetchProductUpdateHistory().then(history => setProductUpdate(history && readProductUpdateDigest(history)));
+    void fetchProductUpdateHistory().then(history => {
+      const digest = history && readProductUpdateDigest(history);
+      if (digest && !digest.pending) markProductUpdateSeen(digest);
+      setProductUpdate(digest);
+    });
   }, []);
 
   useEffect(() => {

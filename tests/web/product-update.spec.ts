@@ -46,6 +46,12 @@ test('settings reopens the latest release notes', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: `Novidades da ${current.version}` }).getByRole('heading', { name: current.steps[0].title })).toBeVisible();
 });
 
+test('an answer with only the single release, from a route deployed before the history, still shows its notes', async ({ page }) => {
+  await page.route('**/api/product-update', route => route.fulfill({ json: { update: current } }));
+  await page.goto('/jogo-do-mes?novidades=atual');
+  await expect(page.getByRole('dialog', { name: `Novidades da ${current.version}` }).getByRole('heading', { name: current.steps[0].title })).toBeVisible();
+});
+
 test('without release notes there is no dialog and no settings entry', async ({ page }) => {
   for (const answer of ['abort', 'server error'] as const) {
     await page.unrouteAll();
