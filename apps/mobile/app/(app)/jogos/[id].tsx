@@ -33,7 +33,7 @@ import { VoteParticipantsSheet } from '@/components/VoteParticipantsSheet';
 import { voteChoiceOptions } from '@/components/vote-choice-options';
 import { getCanonicalGameUrl } from '@/features/media/canonical-url';
 import { getRankingFormula } from '@/platform/config';
-import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
+import { decorAccentPanel, themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
 import { emptyChoiceProfiles, gameCoverUrl, gameDescriptionPreview, normalizeAvatarCrop, type AvatarCrop, type GameMugshot, type ProgressStatus, type RatingDetails, type RatingMode, type VoteChoice, type VoteReason } from '@clube-do-jogo/domain';
 
 const rankingFormula = getRankingFormula();
@@ -546,49 +546,53 @@ function MetaChip({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label
   );
 }
 
-const useStyles = themedStyles(colors => ({
-  cover: { width: '100%', aspectRatio: 16 / 9, borderRadius: radii.xl, backgroundColor: colors.zinc900, marginBottom: spacing.md },
-  trailerButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radii.full, backgroundColor: 'rgba(139,92,246,0.16)', paddingHorizontal: spacing.sm, paddingVertical: 6 },
-  trailerButtonLabel: { fontSize: 11, fontWeight: '800', color: colors.violet300 },
-  descriptionSpacer: { height: spacing.lg },
-  tabRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
-  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
-  metaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 6, borderRadius: radii.full, backgroundColor: colors.surfaceDeep },
-  metaText: { fontSize: 11, fontWeight: '700', color: colors.zinc400 },
-  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  tag: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.full, backgroundColor: 'rgba(139,92,246,0.12)' },
-  tagText: { fontSize: 10, fontWeight: '700', color: colors.violet300 },
-  description: { ...typography.small, color: colors.zinc400, lineHeight: 20, marginBottom: spacing.xs },
-  descriptionToggle: { alignSelf: 'flex-start', marginBottom: spacing.lg },
-  descriptionToggleLabel: { fontSize: 11, fontWeight: '800', color: colors.violet300 },
-  actionsRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
-  actionButton: { flex: 1 },
-  adminButton: { marginBottom: spacing.lg },
-  card: { borderRadius: radii.xxl, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surfaceSofter, padding: spacing.lg, gap: spacing.md, marginBottom: spacing.lg },
-  cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardTitle: { ...typography.h3, color: colors.foreground },
-  scoreValue: { fontSize: 40, fontWeight: '900', letterSpacing: -1, color: colors.emerald300 },
-  scoreUnit: { fontSize: 14, fontWeight: '700', color: colors.zinc500 },
-  platformChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.full, backgroundColor: 'rgba(139,92,246,0.12)' },
-  platformChipOwned: { backgroundColor: 'rgba(52,211,153,0.14)' },
-  platformChipOwnedText: { color: colors.emerald300 },
-  countsRow: { flexDirection: 'row', gap: spacing.sm },
-  countChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 34, borderRadius: radii.md, backgroundColor: colors.surfaceDeep },
-  countText: { fontSize: 11, fontWeight: '800', color: colors.zinc300 },
-  myReason: { fontSize: 11, color: colors.red300, fontWeight: '600' },
-  statusRow: { flexDirection: 'row', gap: spacing.sm },
-  statusButton: { flex: 1 },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.hairline,
-  },
-  ratingInfo: { gap: spacing.xs },
-  fieldLabel: { ...typography.small, color: colors.zinc400, fontWeight: '800' },
-  emptyMembers: { ...typography.small, color: colors.zinc600 },
-  formError: { color: colors.red300, fontSize: 11, fontWeight: '600', marginBottom: spacing.lg },
-}));
+const useStyles = themedStyles((colors, { decor }) => {
+  const chip = decor ? { borderRadius: 0, backgroundColor: decor.panelDeep } : {};
+  const chipText = decor ? { color: decor.ink } : {};
+  return {
+    cover: { width: '100%', aspectRatio: 16 / 9, borderRadius: radii.xl, backgroundColor: colors.zinc900, marginBottom: spacing.md, ...(decor && { borderRadius: 0, boxShadow: decor.shadows.cover }) },
+    trailerButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radii.full, backgroundColor: 'rgba(139,92,246,0.16)', paddingHorizontal: spacing.sm, paddingVertical: 6, ...chip },
+    trailerButtonLabel: { fontSize: 11, fontWeight: '800', color: colors.violet300, ...chipText },
+    descriptionSpacer: { height: spacing.lg },
+    tabRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
+    metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+    metaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 6, borderRadius: radii.full, backgroundColor: colors.surfaceDeep, ...chip },
+    metaText: { fontSize: 11, fontWeight: '700', color: colors.zinc400, ...chipText },
+    tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+    tag: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.full, backgroundColor: 'rgba(139,92,246,0.12)', ...chip },
+    tagText: { fontSize: 10, fontWeight: '700', color: colors.violet300, ...chipText },
+    description: { ...typography.small, color: colors.zinc400, lineHeight: 20, marginBottom: spacing.xs },
+    descriptionToggle: { alignSelf: 'flex-start', marginBottom: spacing.lg },
+    descriptionToggleLabel: { fontSize: 11, fontWeight: '800', color: colors.violet300 },
+    actionsRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+    actionButton: { flex: 1 },
+    adminButton: { marginBottom: spacing.lg },
+    card: { borderRadius: radii.xxl, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.surfaceSofter, padding: spacing.lg, gap: spacing.md, marginBottom: spacing.lg, ...decorAccentPanel(decor) },
+    cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    cardTitle: { ...typography.h3, color: colors.foreground },
+    scoreValue: { fontSize: 40, fontWeight: '900', letterSpacing: -1, color: colors.emerald300 },
+    scoreUnit: { fontSize: 14, fontWeight: '700', color: colors.zinc500 },
+    platformChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.full, backgroundColor: 'rgba(139,92,246,0.12)', ...chip },
+    platformChipOwned: { backgroundColor: 'rgba(52,211,153,0.14)', ...(decor && { backgroundColor: decor.ownedPanel, borderLeftWidth: 3, borderLeftColor: colors.supportCompleted }) },
+    platformChipOwnedText: { color: colors.emerald300 },
+    countsRow: { flexDirection: 'row', gap: spacing.sm },
+    countChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 34, borderRadius: radii.md, backgroundColor: colors.surfaceDeep, ...chip },
+    countText: { fontSize: 11, fontWeight: '800', color: colors.zinc300 },
+    myReason: { fontSize: 11, color: colors.red300, fontWeight: '600' },
+    statusRow: { flexDirection: 'row', gap: spacing.sm },
+    statusButton: { flex: 1 },
+    ratingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+      paddingTop: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: colors.hairline,
+    },
+    ratingInfo: { gap: spacing.xs },
+    fieldLabel: { ...typography.small, color: colors.zinc400, fontWeight: '800' },
+    emptyMembers: { ...typography.small, color: colors.zinc600 },
+    formError: { color: colors.red300, fontSize: 11, fontWeight: '600', marginBottom: spacing.lg },
+  };
+});

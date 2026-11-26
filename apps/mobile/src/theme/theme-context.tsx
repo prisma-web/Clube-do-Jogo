@@ -1,6 +1,6 @@
 import * as React from 'react';
-import type { ThemeId } from '@clube-do-jogo/domain';
-import { DEFAULT_THEME } from '@clube-do-jogo/domain';
+import type { ThemeId, ThemeShape } from '@clube-do-jogo/domain';
+import { DEFAULT_THEME, themeShapes } from '@clube-do-jogo/domain';
 import { useMobilePreferences } from '@/hooks/use-mobile-preferences';
 import { lightThemeIds, themePalettes, type ThemeColors } from './palette';
 import { useAppActive, useSystemReduceMotion } from './system-state';
@@ -10,6 +10,7 @@ export type ThemeSceneId = 'none' | 'crossing' | 'ori' | 'cosmic';
 export interface NativeTheme {
   id: ThemeId;
   colors: ThemeColors;
+  shape: ThemeShape;
   isLight: boolean;
   scene: ThemeSceneId;
   usesAudio: boolean;
@@ -35,6 +36,7 @@ function buildTheme(
   return {
     id,
     colors: themePalettes[id],
+    shape: themeShapes[id],
     isLight: lightThemeIds.includes(id),
     scene: scenes[id] || 'none',
     usesAudio,
@@ -77,6 +79,10 @@ export function useNativeTheme(): NativeTheme {
 
 export function useThemeColors(): ThemeColors {
   return React.useContext(ThemeContext).colors;
+}
+
+export function useThemeDecor(): ThemeShape['decor'] {
+  return React.useContext(ThemeContext).shape.decor;
 }
 
 export function useThemeId(): ThemeId {

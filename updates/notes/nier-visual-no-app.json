@@ -1,0 +1,17 @@
+{
+  "eyebrow": "TEMAS",
+  "title": "A unidade YoRHa agora opera no seu celular",
+  "body": "No app, o tema NieR: Automata ganhou o mesmo visual do site: letras monoespaçadas, cantos retos, botões em caixa alta e cartões com sombra sólida e barra lateral. Ranking, Jogo do mês, Explorar, Meus jogos e Perfil parecem um terminal de campo.",
+  "highlights": [
+    "A fonte é a Geist Mono, a mesma do site.",
+    "Medalhas do ranking, abas e escolhas de voto ficam preenchidas na cor da tinta do tema.",
+    "Os outros temas continuam exatamente como estavam."
+  ],
+  "image": {
+    "file": "nier-visual-no-app.webp",
+    "alt": "Ranking no app com o tema NieR: Automata: medalha quadrada do 1º lugar, linha tracejada e cartão de Hollow Knight com barra escura à esquerda e botão Jogaria preenchido.",
+    "width": 860,
+    "height": 526,
+    "position": "top"
+  }
+}

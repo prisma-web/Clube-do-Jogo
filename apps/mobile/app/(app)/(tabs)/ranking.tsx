@@ -21,7 +21,7 @@ import { useClubGameAdminAction } from '@/features/admin';
 import { useApp } from '@/state/app-provider';
 import { useBacklog, useRanking, useVote } from '@/state/queries';
 import { usePersistentState } from '@/hooks/use-persistent-state';
-import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
+import { decorAccentPanel, decorInk, decorInkText, themedStyles, useThemeColors, useThemeDecor, radii, spacing, typography } from '@/theme';
 import {
   buildRankingGroups,
   computeRankingPlacements,
@@ -67,6 +67,7 @@ function AnimatedPoints({ value, style, unitStyle }: { value: number; style: obj
 
 export default function RankingScreen() {
   const colors = useThemeColors();
+  const decor = useThemeDecor();
   const styles = useStyles();
   const badgeClearance = useGotyBadgeClearance();
   const router = useRouter();
@@ -272,7 +273,7 @@ export default function RankingScreen() {
                   accessibilityLabel="Adicionar jogo à votação"
                   style={styles.addButton}
                 >
-                  <Ionicons name="add" size={20} color={colors.violet300} />
+                  <Ionicons name="add" size={20} color={decor?.onInk ?? colors.violet300} />
                 </Pressable>
               ) : undefined}
             />
@@ -411,7 +412,7 @@ export default function RankingScreen() {
   );
 }
 
-const useStyles = themedStyles(colors => ({
+const useStyles = themedStyles((colors, { decor }) => ({
   addButton: {
     width: 48,
     height: 48,
@@ -421,6 +422,7 @@ const useStyles = themedStyles(colors => ({
     backgroundColor: colors.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
+    ...decorInk(decor, 'control'),
   },
   monthRow: { flexDirection: 'row', marginTop: -spacing.sm, marginBottom: spacing.md },
   formError: { color: colors.red300, fontSize: 11, fontWeight: '600', marginBottom: spacing.md },
@@ -450,12 +452,13 @@ const useStyles = themedStyles(colors => ({
     backgroundColor: colors.zinc800,
     alignItems: 'center',
     justifyContent: 'center',
+    ...(decor && { ...decorInk(decor, 'control'), borderWidth: 2, borderColor: decor.medalEdge }),
   },
-  medalGold: { backgroundColor: colors.amber400, borderColor: colors.amber300 },
-  medalSilver: { backgroundColor: colors.zinc300, borderColor: colors.zinc400 },
-  medalBronze: { backgroundColor: '#b3672b', borderColor: '#8a4e20' },
-  medalText: { fontSize: 12, fontWeight: '900', color: colors.zinc300 },
-  medalTextDark: { color: colors.amber950 },
+  medalGold: { backgroundColor: colors.amber400, borderColor: colors.amber300, ...(decor && { backgroundColor: decor.medals[0], borderColor: decor.medalEdge }) },
+  medalSilver: { backgroundColor: colors.zinc300, borderColor: colors.zinc400, ...(decor && { backgroundColor: decor.medals[1], borderColor: decor.medalEdge }) },
+  medalBronze: { backgroundColor: '#b3672b', borderColor: '#8a4e20', ...(decor && { backgroundColor: decor.medals[2], borderColor: decor.medalEdge }) },
+  medalText: { fontSize: 12, fontWeight: '900', color: colors.zinc300, ...decorInkText(decor) },
+  medalTextDark: { color: colors.amber950, ...decorInkText(decor) },
   dateChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -468,7 +471,12 @@ const useStyles = themedStyles(colors => ({
     backgroundColor: colors.surfaceSoft,
   },
   dateChipLabel: { fontSize: 11, fontWeight: '800', color: colors.zinc300 },
-  sectionLine: { flex: 1, height: 1, backgroundColor: colors.hairline },
+  sectionLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.hairline,
+    ...(decor && { height: 0, backgroundColor: 'transparent', borderTopWidth: 2, borderStyle: 'dashed', borderColor: decor.ink }),
+  },
   card: {
     borderRadius: radii.xxl,
     borderWidth: 1,
@@ -476,10 +484,15 @@ const useStyles = themedStyles(colors => ({
     backgroundColor: colors.surfaceSofter,
     padding: spacing.md,
     gap: spacing.md,
+    ...decorAccentPanel(decor),
   },
-  cardLeader: { borderColor: 'rgba(251,191,36,0.3)', backgroundColor: 'rgba(251,191,36,0.05)' },
+  cardLeader: {
+    borderColor: 'rgba(251,191,36,0.3)',
+    backgroundColor: 'rgba(251,191,36,0.05)',
+    ...(decor && { borderColor: decor.ink, backgroundColor: decor.panel, experimental_backgroundImage: `linear-gradient(90deg, rgba(75, 65, 61, 0.08), ${decor.panel} 24%)` }),
+  },
   row: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
-  cover: { width: 56, height: 76, borderRadius: radii.sm, backgroundColor: colors.zinc900 },
+  cover: { width: 56, height: 76, borderRadius: radii.sm, backgroundColor: colors.zinc900, ...(decor && { borderRadius: 0 }) },
   info: { flex: 1, minWidth: 0, gap: 4 },
   title: { ...typography.h3, fontSize: 13, color: colors.foreground },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },

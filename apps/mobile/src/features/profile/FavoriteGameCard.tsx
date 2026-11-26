@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { gameCoverUrl, ratingForScale, type Game } from '@clube-do-jogo/domain';
 import { useRatingScale } from '@/hooks/use-rating-scale';
 import { formatRatingValue } from '@/components/RatingValue';
-import { radii, spacing, themedStyles, useThemeColors } from '@/theme';
+import { decorAccentPanel, radii, spacing, themedStyles, useThemeColors } from '@/theme';
 
 export function FavoriteGameCard({ game, onPress }: { game: Game; onPress?: () => void }) {
   const colors = useThemeColors();
@@ -45,7 +45,7 @@ export function FavoriteGameCard({ game, onPress }: { game: Game; onPress?: () =
   );
 }
 
-const useStyles = themedStyles(colors => ({
+const useStyles = themedStyles((colors, { decor }) => ({
   card: {
     width: '31%',
     overflow: 'hidden',
@@ -53,9 +53,10 @@ const useStyles = themedStyles(colors => ({
     borderWidth: 1,
     borderColor: colors.hairline,
     backgroundColor: colors.surfaceSoft,
+    ...decorAccentPanel(decor),
   },
   pressed: { opacity: 0.85 },
-  header: { minHeight: 36, justifyContent: 'center', paddingHorizontal: spacing.sm, paddingVertical: 6 },
+  header: { minHeight: 36, justifyContent: 'center', paddingHorizontal: spacing.sm, paddingVertical: 6, ...(decor && { backgroundColor: decor.panelDeep }) },
   title: { fontSize: 10, lineHeight: 13, fontWeight: '800', color: colors.foreground },
   coverWrap: { aspectRatio: 264 / 374, backgroundColor: colors.zinc900 },
   cover: { width: '100%', height: '100%' },
@@ -72,7 +73,7 @@ const useStyles = themedStyles(colors => ({
     paddingVertical: 3,
   },
   ratingText: { fontSize: 9, fontWeight: '800', color: colors.amber300 },
-  footer: { minHeight: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 6 },
+  footer: { ...(decor && { backgroundColor: decor.panelDeep }), minHeight: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 6 },
   duration: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   footerText: { fontSize: 9, fontWeight: '700', color: colors.zinc500 },
   year: { fontSize: 9, fontWeight: '700', color: colors.zinc400 },

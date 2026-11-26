@@ -1,10 +1,10 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useThemeColors } from '@/theme';
+import { controlTextStyle, themeFontStyle, useNativeTheme } from '@/theme';
 import { useUiSignal } from '@/features/themes/scene-context';
 
 export default function TabsLayout() {
-  const colors = useThemeColors();
+  const { colors, shape } = useNativeTheme();
   const playSignal = useUiSignal();
 
   return (
@@ -15,7 +15,7 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.violet400,
         tabBarInactiveTintColor: colors.zinc500,
         tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.hairline, borderTopWidth: 1 },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '700', ...themeFontStyle(shape), ...controlTextStyle(shape.tab, 10) },
       }}
     >
       <Tabs.Screen

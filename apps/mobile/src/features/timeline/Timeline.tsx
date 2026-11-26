@@ -437,7 +437,7 @@ function CommentCard({
   );
 }
 
-const useStyles = themedStyles(colors => ({
+const useStyles = themedStyles((colors, { decor }) => ({
   container: { gap: spacing.md },
   composerCard: {
     borderRadius: radii.xl,
@@ -465,7 +465,7 @@ const useStyles = themedStyles(colors => ({
     backgroundColor: colors.surfaceSofter,
     padding: spacing.md,
   },
-  cardNested: { backgroundColor: colors.surfaceSoft, padding: spacing.sm },
+  cardNested: { backgroundColor: colors.surfaceSoft, padding: spacing.sm, ...(decor && { backgroundColor: decor.panelDeep, boxShadow: 'none' }) },
   cardBody: { flex: 1, gap: spacing.xs },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
   authorButton: { flexShrink: 1 },

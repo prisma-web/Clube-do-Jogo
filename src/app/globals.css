@@ -96,13 +96,9 @@ body,
 :root[data-theme='crossing'] main :where(article, section[class*='border']) { box-shadow: var(--theme-shadow); }
 
 :root[data-theme='zelda'] :where(.rounded-3xl, .rounded-2xl, .rounded-\[30px\], .rounded-\[32px\], .rounded-\[28px\]) { border-radius: 14px !important; }
-:root[data-theme='nier'] :where(.rounded-3xl, .rounded-2xl, .rounded-xl, .rounded-\[30px\], .rounded-\[32px\], .rounded-\[28px\]) { border-radius: 2px !important; }
 :root[data-theme='crossing'] :where(.rounded-3xl, .rounded-2xl, .rounded-xl, .rounded-\[30px\], .rounded-\[32px\], .rounded-\[28px\]) { border-radius: 26px !important; }
 
 :root[data-theme='zelda'] :where(h1, h2) { font-family: Georgia, 'Times New Roman', serif; letter-spacing: .01em; }
-:root[data-theme='nier'] body { font-family: var(--font-geist-mono), monospace; }
-:root[data-theme='nier'] :where(button, [role='menuitem']) { text-transform: uppercase; letter-spacing: .045em; }
-:root[data-theme='nier'] [role='tab'] { font-size: 10px !important; text-transform: uppercase; letter-spacing: .012em; }
 :root[data-theme='nier'] .theme-option[aria-checked='true'] { box-shadow: inset 4px 0 0 var(--color-violet-400); }
 :root[data-theme='crossing'] body { font-family: var(--font-geist-sans), Arial, sans-serif; }
 :root[data-theme='crossing'] :where(button, a, section, article) { transition-duration: 190ms; }

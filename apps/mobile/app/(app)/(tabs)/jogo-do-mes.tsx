@@ -20,7 +20,7 @@ import { useApp } from '@/state/app-provider';
 import { useGameOfMonth, useProgress, useSetProgress } from '@/state/queries';
 import { useSetRating } from '@/state/library-queries';
 import { formatMonth } from '@/lib/format';
-import { themedStyles, useThemeColors, radii, spacing, typography } from '@/theme';
+import { controlTextStyle, decorInk, decorInkText, decorOutline, decorPanel, themedStyles, useThemeColors, useThemeDecor, radii, spacing, typography } from '@/theme';
 import { gameCoverUrl, gameDescriptionPreview, type ProgressStatus, type RatingDetails, type RatingMode } from '@clube-do-jogo/domain';
 
 const statusOrder: ProgressStatus[] = ['not_started', 'started', 'finished'];
@@ -35,6 +35,7 @@ const tabs: { key: GameOfMonthTab; label: string; icon: keyof typeof Ionicons.gl
 
 export default function GameOfMonthScreen() {
   const colors = useThemeColors();
+  const decor = useThemeDecor();
   const styles = useStyles();
   const router = useRouter();
   const { section } = useLocalSearchParams<{ section?: string }>();
@@ -114,8 +115,9 @@ export default function GameOfMonthScreen() {
               <Image source={{ uri: gameCoverUrl(game.image_url) }} style={styles.heroBackdropImage} contentFit="cover" blurRadius={18} />
               <View style={styles.heroShade} />
             </View>
+            {decor ? <View style={styles.heroFrame} pointerEvents="none" /> : null}
             <View style={styles.monthChip}>
-              <Ionicons name="ribbon" size={13} color={colors.amber300} />
+              <Ionicons name="ribbon" size={13} color={decor?.onInk ?? colors.amber300} />
               <Text style={styles.monthChipText}>Jogo de {formatMonth(selectedMonth, { includeYear: false })}</Text>
             </View>
             <Image source={{ uri: gameCoverUrl(game.image_url) }} style={styles.cover} contentFit="cover" accessibilityLabel={`Capa de ${game.title}`} />
@@ -173,7 +175,7 @@ export default function GameOfMonthScreen() {
                     accessibilityState={{ selected: active, disabled: isHistorical || active }}
                     style={[styles.statusOption, active && styles.statusOptionActive, (isHistorical || active) && styles.statusOptionDisabled]}
                   >
-                    <Ionicons name={meta.icon} size={16} color={active ? colors.violet300 : colors.zinc500} />
+                    <Ionicons name={meta.icon} size={16} color={active ? decor?.onInk ?? colors.violet300 : colors.zinc500} />
                     <Text style={[styles.statusOptionLabel, active && styles.statusOptionLabelActive]}>{meta.label}</Text>
                   </Pressable>
                 );
@@ -252,7 +254,7 @@ export default function GameOfMonthScreen() {
   );
 }
 
-const useStyles = themedStyles(colors => ({
+const useStyles = themedStyles((colors, { decor, button }) => ({
   content: { gap: spacing.lg },
   clubCard: { marginBottom: 0 },
   tabRow: { flexDirection: 'row', gap: spacing.sm },
@@ -264,10 +266,20 @@ const useStyles = themedStyles(colors => ({
     padding: spacing.lg,
     alignItems: 'center',
     overflow: 'hidden',
+    ...decorPanel(decor, 'hero'),
   },
+  heroFrame: { position: 'absolute', top: 9, left: 9, right: 9, bottom: 9, borderWidth: 1, borderColor: 'rgba(75,65,61,0.24)' },
   heroBackdrop: { position: 'absolute', top: -24, left: -24, right: -24, bottom: -24 },
-  heroBackdropImage: { width: '100%', height: '100%', opacity: 0.9 },
-  heroShade: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(8,8,10,0.62)' },
+  heroBackdropImage: { width: '100%', height: '100%', opacity: decor ? 0.19 : 0.9 },
+  heroShade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(8,8,10,0.62)',
+    ...(decor && { backgroundColor: 'transparent', experimental_backgroundImage: 'linear-gradient(180deg, rgba(216, 210, 188, 0.68), rgba(216, 210, 188, 0.94))' }),
+  },
   monthChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -279,10 +291,25 @@ const useStyles = themedStyles(colors => ({
     borderColor: 'rgba(252,211,77,0.35)',
     backgroundColor: colors.amber950,
     marginBottom: spacing.md,
+    ...(decor && { ...decorInk(decor, 'chip'), borderWidth: 0 }),
   },
-  monthChipText: { fontSize: 10, fontWeight: '800', color: colors.amber300, textTransform: 'uppercase', letterSpacing: 0.5 },
-  cover: { width: 150, aspectRatio: 3 / 4, borderRadius: radii.xl, backgroundColor: colors.zinc900, marginBottom: spacing.md },
-  title: { ...typography.h1, color: colors.white, textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 12 },
+  monthChipText: { fontSize: 10, fontWeight: '800', color: colors.amber300, textTransform: 'uppercase', letterSpacing: 0.5, ...decorInkText(decor) },
+  cover: {
+    width: 150,
+    aspectRatio: 3 / 4,
+    borderRadius: radii.xl,
+    backgroundColor: colors.zinc900,
+    marginBottom: spacing.md,
+    ...(decor && { borderRadius: 0, borderWidth: 4, borderColor: decor.onInk, boxShadow: decor.shadows.cover }),
+  },
+  title: {
+    ...typography.h1,
+    color: colors.white,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowRadius: 12,
+    ...(decor && { color: colors.foreground, textShadowColor: 'transparent', textShadowRadius: 0 }),
+  },
   metaRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   metaChip: {
     flexDirection: 'row',
@@ -292,9 +319,10 @@ const useStyles = themedStyles(colors => ({
     paddingVertical: 6,
     borderRadius: radii.full,
     backgroundColor: colors.surfaceDeep,
+    ...(decor && { borderRadius: 0, backgroundColor: decor.panelDeep }),
   },
   metaText: { fontSize: 11, fontWeight: '700', color: colors.zinc400 },
-  description: { ...typography.small, color: 'rgba(255,255,255,0.78)', textAlign: 'center', marginTop: spacing.md, lineHeight: 18 },
+  description: { ...typography.small, color: decor ? colors.zinc300 : 'rgba(255,255,255,0.78)', textAlign: 'center', marginTop: spacing.md, lineHeight: 18 },
   moreLink: { fontSize: 11, fontWeight: '800', color: colors.violet300, marginTop: 4 },
   detailLink: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.md },
   detailLinkText: { color: colors.violet300, fontWeight: '800', fontSize: 12 },
@@ -320,8 +348,9 @@ const useStyles = themedStyles(colors => ({
     borderWidth: 1,
     borderColor: colors.hairline,
     backgroundColor: colors.surfaceDeep,
+    ...decorOutline(decor),
   },
-  ratingButtonLabel: { fontSize: 12, fontWeight: '800', color: colors.violet300 },
+  ratingButtonLabel: { fontSize: 12, fontWeight: '800', color: colors.violet300, ...controlTextStyle(button, 12) },
   statusOption: {
     flex: 1,
     alignItems: 'center',
@@ -331,11 +360,12 @@ const useStyles = themedStyles(colors => ({
     borderWidth: 1,
     borderColor: colors.hairline,
     backgroundColor: colors.surfaceDeep,
+    ...decorOutline(decor),
   },
-  statusOptionActive: { borderColor: 'rgba(139,92,246,0.35)', backgroundColor: 'rgba(139,92,246,0.15)' },
+  statusOptionActive: { borderColor: 'rgba(139,92,246,0.35)', backgroundColor: 'rgba(139,92,246,0.15)', ...decorInk(decor) },
   statusOptionDisabled: { opacity: 0.85 },
-  statusOptionLabel: { fontSize: 10, fontWeight: '700', color: colors.zinc500, textAlign: 'center' },
-  statusOptionLabelActive: { color: colors.violet300 },
+  statusOptionLabel: { fontSize: 10, fontWeight: '700', color: colors.zinc500, textAlign: 'center', ...controlTextStyle(button, 10) },
+  statusOptionLabelActive: { color: colors.violet300, ...decorInkText(decor) },
   formError: { color: colors.red300, fontSize: 11, fontWeight: '600' },
   emptyMembers: { ...typography.small, color: colors.zinc600 },
 }));

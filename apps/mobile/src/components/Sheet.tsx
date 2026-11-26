@@ -4,7 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useUiSignal } from '@/features/themes/scene-context';
-import { radii, spacing, themedStyles, typography, useNativeTheme } from '@/theme';
+import { decorPanel, radii, spacing, themedStyles, typography, useNativeTheme } from '@/theme';
 
 export function Sheet({ visible, title, onClose, children, avoidKeyboard = false }: {
   visible: boolean;
@@ -60,7 +60,7 @@ export function Sheet({ visible, title, onClose, children, avoidKeyboard = false
   );
 }
 
-const useStyles = themedStyles(colors => ({
+const useStyles = themedStyles((colors, { decor }) => ({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   backdropLight: { backgroundColor: 'rgba(24,24,27,0.35)' },
   keyboardAvoider: { flex: 1 },
@@ -72,6 +72,7 @@ const useStyles = themedStyles(colors => ({
     borderColor: colors.hairline,
     maxHeight: '85%',
     overflow: 'hidden',
+    ...(decor && { ...decorPanel(decor, 'dialog'), borderLeftWidth: decor.dialogAccentWidth, borderLeftColor: decor.ink }),
   },
   header: {
     flexDirection: 'row',
@@ -80,6 +81,7 @@ const useStyles = themedStyles(colors => ({
     padding: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.hairline,
+    ...(decor && { backgroundColor: decor.panelDeep }),
   },
   title: { ...typography.h3, color: colors.foreground },
 }));

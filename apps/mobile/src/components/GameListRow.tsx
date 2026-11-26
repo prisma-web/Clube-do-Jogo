@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { RatingValue } from '@/components/RatingValue';
-import { radii, spacing, themedStyles, typography, useThemeColors } from '@/theme';
+import { decorAccentPanel, radii, spacing, themedStyles, typography, useThemeColors } from '@/theme';
 import { gameCoverUrl, type Game } from '@clube-do-jogo/domain';
 
 export function GameListRow({ game, onPress, action, subtitle }: {
@@ -63,13 +63,14 @@ export function GameListRow({ game, onPress, action, subtitle }: {
   );
 }
 
-const useStyles = themedStyles(colors => ({
+const useStyles = themedStyles((colors, { decor }) => ({
   card: {
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.hairlineSoft,
     backgroundColor: colors.surfaceSofter,
     padding: spacing.md,
+    ...decorAccentPanel(decor),
   },
   pressed: { opacity: 0.85 },
   row: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
