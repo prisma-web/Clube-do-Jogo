@@ -1,7 +1,7 @@
 'use client';
 
 import { apiFetch } from '@/lib/api-client';
-import { apiRoutes, type ApiRequestBody } from '@clube-do-jogo/data';
+import { apiRoutes, createCommentsClient, type ApiRequestBody } from '@clube-do-jogo/data';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
@@ -39,17 +39,18 @@ export function Timeline({ game }: { game: Game }) {
   });
   const comments = query.data || [];
   const refreshTimeline = query.refresh;
+  const userId = user?.id;
 
   useEffect(() => {
-    if (isDemo) return;
-    const channel = supabase
-      .channel(`timeline:${game.id}:${selectedMonth}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'club_comments', filter: `game_id=eq.${game.id}` }, () => void refreshTimeline())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_reactions', filter: `game_id=eq.${game.id}` }, () => void refreshTimeline())
-      .subscribe();
-
-    return () => { void supabase.removeChannel(channel); };
-  }, [game.id, isDemo, refreshTimeline, selectedMonth, supabase]);
+    if (isDemo || !userId) return;
+    return createCommentsClient({ supabase }).subscribe({
+      userId,
+      isDemo,
+      gameId: game.id,
+      clubMonth: selectedMonth,
+      onEvent: () => void refreshTimeline(),
+    });
+  }, [game.id, isDemo, refreshTimeline, selectedMonth, supabase, userId]);
 
   async function post(parentId: string | null) {
     const text = (parentId ? replyBody : body).trim();
@@ -222,7 +223,7 @@ function Comment({ comment, rootId, nested = false, pathActive = false, selected
         <div className="flex min-w-0 flex-wrap items-center gap-2"><span className="truncate text-xs font-extrabold text-zinc-200">{comment.profile?.name || 'Membro'}</span><time className="shrink-0 rounded-full border border-white/[0.06] bg-white/[0.045] px-2 py-1 text-[10px] font-semibold text-zinc-400">{formatDateTime(comment.created_at)}</time></div>
         <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-300">{comment.body}</p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {comment.reactions.map(reaction => <button key={reaction.emoji} data-active={reaction.reactedByMe} onPointerDown={() => { reactionHold.current = setTimeout(() => { suppressReactionClick.current = true; onShowReactions(comment); }, 520); }} onPointerUp={cancelReactionHold} onPointerCancel={cancelReactionHold} onPointerLeave={cancelReactionHold} onClick={event => { if (suppressReactionClick.current) { event.preventDefault(); suppressReactionClick.current = false; return; } onReact(comment, reaction.emoji, rootId); }} title={reaction.users.map(person => person.name).join(', ')} className={`comment-reaction inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs transition active:scale-95 ${reaction.reactedByMe ? 'border-violet-400/35 bg-violet-500/15 text-violet-200' : 'border-white/8 bg-white/[0.035] text-zinc-400'}`}><span>{reaction.emoji}</span><span className="text-[10px] font-bold">{reaction.users.length}</span></button>)}
+          {comment.reactions.map(reaction => <button key={reaction.emoji} data-active={reaction.reactedByMe} onPointerDown={() => { suppressReactionClick.current = false; reactionHold.current = setTimeout(() => { suppressReactionClick.current = true; onShowReactions(comment); }, 520); }} onPointerUp={cancelReactionHold} onPointerCancel={cancelReactionHold} onPointerLeave={cancelReactionHold} onClick={event => { if (suppressReactionClick.current) { event.preventDefault(); suppressReactionClick.current = false; return; } onReact(comment, reaction.emoji, rootId); }} title={reaction.users.map(person => person.name).join(', ')} className={`comment-reaction inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs transition active:scale-95 ${reaction.reactedByMe ? 'border-violet-400/35 bg-violet-500/15 text-violet-200' : 'border-white/8 bg-white/[0.035] text-zinc-400'}`}><span>{reaction.emoji}</span><span className="text-[10px] font-bold">{reaction.users.length}</span></button>)}
           {!isHistorical && <ReactionPicker comment={comment} rootId={rootId} onReact={onReact} />}
           {!nested && !isHistorical && <button onClick={() => onToggleReply(comment.id)} className="ml-1 inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[10px] font-bold text-zinc-500 hover:bg-white/5 hover:text-zinc-300"><CornerDownRight className="size-3" />Responder</button>}
           {!isHistorical && comment.user_id === currentUserId && <button type="button" onClick={() => onDelete({ comment, rootId })} aria-label="Apagar comentário" title="Apagar comentário" className="ml-auto grid size-7 place-items-center rounded-full text-zinc-600 transition hover:bg-red-500/10 hover:text-red-300"><Trash2 className="size-3.5" /></button>}

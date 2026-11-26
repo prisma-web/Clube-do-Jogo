@@ -49,6 +49,24 @@ test('segurar uma reação abre a lista de quem reagiu', async ({ page }) => {
   await page.mouse.up();
 });
 
+test('depois de segurar e fechar a lista, o primeiro clique na reação alterna', async ({ page }) => {
+  await openTimeline(page);
+  const reaction = page.locator('button.comment-reaction').first();
+  const pressed = await reaction.getAttribute('data-active');
+  const box = (await reaction.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  const dialog = page.getByRole('dialog', { name: 'Reações' });
+  await expect(dialog).toBeVisible();
+  await page.mouse.up();
+  await dialog.getByRole('button', { name: 'Fechar' }).click();
+  await expect(dialog).toBeHidden();
+
+  await reaction.click();
+
+  await expect(reaction).toHaveAttribute('data-active', pressed === 'true' ? 'false' : 'true');
+});
+
 test('responder e apagar a resposta', async ({ page }) => {
   await openTimeline(page);
   const group = page.locator('.thread-group').first();
