@@ -417,9 +417,7 @@ function eventFromPayload(
   if (!row || (typeof row.game_id === 'string' && row.game_id !== input.gameId)
     || (typeof row.club_month === 'string' && row.club_month !== input.clubMonth)
     || (eventType !== 'DELETE' && (typeof row.game_id !== 'string' || typeof row.club_month !== 'string'))) return null;
-  const id = typeof (table === 'club_comments' ? row.id : row.comment_id) === 'string'
-    ? (table === 'club_comments' ? row.id : row.comment_id) as string
-    : null;
+  const id = [table === 'comment_reactions' ? row.comment_id : undefined, row.id].find(value => typeof value === 'string') as string | undefined;
   if (!id) return null;
   const discriminator = table === 'comment_reactions'
     ? `${row.user_id || ''}:${row.emoji || ''}`
@@ -446,10 +444,13 @@ function subscribeRemote(supabase: DataSupabaseClient, input: CommentsSubscripti
     if (seen.size > 500) seen.delete(seen.values().next().value as string);
     input.onEvent(event);
   };
+  const filter = `game_id=eq.${input.gameId}`;
   channel = supabase
     .channel(`discussion:${input.gameId}:${input.clubMonth}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_comments', filter: `game_id=eq.${input.gameId}` }, dispatch('club_comments'))
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_reactions', filter: `game_id=eq.${input.gameId}` }, dispatch('comment_reactions'))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'club_comments', filter }, dispatch('club_comments'))
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'club_comments' }, dispatch('club_comments'))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_reactions', filter }, dispatch('comment_reactions'))
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'comment_reactions' }, dispatch('comment_reactions'))
     .subscribe(status => {
       if (active) input.onStatus?.(status);
     });
