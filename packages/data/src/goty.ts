@@ -18,6 +18,7 @@ import {
   type GotySearchGameResult,
   type Profile,
 } from '@clube-do-jogo/domain';
+import type { DemoStore } from './demo';
 import { DataError, withDataErrors } from './errors';
 
 const DEMO_STORAGE_KEY = 'clube-do-jogo:goty-2026:demo-state:v1';
@@ -145,9 +146,11 @@ function responseError(response: { error: unknown }): void {
 
 export class GotyDataClient {
   private readonly supabase: DataSupabaseClient | null;
+  private readonly demo: DemoStore | null;
 
-  constructor(supabase?: DataSupabaseClient | null) {
+  constructor(supabase?: DataSupabaseClient | null, demo?: DemoStore | null) {
     this.supabase = supabase ?? null;
+    this.demo = demo ?? null;
   }
 
   private client(operation: string): DataSupabaseClient {
@@ -160,7 +163,9 @@ export class GotyDataClient {
   async readFullState(scope: GotyScope): Promise<GotyFullState> {
     const editionYear = scope.editionYear ?? GOTY_2026_EDITION_YEAR;
     if (scope.isDemo) {
-      return loadDemoState();
+      const state = loadDemoState();
+      const demo = this.demo;
+      return demo ? { ...state, profiles: state.profiles.map(profile => demo.readProfile(profile.id)) } : state;
     }
 
     return withDataErrors('carregar dados do GOTY 2026', 'Não foi possível carregar o evento GOTY 2026.', async () => {

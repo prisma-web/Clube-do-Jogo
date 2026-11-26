@@ -15,6 +15,7 @@ import { demoGames, demoMonths, demoProfiles, demoProgress } from '@/lib/demo-da
 import type { AppRole, ClubCycle, Game, Profile, RewardGrant } from '@/lib/types';
 import { monthKey, shiftMonth } from '@/lib/utils';
 import { DEFAULT_THEME, isThemeId, THEME_STORAGE_KEY, type ThemeId } from '@/lib/themes';
+import { invalidateStaleQueries } from '@/hooks/use-stale-query';
 import { RewardCelebration } from './reward-celebration';
 import { ProductUpdateDialog } from './product-update-dialog';
 
@@ -192,6 +193,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const previous = profile;
     const next = { ...profile, ...patch };
     if (isDemo) {
+      dataClient.demo.updateProfile(user.id, patch);
+      invalidateStaleQueries('goty-2026:');
       setProfile(next);
       return true;
     }

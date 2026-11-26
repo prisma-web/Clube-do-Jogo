@@ -1,16 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { CalendarDays, ExternalLink, Heart, Trophy } from 'lucide-react';
-import { GotyDataClient } from '@clube-do-jogo/data';
 import {
   GOTY_2026_EDITION_YEAR,
   type GotyEventStatus,
   type GotyFullState,
   type GotySearchGameResult,
 } from '@clube-do-jogo/domain';
-import { createClient } from '@/lib/supabase/client';
 import { apiFetch } from '@/lib/api-client';
 import { apiRoutes, type ApiErrorBody, type ApiRequestBody, type ApiResponse } from '@clube-do-jogo/data';
 import { useApp } from '@/components/app-provider';
@@ -34,9 +32,8 @@ function formatCeremonyDate(value?: string | null): string {
 }
 
 export function GotyExperience() {
-  const supabase = useMemo(() => createClient(), []);
-  const gotyClient = useMemo(() => new GotyDataClient(supabase), [supabase]);
-  const { user, isDemo, isAdmin, runOptimistic, runOperation, notify } = useApp();
+  const { user, isDemo, isAdmin, runOptimistic, runOperation, notify, dataClient } = useApp();
+  const gotyClient = dataClient.goty;
   const [activeTab, setActiveTab] = useState<GotyTab>('bolao');
   const autoCoverTriggered = useRef(false);
 
