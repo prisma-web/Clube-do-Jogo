@@ -111,7 +111,7 @@ Localmente, `plugins/withReleaseSigning.js` assina o release com a keystore de `
 
 ## Release iOS no TestFlight
 
-O mesmo push da tag `vX.Y.Z` dispara `.github/workflows/ios-release.yml`, separado do workflow do Android. Uma falha no iOS não afeta o APK nem o GitHub Release. O job roda em `macos-26` com o Xcode 26.6: desde 28 de abril de 2026 o App Store Connect só aceita builds feitos com Xcode 26 ou mais novo e SDK do iOS 26, e o Expo SDK 57 pede Xcode 26.4 ou mais novo. Quando a Apple passar a exigir o SDK do iOS 27 (o esperado é abril de 2027), troque `XCODE_APP` e a imagem do runner no workflow.
+O mesmo push da tag `vX.Y.Z` dispara `.github/workflows/ios-release.yml`, separado do workflow do Android. Uma falha no iOS não afeta o APK nem o GitHub Release. O job roda na imagem `xcode-27` com o Xcode 27.1. Com o Xcode 26.6 da imagem `macos-26`, o export terminou sem erro mas devolveu o `.ipa` com a assinatura ad hoc do archive, e o App Store Connect o recusou; o mesmo archive, exportado com o Xcode 27.1, sai assinado pelo certificado Apple Distribution do time. O App Store Connect aceita builds de Xcode 26 ou mais novo, e o Expo SDK 57 pede Xcode 26.4 ou mais novo. Para trocar de Xcode, mude `XCODE_APP` e a imagem do runner no workflow.
 
 O job confere a tag e as credenciais, instala Node e Ruby e roda `bundle exec fastlane ios beta` em `apps/mobile`. A lane está em `apps/mobile/fastlane/Fastfile`, com fastlane e CocoaPods fixados em `apps/mobile/Gemfile.lock`. Ela:
 
@@ -119,7 +119,8 @@ O job confere a tag e as credenciais, instala Node e Ruby e roda `bundle exec fa
 2. Gera o projeto com `npx expo prebuild --platform ios --clean` e `APP_VARIANT=production`, e roda `pod install`.
 3. Compila o archive Release sem assinatura e depois o assina ad hoc com `codesign`: os frameworks embutidos e o `.app`, este com `ios/ClubedoJogo/ClubedoJogo.entitlements`. Não precisa de certificado nem de aparelho registrado. O Xcode não assina ad hoc um app de iPhone sozinho (pede provisioning profile), por isso a assinatura fica fora dele. Os entitlements nessa assinatura são o que o export usa para montar o profile.
 4. Exporta o `.ipa` para App Store Connect com assinatura automática na nuvem da Apple (certificado de distribuição gerenciado pela Apple), usando a API key com `-allowProvisioningUpdates`. O Xcode cria ou atualiza sozinho o provisioning profile de App Store. Nenhum certificado ou profile fica no repositório, nos secrets ou no runner.
-5. Envia ao TestFlight sem esperar o processamento. O grupo interno com distribuição automática recebe o build quando a Apple termina de processar, em geral entre 5 e 30 minutos.
+5. Confere que o `.ipa` saiu assinado pelo certificado Apple Distribution do time e falha antes do upload se não saiu.
+6. Envia ao TestFlight sem esperar o processamento. O grupo interno com distribuição automática recebe o build quando a Apple termina de processar, em geral entre 5 e 30 minutos.
 
 `app.config.ts` declara `ITSAppUsesNonExemptEncryption = false`, porque o app só usa HTTPS e a criptografia do sistema. Sem isso, cada build espera a resposta de conformidade de exportação no App Store Connect. Revise se o app passar a usar criptografia própria.
 
