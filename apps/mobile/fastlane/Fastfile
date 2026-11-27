@@ -35,6 +35,20 @@ def required_env(name)
   value
 end
 
+# O export pode terminar sem erro e devolver o .ipa com a assinatura ad hoc do archive,
+# que o App Store Connect recusa. Confere que a assinatura é de distribuição do time.
+def verify_distribution_signature(ipa, team_id)
+  Dir.mktmpdir('ipa') do |dir|
+    sh('unzip', '-q', ipa, '-d', dir, log: false)
+    app = Dir[File.join(dir, 'Payload/*.app')].first
+    details = sh('codesign', '--display', '--verbose=2', app, log: false)
+    unless details.include?("TeamIdentifier=#{team_id}") && details.include?('Authority=Apple Distribution')
+      UI.user_error!("O export não assinou o .ipa com o certificado de distribuição do time #{team_id}:\n#{details}")
+    end
+    UI.success('O .ipa está assinado com o certificado Apple Distribution do time.')
+  end
+end
+
 # Aceita o conteúdo do .p8 como PEM ou em base64 e grava o PEM num arquivo 0600.
 def write_api_key(dir)
   raw = required_env('APP_STORE_CONNECT_API_KEY_P8')
@@ -112,6 +126,7 @@ platform :ios do
           "-authenticationKeyIssuerID #{issuer_id.shellescape}"
         ].join(' ')
       )
+      verify_distribution_signature(ipa, team_id)
 
       upload_to_testflight(
         api_key: api_key,

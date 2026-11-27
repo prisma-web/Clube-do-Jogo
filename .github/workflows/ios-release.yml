@@ -19,12 +19,12 @@ concurrency:
 
 jobs:
   testflight:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 90
     env:
       TAG: ${{ github.ref_name }}
       REF_TYPE: ${{ github.ref_type }}
-      XCODE_APP: /Applications/Xcode_26.6.app
+      XCODE_APP: /Applications/Xcode_27.1.app
       APP_VARIANT: production
       EXPO_NO_DOTENV: '1'
       EXPO_NO_TELEMETRY: '1'
