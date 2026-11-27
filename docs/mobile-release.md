@@ -1,6 +1,6 @@
 # Builds locais do mobile
 
-O mobile é compilado localmente com Expo CLI, Android SDK e Xcode. O Next mantém seu próprio build e deploy. Este fluxo usa AVDs Android e simuladores iOS no `macbook-2`, sem EAS, distribuição em lojas ou alterações no banco de produção. A [documentação de builds locais do Expo](https://docs.expo.dev/guides/local-app-overview/) descreve as ferramentas usadas.
+O mobile é compilado localmente com Expo CLI, Android SDK e Xcode. O Next mantém seu próprio build e deploy. Este fluxo usa AVDs Android e simuladores iOS no `macbook-2`, sem EAS ou alterações no banco de produção. A distribuição sai das tags `vX.Y.Z`: o APK Android vai para o GitHub Release ([Release do APK Android](#release-do-apk-android)) e o app iOS vai para o TestFlight ([Release iOS no TestFlight](#release-ios-no-testflight)). A [documentação de builds locais do Expo](https://docs.expo.dev/guides/local-app-overview/) descreve as ferramentas usadas.
 
 ## Configuração
 
@@ -109,10 +109,61 @@ O push da tag dispara `.github/workflows/android-release.yml`. Ele gera o projet
 
 Localmente, `plugins/withReleaseSigning.js` assina o release com a keystore de `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` e `ANDROID_KEY_PASSWORD`, lidos do ambiente ou de propriedades Gradle na hora do build. Sem `ANDROID_KEYSTORE_PATH`, o release continua com a keystore de debug.
 
+## Release iOS no TestFlight
+
+O mesmo push da tag `vX.Y.Z` dispara `.github/workflows/ios-release.yml`, separado do workflow do Android. Uma falha no iOS não afeta o APK nem o GitHub Release. O job roda em `macos-26` com o Xcode 26.6: desde 28 de abril de 2026 o App Store Connect só aceita builds feitos com Xcode 26 ou mais novo e SDK do iOS 26, e o Expo SDK 57 pede Xcode 26.4 ou mais novo. Quando a Apple passar a exigir o SDK do iOS 27 (o esperado é abril de 2027), troque `XCODE_APP` e a imagem do runner no workflow.
+
+O job confere a tag e as credenciais, instala Node e Ruby e roda `bundle exec fastlane ios beta` em `apps/mobile`. A lane está em `apps/mobile/fastlane/Fastfile`, com fastlane e CocoaPods fixados em `apps/mobile/Gemfile.lock`. Ela:
+
+1. Consulta o último build enviado ao App Store Connect, de qualquer versão e mesmo ainda em processamento, e usa esse número + 1 como `CFBundleVersion` (`IOS_BUILD_NUMBER` em `app.config.ts`). O primeiro upload é o build 1. A versão (`CFBundleShortVersionString`) é o `X.Y.Z` da tag.
+2. Gera o projeto com `npx expo prebuild --platform ios --clean` e `APP_VARIANT=production`, e roda `pod install`.
+3. Compila o archive Release sem assinatura e depois o assina ad hoc com `codesign`: os frameworks embutidos e o `.app`, este com `ios/ClubedoJogo/ClubedoJogo.entitlements`. Não precisa de certificado nem de aparelho registrado. O Xcode não assina ad hoc um app de iPhone sozinho (pede provisioning profile), por isso a assinatura fica fora dele. Os entitlements nessa assinatura são o que o export usa para montar o profile.
+4. Exporta o `.ipa` para App Store Connect com assinatura automática na nuvem da Apple (certificado de distribuição gerenciado pela Apple), usando a API key com `-allowProvisioningUpdates`. O Xcode cria ou atualiza sozinho o provisioning profile de App Store. Nenhum certificado ou profile fica no repositório, nos secrets ou no runner.
+5. Envia ao TestFlight sem esperar o processamento. O grupo interno com distribuição automática recebe o build quando a Apple termina de processar, em geral entre 5 e 30 minutos.
+
+`app.config.ts` declara `ITSAppUsesNonExemptEncryption = false`, porque o app só usa HTTPS e a criptografia do sistema. Sem isso, cada build espera a resposta de conformidade de exportação no App Store Connect. Revise se o app passar a usar criptografia própria.
+
+`bundle exec fastlane ios archive` faz os passos 2 e 3 sem conta da Apple, para conferir num Mac que o projeto de produção compila. Ele exige as mesmas variáveis `EXPO_APPLICATION_ID` e `EXPO_PUBLIC_*` do release.
+
+### Configuração única na Apple
+
+Faça uma vez, com a conta do Apple Developer Program:
+
+1. Em [developer.apple.com/account](https://developer.apple.com/account), em Membership details, copie o Team ID (10 caracteres). Ele vai na variable `APPLE_TEAM_ID`.
+2. Confira que o Account Holder aceitou os contratos mais recentes em developer.apple.com e em App Store Connect → Business. Com um contrato pendente, o upload falha.
+3. Em Certificates, Identifiers & Profiles → Identifiers → +, registre um App ID do tipo App, explícito, com o bundle ID igual à variable `EXPO_APPLICATION_ID` (`com.clubedojogo.mobile`). Marque as capabilities **Push Notifications** e **Associated Domains**, que o app declara (`aps-environment` do `expo-notifications` e `webcredentials:` para o preenchimento de senhas). Se a Apple disser que o identificador já está em uso, ele pertence a outra conta. Trocar o ID muda também o pacote do Android, então decida isso antes do primeiro release iOS.
+4. Em [App Store Connect](https://appstoreconnect.apple.com) → Apps → + → New App, crie o app: plataforma iOS, nome Clube do Jogo, idioma principal Português (Brasil), o bundle ID do passo 3 e um SKU qualquer (por exemplo `clube-do-jogo`).
+5. No app, em TestFlight → Internal Testing → +, crie o grupo interno e deixe marcada a distribuição automática ("Enable automatic distribution"). Adicione os testadores. Testador interno precisa ser usuário do time em Users and Access, com qualquer papel; convide lá primeiro quem ainda não for.
+6. Em Users and Access → Integrations → App Store Connect API → Team Keys, gere uma chave com acesso **Admin**. A assinatura na nuvem usa o certificado de distribuição gerenciado pela Apple, e chaves App Manager ou Developer não têm acesso a ele por padrão. Baixe o `.p8` (a Apple só deixa baixar uma vez) e anote o Key ID e o Issuer ID mostrado no topo da página.
+
+### Secrets e variables do iOS
+
+| Nome | Tipo | Valor |
+| --- | --- | --- |
+| `APP_STORE_CONNECT_API_KEY_ID` | secret | Key ID da chave |
+| `APP_STORE_CONNECT_API_KEY_ISSUER_ID` | secret | Issuer ID |
+| `APP_STORE_CONNECT_API_KEY_P8` | secret | Conteúdo do `.p8`, em PEM ou em base64 |
+| `APPLE_TEAM_ID` | variable | Team ID |
+
+O workflow também lê `EXPO_APPLICATION_ID` e as quatro `EXPO_PUBLIC_*` do Android. Sem qualquer um desses valores, ele falha no primeiro passo e lista o que falta. Para cadastrar sem deixar os valores no histórico do shell:
+
+```sh
+gh secret set APP_STORE_CONNECT_API_KEY_ID
+gh secret set APP_STORE_CONNECT_API_KEY_ISSUER_ID
+gh secret set APP_STORE_CONNECT_API_KEY_P8 < AuthKey_XXXXXXXXXX.p8
+gh variable set APPLE_TEAM_ID --body XXXXXXXXXX
+```
+
+Guarde o `.p8` num cofre e apague a cópia local. Se a chave vazar, revogue-a no App Store Connect e cadastre outra.
+
+### Reenviar uma versão
+
+Cada run sobe um build novo da mesma versão, com o próximo build number. Para reenviar, use "Re-run jobs" no run da tag, ou Actions → iOS release → Run workflow, escolhendo a tag em "Use workflow from". O workflow recusa um branch nesse campo. Um build que já subiu não precisa de reenvio para aparecer no TestFlight; espere o processamento terminar.
+
 ## Evidência e limites
 
 Registre unit, live e perf separadamente. Faça cinco aquecimentos e dez amostras em release para o tempo de abertura. Guarde todos os valores, o p95, o limite aplicado e a identidade da fixture. Compilar e exportar Hermes não comprovam instalação ou desempenho.
 
 Notificações remotas permanecem indisponíveis sem configuração de transporte. Os testes locais cobrem fila e receipts sintéticos, recebimento de payload injetado, sessão e abertura do destino. Não descreva esses resultados como entrega por Expo Push Service, APNs ou FCM.
 
-O escopo atual não inclui lojas ou OTA remota. A única credencial de distribuição é a keystore do APK Android. Os critérios restantes de acessibilidade, navegação, privacidade e desempenho continuam sendo executados nos AVDs e simuladores dedicados.
+O escopo atual não inclui App Store pública, Google Play ou OTA remota. As credenciais de distribuição são a keystore do APK Android e a API key do App Store Connect usada pelo TestFlight. Os critérios restantes de acessibilidade, navegação, privacidade e desempenho continuam sendo executados nos AVDs e simuladores dedicados.

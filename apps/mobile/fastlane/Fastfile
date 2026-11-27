@@ -1,0 +1,124 @@
+# Lanes do app iOS. Rode em apps/mobile com `bundle exec fastlane ios <lane>`.
+# O fluxo e as credenciais estão em docs/mobile-release.md.
+
+require 'base64'
+require 'tmpdir'
+
+default_platform(:ios)
+skip_docs
+
+MOBILE_ROOT = File.expand_path('..', __dir__)
+WORKSPACE = File.join(MOBILE_ROOT, 'ios/ClubedoJogo.xcworkspace')
+SCHEME = 'ClubedoJogo'
+OUTPUT_DIR = File.join(MOBILE_ROOT, 'ios/build/release')
+ARCHIVE_PATH = File.join(OUTPUT_DIR, 'ClubedoJogo.xcarchive')
+ENTITLEMENTS = File.join(MOBILE_ROOT, 'ios/ClubedoJogo/ClubedoJogo.entitlements')
+
+# O Xcode não assina ad hoc um app de iPhone sem provisioning profile, então o archive
+# compila sem assinatura e a lane assina ad hoc o que ele embute e o .app, este com os
+# entitlements. A assinatura de distribuição acontece no export, na nuvem da Apple,
+# com a API key; o export lê os entitlements do .app para gerar o profile de App Store.
+def sign_archive_ad_hoc
+  app = Dir[File.join(ARCHIVE_PATH, 'Products/Applications/*.app')].first
+  UI.user_error!("Nenhum .app em #{ARCHIVE_PATH}.") unless app
+  Dir[File.join(app, 'Frameworks/*.{framework,dylib}')].each do |nested|
+    sh('codesign', '--force', '--sign', '-', nested, log: false)
+  end
+  sh('codesign', '--force', '--sign', '-', '--generate-entitlement-der', '--entitlements', ENTITLEMENTS, app)
+  sh('codesign', '--verify', '--deep', '--strict', app)
+  sh('codesign', '--display', '--entitlements', '-', '--xml', app)
+end
+
+def required_env(name)
+  value = ENV[name].to_s.strip
+  UI.user_error!("Defina #{name}. Veja docs/mobile-release.md.") if value.empty?
+  value
+end
+
+# Aceita o conteúdo do .p8 como PEM ou em base64 e grava o PEM num arquivo 0600.
+def write_api_key(dir)
+  raw = required_env('APP_STORE_CONNECT_API_KEY_P8')
+  pem = raw.include?('BEGIN PRIVATE KEY') ? raw.gsub('\n', "\n") : Base64.decode64(raw)
+  UI.user_error!('APP_STORE_CONNECT_API_KEY_P8 não é um .p8 em PEM nem em base64.') unless pem.include?('BEGIN PRIVATE KEY')
+  path = File.join(dir, 'AuthKey.p8')
+  File.open(path, File::WRONLY | File::CREAT | File::TRUNC, 0o600) { |file| file.write(pem) }
+  path
+end
+
+platform :ios do
+  desc 'Gera o projeto iOS de produção e compila o archive Release assinado ad hoc, sem conta da Apple.'
+  desc 'Opção build_number:N define o CFBundleVersion (padrão 1).'
+  lane :archive do |options|
+    build_number = (options[:build_number] || '1').to_s
+    ENV['APP_VARIANT'] = 'production'
+    ENV['EXPO_NO_DOTENV'] = '1'
+    ENV['IOS_BUILD_NUMBER'] = build_number
+    Dir.chdir(MOBILE_ROOT) do
+      sh('npx', 'expo', 'prebuild', '--platform', 'ios', '--clean', '--no-install')
+    end
+    Dir.chdir(File.join(MOBILE_ROOT, 'ios')) do
+      sh('pod', 'install')
+    end
+    build_app(
+      workspace: WORKSPACE,
+      scheme: SCHEME,
+      configuration: 'Release',
+      destination: 'generic/platform=iOS',
+      archive_path: ARCHIVE_PATH,
+      output_directory: OUTPUT_DIR,
+      skip_package_ipa: true,
+      skip_profile_detection: true,
+      skip_codesigning: true
+    )
+    sign_archive_ad_hoc
+  end
+
+  desc 'Compila o release e envia ao TestFlight. O build number é o último do App Store Connect + 1.'
+  lane :beta do
+    app_identifier = required_env('EXPO_APPLICATION_ID')
+    team_id = required_env('APPLE_TEAM_ID')
+    key_id = required_env('APP_STORE_CONNECT_API_KEY_ID')
+    issuer_id = required_env('APP_STORE_CONNECT_API_KEY_ISSUER_ID')
+
+    Dir.mktmpdir('asc-key', ENV['RUNNER_TEMP']) do |key_dir|
+      key_path = write_api_key(key_dir)
+      api_key = app_store_connect_api_key(key_id: key_id, issuer_id: issuer_id, key_filepath: key_path)
+
+      latest = latest_testflight_build_number(api_key: api_key, app_identifier: app_identifier, initial_build_number: 0)
+      build_number = latest.to_s.split('.').first.to_i + 1
+      UI.message("CFBundleVersion deste upload: #{build_number}")
+
+      archive(build_number: build_number)
+
+      ipa = build_app(
+        workspace: WORKSPACE,
+        scheme: SCHEME,
+        archive_path: ARCHIVE_PATH,
+        output_directory: OUTPUT_DIR,
+        output_name: 'ClubedoJogo.ipa',
+        skip_build_archive: true,
+        skip_profile_detection: true,
+        export_method: 'app-store',
+        export_options: {
+          signingStyle: 'automatic',
+          teamID: team_id,
+          manageAppVersionAndBuildNumber: false,
+          uploadSymbols: true
+        },
+        export_xcargs: [
+          '-allowProvisioningUpdates',
+          "-authenticationKeyPath #{key_path.shellescape}",
+          "-authenticationKeyID #{key_id.shellescape}",
+          "-authenticationKeyIssuerID #{issuer_id.shellescape}"
+        ].join(' ')
+      )
+
+      upload_to_testflight(
+        api_key: api_key,
+        ipa: ipa,
+        app_platform: 'ios',
+        skip_waiting_for_build_processing: true
+      )
+    end
+  end
+end

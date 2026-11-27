@@ -58,6 +58,11 @@ apps/mobile/dist/
 apps/mobile/android/
 apps/mobile/ios/
 
+# fastlane do iOS (apps/mobile/fastlane)
+apps/mobile/vendor/
+apps/mobile/.bundle/
+apps/mobile/fastlane/report.xml
+
 # verification skill runs
 /evidence/
 /state/
