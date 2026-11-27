@@ -2,32 +2,19 @@
 # O fluxo e as credenciais estão em docs/mobile-release.md.
 
 require 'base64'
+require 'securerandom'
 require 'tmpdir'
 
 default_platform(:ios)
 skip_docs
 
 MOBILE_ROOT = File.expand_path('..', __dir__)
+PROJECT = File.join(MOBILE_ROOT, 'ios/ClubedoJogo.xcodeproj')
 WORKSPACE = File.join(MOBILE_ROOT, 'ios/ClubedoJogo.xcworkspace')
 SCHEME = 'ClubedoJogo'
 OUTPUT_DIR = File.join(MOBILE_ROOT, 'ios/build/release')
 ARCHIVE_PATH = File.join(OUTPUT_DIR, 'ClubedoJogo.xcarchive')
-ENTITLEMENTS = File.join(MOBILE_ROOT, 'ios/ClubedoJogo/ClubedoJogo.entitlements')
-
-# O Xcode não assina ad hoc um app de iPhone sem provisioning profile, então o archive
-# compila sem assinatura e a lane assina ad hoc o que ele embute e o .app, este com os
-# entitlements. A assinatura de distribuição acontece no export, na nuvem da Apple,
-# com a API key; o export lê os entitlements do .app para gerar o profile de App Store.
-def sign_archive_ad_hoc
-  app = Dir[File.join(ARCHIVE_PATH, 'Products/Applications/*.app')].first
-  UI.user_error!("Nenhum .app em #{ARCHIVE_PATH}.") unless app
-  Dir[File.join(app, 'Frameworks/*.{framework,dylib}')].each do |nested|
-    sh('codesign', '--force', '--sign', '-', nested, log: false)
-  end
-  sh('codesign', '--force', '--sign', '-', '--generate-entitlement-der', '--entitlements', ENTITLEMENTS, app)
-  sh('codesign', '--verify', '--deep', '--strict', app)
-  sh('codesign', '--display', '--entitlements', '-', '--xml', app)
-end
+KEYCHAIN = 'clube-do-jogo-release.keychain'
 
 def required_env(name)
   value = ENV[name].to_s.strip
@@ -35,44 +22,55 @@ def required_env(name)
   value
 end
 
-# O export pode terminar sem erro e devolver o .ipa com a assinatura ad hoc do archive,
-# que o App Store Connect recusa. Confere que a assinatura é de distribuição do time.
+def write_secret_file(path, content)
+  File.open(path, File::WRONLY | File::CREAT | File::TRUNC, 0o600) { |file| file.write(content) }
+  path
+end
+
+# Aceita o conteúdo do .p8 como PEM ou em base64. O nome AuthKey_<id>.p8 é o que o altool procura.
+def write_api_key(dir, key_id)
+  raw = required_env('APP_STORE_CONNECT_API_KEY_P8')
+  pem = raw.include?('BEGIN PRIVATE KEY') ? raw.gsub('\n', "\n") : Base64.decode64(raw)
+  UI.user_error!('APP_STORE_CONNECT_API_KEY_P8 não é um .p8 em PEM nem em base64.') unless pem.include?('BEGIN PRIVATE KEY')
+  write_secret_file(File.join(dir, "AuthKey_#{key_id}.p8"), pem)
+end
+
+def prepare_project(build_number)
+  ENV['APP_VARIANT'] = 'production'
+  ENV['EXPO_NO_DOTENV'] = '1'
+  ENV['IOS_BUILD_NUMBER'] = build_number.to_s
+  Dir.chdir(MOBILE_ROOT) { sh('npx', 'expo', 'prebuild', '--platform', 'ios', '--clean', '--no-install') }
+  Dir.chdir(File.join(MOBILE_ROOT, 'ios')) { sh('pod', 'install') }
+end
+
+# Importa o certificado Apple Distribution num keychain só deste run, apagado no fim da lane.
+def import_distribution_certificate(dir)
+  certificate = Base64.decode64(required_env('IOS_DISTRIBUTION_CERTIFICATE_P12'))
+  certificate_path = write_secret_file(File.join(dir, 'distribution.p12'), certificate)
+  keychain_password = SecureRandom.hex(24)
+  create_keychain(name: KEYCHAIN, password: keychain_password, unlock: true, timeout: 0, lock_when_sleeps: false,
+                  default_keychain: false, add_to_search_list: true)
+  import_certificate(certificate_path: certificate_path, certificate_password: required_env('IOS_DISTRIBUTION_CERTIFICATE_PASSWORD'),
+                     keychain_name: KEYCHAIN, keychain_password: keychain_password)
+end
+
 def verify_distribution_signature(ipa, team_id)
   Dir.mktmpdir('ipa') do |dir|
     sh('unzip', '-q', ipa, '-d', dir, log: false)
     app = Dir[File.join(dir, 'Payload/*.app')].first
     details = sh('codesign', '--display', '--verbose=2', app, log: false)
     unless details.include?("TeamIdentifier=#{team_id}") && details.include?('Authority=Apple Distribution')
-      UI.user_error!("O export não assinou o .ipa com o certificado de distribuição do time #{team_id}:\n#{details}")
+      UI.user_error!("O .ipa não saiu assinado com o certificado de distribuição do time #{team_id}:\n#{details}")
     end
-    UI.success('O .ipa está assinado com o certificado Apple Distribution do time.')
+    sh('codesign', '--verify', '--deep', '--strict', app, log: false)
   end
 end
 
-# Aceita o conteúdo do .p8 como PEM ou em base64 e grava o PEM num arquivo 0600.
-def write_api_key(dir)
-  raw = required_env('APP_STORE_CONNECT_API_KEY_P8')
-  pem = raw.include?('BEGIN PRIVATE KEY') ? raw.gsub('\n', "\n") : Base64.decode64(raw)
-  UI.user_error!('APP_STORE_CONNECT_API_KEY_P8 não é um .p8 em PEM nem em base64.') unless pem.include?('BEGIN PRIVATE KEY')
-  path = File.join(dir, 'AuthKey.p8')
-  File.open(path, File::WRONLY | File::CREAT | File::TRUNC, 0o600) { |file| file.write(pem) }
-  path
-end
-
 platform :ios do
-  desc 'Gera o projeto iOS de produção e compila o archive Release assinado ad hoc, sem conta da Apple.'
+  desc 'Gera o projeto iOS de produção e compila o archive Release sem assinatura, sem conta da Apple.'
   desc 'Opção build_number:N define o CFBundleVersion (padrão 1).'
   lane :archive do |options|
-    build_number = (options[:build_number] || '1').to_s
-    ENV['APP_VARIANT'] = 'production'
-    ENV['EXPO_NO_DOTENV'] = '1'
-    ENV['IOS_BUILD_NUMBER'] = build_number
-    Dir.chdir(MOBILE_ROOT) do
-      sh('npx', 'expo', 'prebuild', '--platform', 'ios', '--clean', '--no-install')
-    end
-    Dir.chdir(File.join(MOBILE_ROOT, 'ios')) do
-      sh('pod', 'install')
-    end
+    prepare_project(options[:build_number] || 1)
     build_app(
       workspace: WORKSPACE,
       scheme: SCHEME,
@@ -84,56 +82,74 @@ platform :ios do
       skip_profile_detection: true,
       skip_codesigning: true
     )
-    sign_archive_ad_hoc
   end
 
-  desc 'Compila o release e envia ao TestFlight. O build number é o último do App Store Connect + 1.'
-  lane :beta do
+  desc 'Compila o release assinado e envia ao TestFlight. O build number é o último do App Store Connect + 1.'
+  desc 'Opção validate_only:true só valida o .ipa no App Store Connect, sem enviar.'
+  lane :beta do |options|
     app_identifier = required_env('EXPO_APPLICATION_ID')
     team_id = required_env('APPLE_TEAM_ID')
     key_id = required_env('APP_STORE_CONNECT_API_KEY_ID')
     issuer_id = required_env('APP_STORE_CONNECT_API_KEY_ISSUER_ID')
 
-    Dir.mktmpdir('asc-key', ENV['RUNNER_TEMP']) do |key_dir|
-      key_path = write_api_key(key_dir)
+    Dir.mktmpdir('ios-release', ENV['RUNNER_TEMP']) do |secrets_dir|
+      key_path = write_api_key(secrets_dir, key_id)
       api_key = app_store_connect_api_key(key_id: key_id, issuer_id: issuer_id, key_filepath: key_path)
 
       latest = latest_testflight_build_number(api_key: api_key, app_identifier: app_identifier, initial_build_number: 0)
       build_number = latest.to_s.split('.').first.to_i + 1
-      UI.message("CFBundleVersion deste upload: #{build_number}")
+      UI.message("CFBundleVersion deste build: #{build_number}")
 
-      archive(build_number: build_number)
+      delete_keychain(name: KEYCHAIN) if File.exist?(File.expand_path("~/Library/Keychains/#{KEYCHAIN}-db"))
+      begin
+        import_distribution_certificate(secrets_dir)
+        # Usa ou cria o profile de App Store do certificado importado.
+        get_provisioning_profile(api_key: api_key, app_identifier: app_identifier, team_id: team_id, output_path: secrets_dir)
+        profile_name = lane_context[SharedValues::SIGH_NAME]
 
-      ipa = build_app(
-        workspace: WORKSPACE,
-        scheme: SCHEME,
-        archive_path: ARCHIVE_PATH,
-        output_directory: OUTPUT_DIR,
-        output_name: 'ClubedoJogo.ipa',
-        skip_build_archive: true,
-        skip_profile_detection: true,
-        export_method: 'app-store',
-        export_options: {
-          signingStyle: 'automatic',
-          teamID: team_id,
-          manageAppVersionAndBuildNumber: false,
-          uploadSymbols: true
-        },
-        export_xcargs: [
-          '-allowProvisioningUpdates',
-          "-authenticationKeyPath #{key_path.shellescape}",
-          "-authenticationKeyID #{key_id.shellescape}",
-          "-authenticationKeyIssuerID #{issuer_id.shellescape}"
-        ].join(' ')
-      )
+        prepare_project(build_number)
+        # Só o target do app: os pods são assinados pelo Xcode ao serem embutidos.
+        update_code_signing_settings(
+          path: PROJECT,
+          use_automatic_signing: false,
+          team_id: team_id,
+          targets: [SCHEME],
+          build_configurations: ['Release'],
+          code_sign_identity: 'Apple Distribution',
+          profile_name: profile_name,
+          bundle_identifier: app_identifier
+        )
+
+        ipa = build_app(
+          workspace: WORKSPACE,
+          scheme: SCHEME,
+          configuration: 'Release',
+          destination: 'generic/platform=iOS',
+          archive_path: ARCHIVE_PATH,
+          output_directory: OUTPUT_DIR,
+          output_name: 'ClubedoJogo.ipa',
+          export_method: 'app-store',
+          export_options: {
+            signingStyle: 'manual',
+            teamID: team_id,
+            provisioningProfiles: { app_identifier => profile_name },
+            manageAppVersionAndBuildNumber: false,
+            uploadSymbols: true
+          }
+        )
+      ensure
+        delete_keychain(name: KEYCHAIN) if File.exist?(File.expand_path("~/Library/Keychains/#{KEYCHAIN}-db"))
+      end
       verify_distribution_signature(ipa, team_id)
 
-      upload_to_testflight(
-        api_key: api_key,
-        ipa: ipa,
-        app_platform: 'ios',
-        skip_waiting_for_build_processing: true
-      )
+      if options[:validate_only]
+        # O altool acha a chave AuthKey_<id>.p8 em API_PRIVATE_KEYS_DIR.
+        ENV['API_PRIVATE_KEYS_DIR'] = secrets_dir
+        sh('xcrun', 'altool', '--validate-app', '--file', ipa, '--type', 'ios', '--apiKey', key_id, '--apiIssuer', issuer_id)
+        UI.success('O App Store Connect validou o .ipa. Nada foi enviado.')
+      else
+        upload_to_testflight(api_key: api_key, ipa: ipa, app_platform: 'ios', skip_waiting_for_build_processing: true)
+      end
     end
   end
 end

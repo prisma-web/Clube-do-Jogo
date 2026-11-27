@@ -111,20 +111,22 @@ Localmente, `plugins/withReleaseSigning.js` assina o release com a keystore de `
 
 ## Release iOS no TestFlight
 
-O mesmo push da tag `vX.Y.Z` dispara `.github/workflows/ios-release.yml`, separado do workflow do Android. Uma falha no iOS não afeta o APK nem o GitHub Release. O job roda na imagem `xcode-27` com o Xcode 27.1. Com o Xcode 26.6 da imagem `macos-26`, o export terminou sem erro mas devolveu o `.ipa` com a assinatura ad hoc do archive, e o App Store Connect o recusou; o mesmo archive, exportado com o Xcode 27.1, sai assinado pelo certificado Apple Distribution do time. O App Store Connect aceita builds de Xcode 26 ou mais novo, e o Expo SDK 57 pede Xcode 26.4 ou mais novo. Para trocar de Xcode, mude `XCODE_APP` e a imagem do runner no workflow.
+O mesmo push da tag `vX.Y.Z` dispara `.github/workflows/ios-release.yml`, separado do workflow do Android. Uma falha no iOS não afeta o APK nem o GitHub Release. O job roda na imagem `xcode-27` com o Xcode 27.1. O App Store Connect aceita builds de Xcode 26 ou mais novo, e o Expo SDK 57 pede Xcode 26.4 ou mais novo. Para trocar de Xcode, mude `XCODE_APP` e a imagem do runner no workflow.
 
 O job confere a tag e as credenciais, instala Node e Ruby e roda `bundle exec fastlane ios beta` em `apps/mobile`. A lane está em `apps/mobile/fastlane/Fastfile`, com fastlane e CocoaPods fixados em `apps/mobile/Gemfile.lock`. Ela:
 
 1. Consulta o último build enviado ao App Store Connect, de qualquer versão e mesmo ainda em processamento, e usa esse número + 1 como `CFBundleVersion` (`IOS_BUILD_NUMBER` em `app.config.ts`). O primeiro upload é o build 1. A versão (`CFBundleShortVersionString`) é o `X.Y.Z` da tag.
 2. Gera o projeto com `npx expo prebuild --platform ios --clean` e `APP_VARIANT=production`, e roda `pod install`.
-3. Compila o archive Release sem assinatura e depois o assina ad hoc com `codesign`: os frameworks embutidos e o `.app`, este com `ios/ClubedoJogo/ClubedoJogo.entitlements`. Não precisa de certificado nem de aparelho registrado. O Xcode não assina ad hoc um app de iPhone sozinho (pede provisioning profile), por isso a assinatura fica fora dele. Os entitlements nessa assinatura são o que o export usa para montar o profile.
-4. Exporta o `.ipa` para App Store Connect com assinatura automática na nuvem da Apple (certificado de distribuição gerenciado pela Apple), usando a API key com `-allowProvisioningUpdates`. O Xcode cria ou atualiza sozinho o provisioning profile de App Store. Nenhum certificado ou profile fica no repositório, nos secrets ou no runner.
+3. Importa o certificado Apple Distribution dos secrets num keychain criado só para o run e apagado no fim da lane. Com a API key, usa o provisioning profile de App Store desse certificado e o cria se ele não existir (`get_provisioning_profile`).
+4. Põe o target `ClubedoJogo` em assinatura manual com esse certificado e esse profile, compila o archive Release assinado e exporta o `.ipa` para App Store Connect. Os pods não mudam; o Xcode assina cada framework ao embuti-lo no app.
 5. Confere que o `.ipa` saiu assinado pelo certificado Apple Distribution do time e falha antes do upload se não saiu.
 6. Envia ao TestFlight sem esperar o processamento. O grupo interno com distribuição automática recebe o build quando a Apple termina de processar, em geral entre 5 e 30 minutos.
 
 `app.config.ts` declara `ITSAppUsesNonExemptEncryption = false`, porque o app só usa HTTPS e a criptografia do sistema. Sem isso, cada build espera a resposta de conformidade de exportação no App Store Connect. Revise se o app passar a usar criptografia própria.
 
-`bundle exec fastlane ios archive` faz os passos 2 e 3 sem conta da Apple, para conferir num Mac que o projeto de produção compila. Ele exige as mesmas variáveis `EXPO_APPLICATION_ID` e `EXPO_PUBLIC_*` do release.
+A assinatura não é a automática na nuvem da Apple. Um archive sem assinatura exportado assim saía com o certificado Apple Distribution do time, mas o App Store Connect recusava o executável e todos os frameworks com "Invalid Signature. Code failed to satisfy specified code requirement(s)" (erro 90035), nas tags v1.3.8 e v1.3.9.
+
+`bundle exec fastlane ios archive` faz o passo 2 e compila o archive sem assinatura, sem conta da Apple, para conferir num Mac que o projeto de produção compila. Ele exige as mesmas variáveis `EXPO_APPLICATION_ID` e `EXPO_PUBLIC_*` do release.
 
 ### Configuração única na Apple
 
@@ -135,7 +137,22 @@ Faça uma vez, com a conta do Apple Developer Program:
 3. Em Certificates, Identifiers & Profiles → Identifiers → +, registre um App ID do tipo App, explícito, com o bundle ID igual à variable `EXPO_APPLICATION_ID` (`com.clubedojogo.mobile`). Marque as capabilities **Push Notifications** e **Associated Domains**, que o app declara (`aps-environment` do `expo-notifications` e `webcredentials:` para o preenchimento de senhas). Se a Apple disser que o identificador já está em uso, ele pertence a outra conta. Trocar o ID muda também o pacote do Android, então decida isso antes do primeiro release iOS.
 4. Em [App Store Connect](https://appstoreconnect.apple.com) → Apps → + → New App, crie o app: plataforma iOS, nome Clube do Jogo, idioma principal Português (Brasil), o bundle ID do passo 3 e um SKU qualquer (por exemplo `clube-do-jogo`).
 5. No app, em TestFlight → Internal Testing → +, crie o grupo interno e deixe marcada a distribuição automática ("Enable automatic distribution"). Adicione os testadores. Testador interno precisa ser usuário do time em Users and Access, com qualquer papel; convide lá primeiro quem ainda não for.
-6. Em Users and Access → Integrations → App Store Connect API → Team Keys, gere uma chave com acesso **Admin**. A assinatura na nuvem usa o certificado de distribuição gerenciado pela Apple, e chaves App Manager ou Developer não têm acesso a ele por padrão. Baixe o `.p8` (a Apple só deixa baixar uma vez) e anote o Key ID e o Issuer ID mostrado no topo da página.
+6. Em Users and Access → Integrations → App Store Connect API → Team Keys, gere uma chave com acesso **Admin** ou **App Manager**; ela precisa criar provisioning profiles. Baixe o `.p8` (a Apple só deixa baixar uma vez) e anote o Key ID e o Issuer ID mostrado no topo da página.
+
+7. Crie o certificado Apple Distribution do CI. Gere a chave e o pedido sem sair do terminal, numa pasta só sua:
+
+   ```sh
+   umask 077
+   openssl genrsa -out dist.key 2048
+   openssl req -new -key dist.key -out dist.csr -subj "/CN=Clube do Jogo Distribution/C=BR"
+   ```
+
+   Em Certificates, Identifiers & Profiles → Certificates → +, escolha Apple Distribution, envie o `dist.csr` e baixe o `.cer`. O time aceita no máximo três certificados de distribuição; sem vaga, revogue um que nenhum outro lugar use. Revogar não tira do ar builds que já estão no TestFlight ou na App Store. Depois junte chave e certificado num `.p12` com senha. O `-legacy` gera um arquivo que o `security` do macOS importa.
+
+   ```sh
+   openssl rand -base64 24 > p12.pass
+   openssl pkcs12 -export -legacy -inkey dist.key -in <(openssl x509 -inform DER -in distribution.cer) -out dist.p12 -passout file:p12.pass
+   ```
 
 ### Secrets e variables do iOS
 
@@ -144,6 +161,8 @@ Faça uma vez, com a conta do Apple Developer Program:
 | `APP_STORE_CONNECT_API_KEY_ID` | secret | Key ID da chave |
 | `APP_STORE_CONNECT_API_KEY_ISSUER_ID` | secret | Issuer ID |
 | `APP_STORE_CONNECT_API_KEY_P8` | secret | Conteúdo do `.p8`, em PEM ou em base64 |
+| `IOS_DISTRIBUTION_CERTIFICATE_P12` | secret | O `.p12` do certificado Apple Distribution, em base64 |
+| `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD` | secret | Senha do `.p12` |
 | `APPLE_TEAM_ID` | variable | Team ID |
 
 O workflow também lê `EXPO_APPLICATION_ID` e as quatro `EXPO_PUBLIC_*` do Android. Sem qualquer um desses valores, ele falha no primeiro passo e lista o que falta. Para cadastrar sem deixar os valores no histórico do shell:
@@ -152,14 +171,16 @@ O workflow também lê `EXPO_APPLICATION_ID` e as quatro `EXPO_PUBLIC_*` do Andr
 gh secret set APP_STORE_CONNECT_API_KEY_ID
 gh secret set APP_STORE_CONNECT_API_KEY_ISSUER_ID
 gh secret set APP_STORE_CONNECT_API_KEY_P8 < AuthKey_XXXXXXXXXX.p8
+gh secret set IOS_DISTRIBUTION_CERTIFICATE_P12 < <(base64 < dist.p12)
+gh secret set IOS_DISTRIBUTION_CERTIFICATE_PASSWORD < p12.pass
 gh variable set APPLE_TEAM_ID --body XXXXXXXXXX
 ```
 
-Guarde o `.p8` num cofre e apague a cópia local. Se a chave vazar, revogue-a no App Store Connect e cadastre outra.
+Guarde o `.p8`, o `.p12` e a senha num cofre e apague as cópias locais. Se a chave vazar, revogue-a no App Store Connect e cadastre outra. Se o certificado vazar ou vencer (vale um ano), revogue-o, crie outro pelo passo 7 e troque os dois secrets; o profile novo sai sozinho no próximo run.
 
 ### Reenviar uma versão
 
-Cada run sobe um build novo da mesma versão, com o próximo build number. Para reenviar, use "Re-run jobs" no run da tag, ou Actions → iOS release → Run workflow, escolhendo a tag em "Use workflow from". O workflow recusa um branch nesse campo. Um build que já subiu não precisa de reenvio para aparecer no TestFlight; espere o processamento terminar.
+Cada run sobe um build novo da mesma versão, com o próximo build number. Para reenviar, use "Re-run jobs" no run da tag, ou Actions → iOS release → Run workflow, escolhendo a tag em "Use workflow from". O workflow recusa um branch nesse campo. Marcar "Só validar" roda a mesma lane com `validate_only:true`: o App Store Connect confere o `.ipa` com `altool --validate-app` e nada é enviado. Um build que já subiu não precisa de reenvio para aparecer no TestFlight; espere o processamento terminar.
 
 ## Evidência e limites
 
@@ -167,4 +188,4 @@ Registre unit, live e perf separadamente. Faça cinco aquecimentos e dez amostra
 
 Notificações remotas permanecem indisponíveis sem configuração de transporte. Os testes locais cobrem fila e receipts sintéticos, recebimento de payload injetado, sessão e abertura do destino. Não descreva esses resultados como entrega por Expo Push Service, APNs ou FCM.
 
-O escopo atual não inclui App Store pública, Google Play ou OTA remota. As credenciais de distribuição são a keystore do APK Android e a API key do App Store Connect usada pelo TestFlight. Os critérios restantes de acessibilidade, navegação, privacidade e desempenho continuam sendo executados nos AVDs e simuladores dedicados.
+O escopo atual não inclui App Store pública, Google Play ou OTA remota. As credenciais de distribuição são a keystore do APK Android, a API key do App Store Connect e o certificado Apple Distribution usados pelo TestFlight. Os critérios restantes de acessibilidade, navegação, privacidade e desempenho continuam sendo executados nos AVDs e simuladores dedicados.
