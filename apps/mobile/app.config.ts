@@ -46,6 +46,10 @@ if (isDistributed && !requestedVersion) {
   throw new Error(`APP_VERSION deve ser X.Y.Z com minor e patch abaixo de 100; recebido "${process.env.APP_VERSION}".`);
 }
 const { version, versionCode } = requestedVersion ?? parseVersion(DEFAULT_VERSION)!;
+const iosBuildNumber = process.env.IOS_BUILD_NUMBER || '1';
+if (!/^[1-9]\d{0,8}$/.test(iosBuildNumber)) {
+  throw new Error(`IOS_BUILD_NUMBER deve ser um inteiro positivo; recebido "${iosBuildNumber}".`);
+}
 const apkUpdates = variant === 'production' ? { repo: 'prisma-web/Clube-do-Jogo' } : null;
 const productUpdatesReleases = variant === 'development' ? process.env.EXPO_PRODUCT_UPDATES_RELEASES_URL : undefined;
 const productUpdates = productUpdatesReleases ? { releases: productUpdatesReleases } : null;
@@ -69,7 +73,8 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: applicationId,
-    buildNumber: '1',
+    buildNumber: iosBuildNumber,
+    config: { usesNonExemptEncryption: false },
     associatedDomains: [`webcredentials:${siteHost}`],
   },
   android: {

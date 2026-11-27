@@ -8,7 +8,7 @@ const expoBin = fileURLToPath(new URL('../../node_modules/expo/bin/cli', import.
 
 function readConfig(variables: Record<string, string> = {}) {
   const env = { ...process.env };
-  for (const key of ['APP_VARIANT', 'APP_VERSION', 'EAS_BUILD_PROFILE', 'EXPO_APPLICATION_ID', 'EXPO_EAS_PROJECT_ID', 'EXPO_LOCAL_HTTP', 'EXPO_PRODUCT_UPDATES_RELEASES_URL', 'EXPO_PUBLIC_SITE_URL']) {
+  for (const key of ['APP_VARIANT', 'APP_VERSION', 'EAS_BUILD_PROFILE', 'EXPO_APPLICATION_ID', 'EXPO_EAS_PROJECT_ID', 'EXPO_LOCAL_HTTP', 'EXPO_PRODUCT_UPDATES_RELEASES_URL', 'EXPO_PUBLIC_SITE_URL', 'IOS_BUILD_NUMBER']) {
     delete env[key];
   }
   return spawnSync(process.execPath, [expoBin, 'config', '--type', 'public', '--json'], {
@@ -123,6 +123,20 @@ test('versão vem de APP_VERSION e o versionCode do Android deriva dela', () => 
   }
 });
 
+test('build number do iOS vem de IOS_BUILD_NUMBER e não mexe no Android', () => {
+  const injected = readDistributedConfig('production', { APP_VERSION: '1.2.3', IOS_BUILD_NUMBER: '42' });
+  assert.equal(injected.status, 0, injected.stderr);
+  const config = JSON.parse(injected.stdout);
+  assert.equal(config.ios.buildNumber, '42');
+  assert.equal(config.android.versionCode, 10203);
+
+  for (const buildNumber of ['0', '-1', '1.2', 'abc', '007']) {
+    const result = readConfig({ IOS_BUILD_NUMBER: buildNumber });
+    assert.notEqual(result.status, 0, `aceitou IOS_BUILD_NUMBER=${buildNumber}`);
+    assert.match(result.stderr, /IOS_BUILD_NUMBER/);
+  }
+});
+
 test('builds distribuídos recusam APP_VERSION fora de X.Y.Z com minor e patch abaixo de 100', () => {
   for (const version of ['1.2', 'v1.2.3', '1.2.3-beta', '1.100.0', '1.2.100', '01.2.3', 'abc']) {
     for (const variant of ['preview', 'production']) {
@@ -173,9 +187,9 @@ test('só um build de desenvolvimento aceita outro endereço para as Novidades, 
   assert.equal(JSON.parse(plain.stdout).extra?.productUpdates, undefined);
 });
 
-function readIntrospectedSchemes(variables: Record<string, string>) {
+function readIntrospectedInfoPlist(variables: Record<string, string>) {
   const env = { ...process.env };
-  for (const key of ['APP_VARIANT', 'EXPO_APPLICATION_ID', 'EXPO_LOCAL_HTTP']) delete env[key];
+  for (const key of ['APP_VARIANT', 'EXPO_APPLICATION_ID', 'EXPO_LOCAL_HTTP', 'IOS_BUILD_NUMBER']) delete env[key];
   const result = spawnSync(process.execPath, [expoBin, 'config', '--type', 'introspect', '--json'], {
     cwd: mobileRoot,
     env: { ...env, EXPO_NO_DOTENV: '1', EXPO_NO_TELEMETRY: '1', ...variables },
@@ -183,10 +197,20 @@ function readIntrospectedSchemes(variables: Record<string, string>) {
     timeout: 120_000,
   });
   assert.equal(result.status, 0, result.stderr);
-  const config = JSON.parse(result.stdout);
-  const urlTypes: Array<{ CFBundleURLSchemes?: string[] }> = config.ios?.infoPlist?.CFBundleURLTypes ?? [];
+  return JSON.parse(result.stdout).ios?.infoPlist ?? {};
+}
+
+function readIntrospectedSchemes(variables: Record<string, string>) {
+  const urlTypes: Array<{ CFBundleURLSchemes?: string[] }> = readIntrospectedInfoPlist(variables).CFBundleURLTypes ?? [];
   return urlTypes.flatMap(type => type.CFBundleURLSchemes ?? []);
 }
+
+test('o Info.plist de produção leva o build number injetado e dispensa a pergunta de criptografia do TestFlight', () => {
+  const infoPlist = readIntrospectedInfoPlist({ APP_VARIANT: 'production', EXPO_APPLICATION_ID: 'com.example.club.production', APP_VERSION: '1.2.3', IOS_BUILD_NUMBER: '42' });
+  assert.equal(infoPlist.CFBundleShortVersionString, '1.2.3');
+  assert.equal(infoPlist.CFBundleVersion, '42');
+  assert.equal(infoPlist.ITSAppUsesNonExemptEncryption, false);
+});
 
 test('o esquema exp+ do dev client só existe na variante development', () => {
   assert.ok(readIntrospectedSchemes({}).includes('exp+clube-do-jogo'));
